@@ -2,4 +2,68 @@
 
 [**Play it now**](https://andeplane.github.io/particle-defence/)
 
-A 2-player tower defence game built with Phaser 3. Spawn particles from your base, upgrade them, and fight through the maze to destroy the enemy base. Play 1 Player vs AI or 2 Player.
+## What it is
+
+Particle Defence is a 2-player tower defence game where you spawn particles from your base, upgrade them with gold from kills, and fight through a procedurally generated maze to destroy the enemy base. Particles navigate the maze, collide with enemy particles in real-time combat, and deal damage when they reach the enemy base. Win by reducing the enemy base HP to zero.
+
+**Features:**
+- **1 Player vs AI** – Battle an AI that upgrades automatically and uses nukes tactically
+- **2 Player** – Local multiplayer, both players use keyboard
+- **5 upgrade types** – Health, Attack, Radius, Spawn Rate, Speed (costs scale with level)
+- **Nuclear weapon** – Instantly wipe all enemy particles (cooldown, reduced gold reward)
+- Procedurally generated mazes, spatial-hash collision detection, explosion effects
+
+## Game modes
+
+| Mode | Description |
+|------|-------------|
+| **1 Player vs AI** | You (left, cyan) vs AI (right, red). AI controls its own upgrades and nuke. |
+| **2 Player** | Both players control upgrades and nuke via keyboard. |
+
+## Controls
+
+### Player 1 (Left / Cyan)
+| Key | Action |
+|-----|--------|
+| Q | Upgrade Health |
+| W | Upgrade Attack |
+| E | Upgrade Radius |
+| R | Upgrade Spawn Rate |
+| T | Upgrade Speed |
+| F | Launch Nuke |
+
+### Player 2 (Right / Red) – 2 Player only
+| Key | Action |
+|-----|--------|
+| U | Upgrade Health |
+| I | Upgrade Attack |
+| O | Upgrade Radius |
+| P | Upgrade Spawn Rate |
+| Y | Upgrade Speed |
+| J | Launch Nuke |
+
+## Build & run
+
+**Requirements:** Node.js 18+
+
+```bash
+# Install dependencies
+npm install
+
+# Development (hot reload)
+npm run dev
+
+# Production build
+npm run build
+
+# Preview production build locally
+npm run preview
+```
+
+Build output goes to `dist/`.
+
+## Tech stack
+
+- **Phaser 3** – Game framework
+- **TypeScript** – Language
+- **Vite** – Build tool and dev server
