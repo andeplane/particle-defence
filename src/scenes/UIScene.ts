@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { CONFIG, type UpgradeType } from '../config';
 import type { GameScene } from './GameScene';
+import type { GameMode } from './MenuScene';
 
 interface UpgradeButton {
   bg: Phaser.GameObjects.Rectangle;
@@ -21,6 +22,7 @@ interface NukeButton {
 
 export class UIScene extends Phaser.Scene {
   private gameScene!: GameScene;
+  private mode: GameMode = 'pvp';
 
   // HUD elements
   private p1HPBar!: Phaser.GameObjects.Graphics;
@@ -41,8 +43,9 @@ export class UIScene extends Phaser.Scene {
     super({ key: 'UIScene' });
   }
 
-  init(data: { gameScene: GameScene }): void {
+  init(data: { gameScene: GameScene; mode?: GameMode }): void {
     this.gameScene = data.gameScene;
+    this.mode = data.mode ?? 'pvp';
   }
 
   create(): void {
@@ -112,11 +115,13 @@ export class UIScene extends Phaser.Scene {
       this.createButton(x, bottomY, btnW, btnH, u.type, u.label, u.p1Key, 0);
     });
 
-    // P2 buttons (bottom right)
-    upgrades.forEach((u, i) => {
-      const x = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - (4 - i) * (btnW + gap) - btnW / 2;
-      this.createButton(x, bottomY, btnW, btnH, u.type, u.label, u.p2Key, 1);
-    });
+    // P2 buttons (bottom right) - only in 2P mode
+    if (this.mode === 'pvp') {
+      upgrades.forEach((u, i) => {
+        const x = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - (4 - i) * (btnW + gap) - btnW / 2;
+        this.createButton(x, bottomY, btnW, btnH, u.type, u.label, u.p2Key, 1);
+      });
+    }
   }
 
   private createButton(
@@ -159,9 +164,11 @@ export class UIScene extends Phaser.Scene {
     const p1X = CONFIG.UI_GAP * 2.5 + 5 * (btnW + gap) + btnW / 2;
     this.nukeButtons.push(this.createNukeButton(p1X, bottomY, btnW, btnH, 0, 'F'));
 
-    // P2 nuke button (leftmost of 6, mirrored from P1)
-    const p2X = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - 5 * (btnW + gap) - btnW / 2;
-    this.nukeButtons.push(this.createNukeButton(p2X, bottomY, btnW, btnH, 1, 'J'));
+    // P2 nuke button - only in 2P mode
+    if (this.mode === 'pvp') {
+      const p2X = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - 5 * (btnW + gap) - btnW / 2;
+      this.nukeButtons.push(this.createNukeButton(p2X, bottomY, btnW, btnH, 1, 'J'));
+    }
   }
 
   private createNukeButton(
@@ -234,7 +241,7 @@ export class UIScene extends Phaser.Scene {
         const nukeBtn = this.nukeButtons.find(b => b.playerId === 0);
         this.launchNuke(0, nukeBtn?.bg);
       }
-      if (key === 'J') {
+      if (this.mode === 'pvp' && key === 'J') {
         const nukeBtn = this.nukeButtons.find(b => b.playerId === 1);
         this.launchNuke(1, nukeBtn?.bg);
       }
@@ -242,7 +249,7 @@ export class UIScene extends Phaser.Scene {
         const btn = this.buttons.find(b => b.playerId === 0 && b.type === p1Keys[key]);
         this.purchaseUpgrade(0, p1Keys[key], btn?.bg);
       }
-      if (p2Keys[key]) {
+      if (this.mode === 'pvp' && p2Keys[key]) {
         const btn = this.buttons.find(b => b.playerId === 1 && b.type === p2Keys[key]);
         this.purchaseUpgrade(1, p2Keys[key], btn?.bg);
       }
@@ -316,7 +323,8 @@ export class UIScene extends Phaser.Scene {
     this.p2HPText.setText(`${p2.baseHP}/${CONFIG.BASE_HP}`);
 
     this.p1GoldText.setText(`Gold: $${p1.gold}  Kills: ${p1.kills}`);
-    this.p2GoldText.setText(`Gold: $${p2.gold}  Kills: ${p2.kills}`);
+    const p2Prefix = this.mode === 'ai' ? 'AI ' : '';
+    this.p2GoldText.setText(`${p2Prefix}Gold: $${p2.gold}  Kills: ${p2.kills}`);
 
     const p1Count = this.gameScene.particles.filter(p => p.owner === 0).length;
     const p2Count = this.gameScene.particles.filter(p => p.owner === 1).length;

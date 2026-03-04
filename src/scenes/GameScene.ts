@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
+import { AIController } from '../ai';
 import { CONFIG } from '../config';
 import { generateMaze, getCellSize, isInBase, isWall, type MazeGrid } from '../maze';
 import { GameParticle } from '../particle';
 import { Player } from '../player';
 import { SpatialHash } from '../spatial-hash';
 import { resolveCollisions } from '../collision';
+import type { GameMode } from './MenuScene';
 
 export class GameScene extends Phaser.Scene {
   players!: [Player, Player];
@@ -16,6 +18,8 @@ export class GameScene extends Phaser.Scene {
   gameOver: boolean = false;
   winner: number = -1;
   gameTimeMs: number = 0;
+  mode: GameMode = 'pvp';
+  private aiController: AIController | null = null;
 
   // Glow textures
   private glowTextureP1Created = false;
@@ -23,6 +27,10 @@ export class GameScene extends Phaser.Scene {
 
   constructor() {
     super({ key: 'GameScene' });
+  }
+
+  init(data: { mode?: GameMode }): void {
+    this.mode = data.mode ?? 'pvp';
   }
 
   create(): void {
@@ -39,7 +47,13 @@ export class GameScene extends Phaser.Scene {
     this.renderBases();
     this.createParticleTextures();
 
-    this.scene.launch('UIScene', { gameScene: this });
+    if (this.mode === 'ai') {
+      this.aiController = new AIController();
+    } else {
+      this.aiController = null;
+    }
+
+    this.scene.launch('UIScene', { gameScene: this, mode: this.mode });
   }
 
   private renderMaze(): void {
@@ -96,7 +110,8 @@ export class GameScene extends Phaser.Scene {
       fontFamily: 'monospace',
     }).setOrigin(0.5).setAlpha(0.5).setDepth(2);
 
-    this.add.text(CONFIG.GAME_WIDTH - baseW / 2, CONFIG.GAME_HEIGHT / 2, 'P2\nBASE', {
+    const p2Label = this.mode === 'ai' ? 'AI\nBASE' : 'P2\nBASE';
+    this.add.text(CONFIG.GAME_WIDTH - baseW / 2, CONFIG.GAME_HEIGHT / 2, p2Label, {
       fontSize: '28px',
       color: CONFIG.PLAYER2_COLOR_STR,
       align: 'center',
@@ -266,6 +281,10 @@ export class GameScene extends Phaser.Scene {
     if (this.gameOver) return;
 
     this.gameTimeMs += delta;
+
+    if (this.aiController) {
+      this.aiController.update(delta, this);
+    }
     const dt = delta / 1000;
 
     // Spawn particles
@@ -345,6 +364,7 @@ export class GameScene extends Phaser.Scene {
 
   private showGameOver(): void {
     const winnerColor = this.winner === 0 ? CONFIG.PLAYER1_COLOR_STR : CONFIG.PLAYER2_COLOR_STR;
+    const winnerLabel = this.winner === 1 && this.mode === 'ai' ? 'AI WINS!' : `PLAYER ${this.winner + 1} WINS!`;
     const overlay = this.add.rectangle(
       CONFIG.GAME_WIDTH / 2, CONFIG.GAME_HEIGHT / 2,
       CONFIG.GAME_WIDTH, CONFIG.GAME_HEIGHT,
@@ -354,7 +374,7 @@ export class GameScene extends Phaser.Scene {
 
     const text = this.add.text(
       CONFIG.GAME_WIDTH / 2, CONFIG.GAME_HEIGHT / 2 - 60,
-      `PLAYER ${this.winner + 1} WINS!`,
+      winnerLabel,
       {
         fontSize: '96px',
         color: winnerColor,
@@ -365,7 +385,7 @@ export class GameScene extends Phaser.Scene {
 
     const restart = this.add.text(
       CONFIG.GAME_WIDTH / 2, CONFIG.GAME_HEIGHT / 2 + 60,
-      'Click to restart',
+      'Click to return to menu',
       {
         fontSize: '40px',
         color: '#ffffff',
@@ -393,7 +413,7 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(1000, () => {
       this.input.once('pointerdown', () => {
         this.scene.stop('UIScene');
-        this.scene.restart();
+        this.scene.start('MenuScene');
       });
     });
   }
