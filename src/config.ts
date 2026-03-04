@@ -17,6 +17,7 @@ export const CONFIG = {
   PARTICLE_SPEED: 180,
   SPAWN_INTERVAL_MS: 60,
   MAX_PARTICLES_PER_PLAYER: 1000,
+  MAX_PARTICLES_TOTAL: 2000,
   /** Random drift per second (fraction of speed) to prevent stuck particles */
   PARTICLE_DRIFT_STRENGTH: 0.15,
   /** Chance (0-1) that random drift pushes towards enemy base */
@@ -31,6 +32,10 @@ export const CONFIG = {
 
   // Economy
   KILL_REWARD: 1,
+  /** Fraction of KILL_REWARD awarded per nuke kill (1/4) */
+  NUCLEAR_KILL_REWARD_FRACTION: 0.25,
+  NUCLEAR_FIRST_AVAILABLE_MS: 0,  // 3 minutes
+  NUCLEAR_COOLDOWN_MS: 600_000,        // 10 minutes
   UPGRADE_COSTS: {
     health: 5,
     attack: 5,

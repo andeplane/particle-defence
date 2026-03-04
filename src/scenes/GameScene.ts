@@ -15,6 +15,7 @@ export class GameScene extends Phaser.Scene {
   spawnTimers: number[] = [0, 0];
   gameOver: boolean = false;
   winner: number = -1;
+  gameTimeMs: number = 0;
 
   // Glow textures
   private glowTextureP1Created = false;
@@ -31,6 +32,7 @@ export class GameScene extends Phaser.Scene {
     this.gameOver = false;
     this.winner = -1;
     this.spawnTimers = [0, 0];
+    this.gameTimeMs = 0;
 
     this.maze = generateMaze();
     this.renderMaze();
@@ -158,12 +160,14 @@ export class GameScene extends Phaser.Scene {
   spawnParticle(owner: 0 | 1): void {
     const player = this.players[owner];
     const count = this.particles.filter(p => p.alive && p.owner === owner).length;
-    if (count >= CONFIG.MAX_PARTICLES_PER_PLAYER) return;
+    const totalAlive = this.particles.filter(p => p.alive).length;
+    if (count >= CONFIG.MAX_PARTICLES_PER_PLAYER || totalAlive >= CONFIG.MAX_PARTICLES_TOTAL) return;
 
     const { cellW } = getCellSize();
     const baseW = CONFIG.BASE_WIDTH_CELLS * cellW;
     // Spawn inside base area (always walkable) or retry until we find a non-wall position
-    let x: number, y: number;
+    let x = owner === 0 ? baseW / 2 : CONFIG.GAME_WIDTH - baseW / 2;
+    let y = CONFIG.GAME_HEIGHT / 2;
     const maxAttempts = 50;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       if (owner === 0) {
@@ -175,7 +179,7 @@ export class GameScene extends Phaser.Scene {
       if (!isWall(this.maze, x, y)) break;
     }
     // Fallback: center of base (always walkable)
-    if (isWall(this.maze, x!, y!)) {
+    if (isWall(this.maze, x, y)) {
       x = owner === 0 ? baseW / 2 : CONFIG.GAME_WIDTH - baseW / 2;
       y = CONFIG.GAME_HEIGHT / 2;
     }
@@ -232,9 +236,36 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(500, () => emitter.destroy());
   }
 
+  launchNuke(playerId: 0 | 1): boolean {
+    if (this.gameOver) return false;
+    const player = this.players[playerId];
+    if (!player.canUseNuke(this.gameTimeMs)) return false;
+
+    const enemyId = playerId === 0 ? 1 : 0;
+    const enemyColor = enemyId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+
+    let killCount = 0;
+    for (const p of this.particles) {
+      if (!p.alive) continue;
+      if (p.owner === enemyId) {
+        this.spawnExplosion(p.x, p.y, enemyColor);
+        p.destroy();
+        killCount++;
+      }
+    }
+
+    const reward = Math.floor(killCount * CONFIG.KILL_REWARD * CONFIG.NUCLEAR_KILL_REWARD_FRACTION);
+    player.gold += reward;
+
+    player.useNuke(this.gameTimeMs);
+    this.cameras.main.shake(300, 0.008);
+    return true;
+  }
+
   update(_time: number, delta: number): void {
     if (this.gameOver) return;
 
+    this.gameTimeMs += delta;
     const dt = delta / 1000;
 
     // Spawn particles

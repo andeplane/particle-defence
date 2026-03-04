@@ -12,6 +12,9 @@ export class Player {
   spawnRateLevel: number = 0;
   speedLevel: number = 0;
 
+  /** Time (ms) when nuke was last used; -1 if never used */
+  lastNukeTimeMs: number = -1;
+
   constructor(id: 0 | 1) {
     this.id = id;
     this.baseHP = CONFIG.BASE_HP;
@@ -70,6 +73,25 @@ export class Player {
       case 'speed': this.speedLevel++; break;
     }
     return true;
+  }
+
+  canUseNuke(gameTimeMs: number): boolean {
+    if (this.lastNukeTimeMs < 0) {
+      return gameTimeMs >= CONFIG.NUCLEAR_FIRST_AVAILABLE_MS;
+    }
+    return gameTimeMs >= this.lastNukeTimeMs + CONFIG.NUCLEAR_COOLDOWN_MS;
+  }
+
+  useNuke(gameTimeMs: number): void {
+    this.lastNukeTimeMs = gameTimeMs;
+  }
+
+  getNukeCooldownRemainingMs(gameTimeMs: number): number {
+    if (this.canUseNuke(gameTimeMs)) return 0;
+    if (this.lastNukeTimeMs < 0) {
+      return Math.max(0, CONFIG.NUCLEAR_FIRST_AVAILABLE_MS - gameTimeMs);
+    }
+    return Math.max(0, this.lastNukeTimeMs + CONFIG.NUCLEAR_COOLDOWN_MS - gameTimeMs);
   }
 
   takeDamage(amount: number): void {

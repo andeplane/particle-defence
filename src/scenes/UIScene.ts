@@ -11,6 +11,14 @@ interface UpgradeButton {
   playerId: 0 | 1;
 }
 
+interface NukeButton {
+  bg: Phaser.GameObjects.Rectangle;
+  labelText: Phaser.GameObjects.Text;
+  statusText: Phaser.GameObjects.Text;
+  keyText: Phaser.GameObjects.Text;
+  playerId: 0 | 1;
+}
+
 export class UIScene extends Phaser.Scene {
   private gameScene!: GameScene;
 
@@ -24,6 +32,7 @@ export class UIScene extends Phaser.Scene {
   private p1HPText!: Phaser.GameObjects.Text;
   private p2HPText!: Phaser.GameObjects.Text;
   private buttons: UpgradeButton[] = [];
+  private nukeButtons: NukeButton[] = [];
 
   // Gold popup pool
   private popups: Phaser.GameObjects.Text[] = [];
@@ -41,6 +50,7 @@ export class UIScene extends Phaser.Scene {
     this.createGoldDisplay();
     this.createStatsDisplay();
     this.createUpgradeButtons();
+    this.createNukeButtons();
     this.setupKeyboard();
   }
 
@@ -139,6 +149,77 @@ export class UIScene extends Phaser.Scene {
     this.buttons.push({ bg, label: labelText, costText, keyText, type, playerId });
   }
 
+  private createNukeButtons(): void {
+    const btnW = CONFIG.UI_BTN_WIDTH;
+    const btnH = CONFIG.UI_BTN_HEIGHT;
+    const gap = CONFIG.UI_GAP;
+    const bottomY = CONFIG.GAME_HEIGHT - btnH - CONFIG.UI_GAP * 2;
+
+    // P1 nuke button (after upgrade buttons, index 5)
+    const p1X = CONFIG.UI_GAP * 2.5 + 5 * (btnW + gap) + btnW / 2;
+    this.nukeButtons.push(this.createNukeButton(p1X, bottomY, btnW, btnH, 0, 'F'));
+
+    // P2 nuke button (leftmost of 6, mirrored from P1)
+    const p2X = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - 5 * (btnW + gap) - btnW / 2;
+    this.nukeButtons.push(this.createNukeButton(p2X, bottomY, btnW, btnH, 1, 'J'));
+  }
+
+  private createNukeButton(
+    x: number, y: number, w: number, h: number,
+    playerId: 0 | 1, keyName: string
+  ): NukeButton {
+    const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x221111, 0.85)
+      .setStrokeStyle(2, color, 0.5)
+      .setInteractive({ useHandCursor: true });
+
+    const labelText = this.add.text(x, y + h * 0.22, 'NUKE', {
+      fontSize: `${CONFIG.UI_FONT_SMALL + 2}px`, color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    const statusText = this.add.text(x, y + h * 0.52, '--:--', {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#ff6666', fontFamily: 'monospace',
+    }).setOrigin(0.5);
+
+    const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
+    }).setOrigin(0.5);
+
+    bg.on('pointerdown', () => this.launchNuke(playerId, bg));
+    bg.on('pointerover', () => bg.setFillStyle(0x332222, 0.9));
+    bg.on('pointerout', () => bg.setFillStyle(0x221111, 0.85));
+
+    return { bg, labelText, statusText, keyText, playerId };
+  }
+
+  private launchNuke(playerId: 0 | 1, btn?: Phaser.GameObjects.Rectangle): void {
+    if (this.gameScene.gameOver) return;
+    if (this.gameScene.launchNuke(playerId)) {
+      if (btn) {
+        this.tweens.add({
+          targets: btn,
+          scaleX: 1.15,
+          scaleY: 1.15,
+          duration: 80,
+          yoyo: true,
+          ease: 'Quad.easeOut',
+        });
+      }
+    } else {
+      if (btn) {
+        this.tweens.add({
+          targets: btn,
+          x: btn.x + 3,
+          duration: 40,
+          yoyo: true,
+          repeat: 2,
+          ease: 'Sine.inOut',
+        });
+      }
+    }
+  }
+
   private setupKeyboard(): void {
     const p1Keys: Record<string, UpgradeType> = {
       Q: 'health', W: 'attack', E: 'radius', R: 'spawnRate', T: 'speed',
@@ -149,6 +230,14 @@ export class UIScene extends Phaser.Scene {
 
     this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
       const key = event.key.toUpperCase();
+      if (key === 'F') {
+        const nukeBtn = this.nukeButtons.find(b => b.playerId === 0);
+        this.launchNuke(0, nukeBtn?.bg);
+      }
+      if (key === 'J') {
+        const nukeBtn = this.nukeButtons.find(b => b.playerId === 1);
+        this.launchNuke(1, nukeBtn?.bg);
+      }
       if (p1Keys[key]) {
         const btn = this.buttons.find(b => b.playerId === 0 && b.type === p1Keys[key]);
         this.purchaseUpgrade(0, p1Keys[key], btn?.bg);
@@ -240,6 +329,24 @@ export class UIScene extends Phaser.Scene {
       const canAfford = player.canAfford(btn.type);
       btn.bg.setAlpha(canAfford ? 1 : 0.4);
       btn.costText.setText(`$${player.getUpgradeCost(btn.type)}`);
+    }
+
+    // Update nuke button cooldown display
+    const gameTimeMs = this.gameScene.gameTimeMs;
+    for (const btn of this.nukeButtons) {
+      const player = this.gameScene.players[btn.playerId];
+      const canUse = player.canUseNuke(gameTimeMs);
+      btn.bg.setAlpha(canUse ? 1 : 0.4);
+      const remainingMs = player.getNukeCooldownRemainingMs(gameTimeMs);
+      if (remainingMs <= 0) {
+        btn.statusText.setText('READY');
+        btn.statusText.setColor('#66ff66');
+      } else {
+        const mins = Math.floor(remainingMs / 60000);
+        const secs = Math.floor((remainingMs % 60000) / 1000);
+        btn.statusText.setText(`${mins}:${secs.toString().padStart(2, '0')}`);
+        btn.statusText.setColor('#ff6666');
+      }
     }
   }
 
