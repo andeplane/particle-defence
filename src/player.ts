@@ -19,7 +19,7 @@ export class Player {
   constructor(id: 0 | 1) {
     this.id = id;
     this.baseHP = CONFIG.BASE_HP;
-    this.gold = 0;
+    this.gold = CONFIG.STARTING_GOLD;
     this.kills = 0;
   }
 
