@@ -11,6 +11,7 @@ export class Player {
   radiusLevel: number = 0;
   spawnRateLevel: number = 0;
   speedLevel: number = 0;
+  maxParticlesLevel: number = 0;
 
   /** Time (ms) when nuke was last used; -1 if never used */
   lastNukeTimeMs: number = -1;
@@ -43,6 +44,10 @@ export class Player {
     return CONFIG.PARTICLE_SPEED + this.speedLevel * 20;
   }
 
+  get maxParticles(): number {
+    return CONFIG.MAX_PARTICLES_PER_PLAYER + this.maxParticlesLevel * CONFIG.MAX_PARTICLES_PER_LEVEL;
+  }
+
   getUpgradeLevel(upgrade: UpgradeType): number {
     switch (upgrade) {
       case 'health': return this.healthLevel;
@@ -50,6 +55,7 @@ export class Player {
       case 'radius': return this.radiusLevel;
       case 'spawnRate': return this.spawnRateLevel;
       case 'speed': return this.speedLevel;
+      case 'maxParticles': return this.maxParticlesLevel;
     }
   }
 
@@ -71,6 +77,7 @@ export class Player {
       case 'radius': this.radiusLevel++; break;
       case 'spawnRate': this.spawnRateLevel++; break;
       case 'speed': this.speedLevel++; break;
+      case 'maxParticles': this.maxParticlesLevel++; break;
     }
     return true;
   }

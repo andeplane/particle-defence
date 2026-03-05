@@ -2,7 +2,7 @@ import { CONFIG, type UpgradeType } from './config';
 import type { Player } from './player';
 import type { GameScene } from './scenes/GameScene';
 
-const UPGRADE_TYPES: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed'];
+const UPGRADE_TYPES: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles'];
 
 export class AIController {
   private readonly playerId: 0 | 1 = 1;
@@ -116,6 +116,12 @@ export class AIController {
       }
       case 'radius': {
         score *= 0.6;
+        break;
+      }
+      case 'maxParticles': {
+        const aiParticles = gameScene.particles.filter(p => p.alive && p.owner === this.playerId).length;
+        const nearCap = aiParticles >= ai.maxParticles * 0.8;
+        score *= nearCap ? 1.8 : 0.7;
         break;
       }
     }

@@ -175,7 +175,7 @@ export class GameScene extends Phaser.Scene {
     const player = this.players[owner];
     const count = this.particles.filter(p => p.alive && p.owner === owner).length;
     const totalAlive = this.particles.filter(p => p.alive).length;
-    if (count >= CONFIG.MAX_PARTICLES_PER_PLAYER || totalAlive >= CONFIG.MAX_PARTICLES_TOTAL) return;
+    if (count >= player.maxParticles || totalAlive >= CONFIG.MAX_PARTICLES_TOTAL) return;
 
     const baseW = this.grid.baseWidthCells * this.grid.cellW;
     // Spawn inside base area (always walkable) or retry until we find a non-wall position

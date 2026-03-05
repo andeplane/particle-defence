@@ -58,7 +58,8 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - `PARTICLE_BASE_RADIUS: 3` - Starting collision radius
 - `PARTICLE_SPEED: 180` - Base movement speed (pixels/second)
 - `SPAWN_INTERVAL_MS: 60` - Base spawn interval (reduced by spawnRate upgrades)
-- `MAX_PARTICLES_PER_PLAYER: 1000` - Max units per player
+- `MAX_PARTICLES_PER_PLAYER: 1000` - Base max units per player (increased by maxParticles upgrade)
+- `MAX_PARTICLES_PER_LEVEL: 50` - Per-level increase for maxParticles upgrade
 - `MAX_PARTICLES_TOTAL: 2000` - Global unit cap
 - `PARTICLE_DRIFT_STRENGTH: 0.15` - Random drift per second (fraction of speed) to prevent stuck particles
 - `PARTICLE_ENEMY_BIAS: 0.65` - Chance that random drift pushes towards enemy base
@@ -80,6 +81,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
   - `radius: 3`
   - `spawnRate: 10`
   - `speed: 7`
+  - `maxParticles: 10`
 - `UPGRADE_COST_MULTIPLIER: 1.3` - Cost multiplier per level (cost = baseCost * multiplier^level)
 
 ### Spatial Hash
@@ -103,7 +105,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 
 ### Helper Functions
 - `getUpgradeCost(type: UpgradeType, level: number): number` - Calculates upgrade cost based on level
-- `UpgradeType` - Type union: `'health' | 'attack' | 'radius' | 'spawnRate' | 'speed'`
+- `UpgradeType` - Type union: `'health' | 'attack' | 'radius' | 'spawnRate' | 'speed' | 'maxParticles'`
 
 ## Game Mechanics
 
@@ -124,7 +126,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - Dead particles are cleaned up and removed
 
 ### Upgrade System
-- 5 upgrade types: health, attack, radius, spawnRate, speed
+- 6 upgrade types: health, attack, radius, spawnRate, speed, maxParticles (increases particle cap by 50 per level)
 - Costs increase exponentially: `baseCost * 1.3^level`
 - Upgrades affect all future spawned particles
 - Upgrade levels tracked per player
@@ -142,7 +144,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 
 ### Game Modes
 - **1 Player vs AI** - Human (P1) vs AI (P2). AI controls upgrades and nuke automatically. P2 UI shows "AI" label and stats.
-- **2 Player** - Both players use keyboard controls. P1: Q/W/E/R/T/F, P2: U/I/O/P/Y/J
+- **2 Player** - Both players use keyboard controls. P1: Q/W/E/R/T/A/F, P2: U/I/O/P/Y/L/J. Button layout mirrors QWERTY keyboard.
 
 ## Controls
 
@@ -152,6 +154,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - **E** - Upgrade Radius
 - **R** - Upgrade Spawn Rate
 - **T** - Upgrade Speed
+- **A** - Upgrade Max Particles (+50 cap per level)
 - **F** - Launch Nuke
 
 ### Player 2 (Right/Red) - 2 Player mode only
@@ -160,6 +163,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - **O** - Upgrade Radius
 - **P** - Upgrade Spawn Rate
 - **Y** - Upgrade Speed
+- **L** - Upgrade Max Particles (+50 cap per level)
 - **J** - Launch Nuke
 
 *In 1 Player vs AI mode, P2 controls are hidden; the AI controls upgrades and nuke automatically.*

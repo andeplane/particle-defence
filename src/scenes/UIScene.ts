@@ -96,31 +96,41 @@ export class UIScene extends Phaser.Scene {
   }
 
   private createUpgradeButtons(): void {
-    const upgrades: { type: UpgradeType; label: string; p1Key: string; p2Key: string }[] = [
+    const topRowUpgrades: { type: UpgradeType; label: string; p1Key: string; p2Key: string }[] = [
       { type: 'health', label: 'HP', p1Key: 'Q', p2Key: 'U' },
       { type: 'attack', label: 'ATK', p1Key: 'W', p2Key: 'I' },
       { type: 'radius', label: 'RAD', p1Key: 'E', p2Key: 'O' },
       { type: 'spawnRate', label: 'SPWN', p1Key: 'R', p2Key: 'P' },
       { type: 'speed', label: 'VEL', p1Key: 'T', p2Key: 'Y' },
     ];
+    const bottomRowUpgrade = { type: 'maxParticles' as UpgradeType, label: 'MAX', p1Key: 'A', p2Key: 'L' };
 
     const btnW = CONFIG.UI_BTN_WIDTH;
     const btnH = CONFIG.UI_BTN_HEIGHT;
     const gap = CONFIG.UI_GAP;
-    const bottomY = CONFIG.GAME_HEIGHT - btnH - CONFIG.UI_GAP * 2;
+    const topRowY = CONFIG.GAME_HEIGHT - (btnH + gap) * 2 - CONFIG.UI_GAP * 2;
+    const bottomRowY = CONFIG.GAME_HEIGHT - btnH - CONFIG.UI_GAP * 2;
+    const staggerOffset = (btnW + gap) * 0.4;
 
-    // P1 buttons (bottom left)
-    upgrades.forEach((u, i) => {
+    // P1 top row (Q W E R T)
+    topRowUpgrades.forEach((u, i) => {
       const x = CONFIG.UI_GAP * 2.5 + i * (btnW + gap) + btnW / 2;
-      this.createButton(x, bottomY, btnW, btnH, u.type, u.label, u.p1Key, 0);
+      this.createButton(x, topRowY, btnW, btnH, u.type, u.label, u.p1Key, 0);
     });
 
-    // P2 buttons (bottom right) - only in 2P mode
+    // P1 bottom row (A, then F nuke) - offset right like keyboard home row
+    const p1BottomX = CONFIG.UI_GAP * 2.5 + staggerOffset + btnW / 2;
+    this.createButton(p1BottomX, bottomRowY, btnW, btnH, bottomRowUpgrade.type, bottomRowUpgrade.label, bottomRowUpgrade.p1Key, 0);
+
+    // P2 top row (U I O P Y) - only in 2P mode
     if (this.mode === 'pvp') {
-      upgrades.forEach((u, i) => {
+      topRowUpgrades.forEach((u, i) => {
         const x = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - (4 - i) * (btnW + gap) - btnW / 2;
-        this.createButton(x, bottomY, btnW, btnH, u.type, u.label, u.p2Key, 1);
+        this.createButton(x, topRowY, btnW, btnH, u.type, u.label, u.p2Key, 1);
       });
+      // P2 bottom row (J nuke, L) - mirrored
+      const p2BottomX = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - staggerOffset - btnW / 2;
+      this.createButton(p2BottomX, bottomRowY, btnW, btnH, bottomRowUpgrade.type, bottomRowUpgrade.label, bottomRowUpgrade.p2Key, 1);
     }
   }
 
@@ -158,16 +168,17 @@ export class UIScene extends Phaser.Scene {
     const btnW = CONFIG.UI_BTN_WIDTH;
     const btnH = CONFIG.UI_BTN_HEIGHT;
     const gap = CONFIG.UI_GAP;
-    const bottomY = CONFIG.GAME_HEIGHT - btnH - CONFIG.UI_GAP * 2;
+    const bottomRowY = CONFIG.GAME_HEIGHT - btnH - CONFIG.UI_GAP * 2;
+    const staggerOffset = (btnW + gap) * 0.4;
 
-    // P1 nuke button (after upgrade buttons, index 5)
-    const p1X = CONFIG.UI_GAP * 2.5 + 5 * (btnW + gap) + btnW / 2;
-    this.nukeButtons.push(this.createNukeButton(p1X, bottomY, btnW, btnH, 0, 'F'));
+    // P1 nuke (F) - right of A on bottom row
+    const p1NukeX = CONFIG.UI_GAP * 2.5 + staggerOffset + (btnW + gap) + btnW / 2;
+    this.nukeButtons.push(this.createNukeButton(p1NukeX, bottomRowY, btnW, btnH, 0, 'F'));
 
-    // P2 nuke button - only in 2P mode
+    // P2 nuke (J) - left of L on bottom row - only in 2P mode
     if (this.mode === 'pvp') {
-      const p2X = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - 5 * (btnW + gap) - btnW / 2;
-      this.nukeButtons.push(this.createNukeButton(p2X, bottomY, btnW, btnH, 1, 'J'));
+      const p2NukeX = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - staggerOffset - (btnW + gap) - btnW / 2;
+      this.nukeButtons.push(this.createNukeButton(p2NukeX, bottomRowY, btnW, btnH, 1, 'J'));
     }
   }
 
@@ -229,10 +240,10 @@ export class UIScene extends Phaser.Scene {
 
   private setupKeyboard(): void {
     const p1Keys: Record<string, UpgradeType> = {
-      Q: 'health', W: 'attack', E: 'radius', R: 'spawnRate', T: 'speed',
+      Q: 'health', W: 'attack', E: 'radius', R: 'spawnRate', T: 'speed', A: 'maxParticles',
     };
     const p2Keys: Record<string, UpgradeType> = {
-      U: 'health', I: 'attack', O: 'radius', P: 'spawnRate', Y: 'speed',
+      U: 'health', I: 'attack', O: 'radius', P: 'spawnRate', Y: 'speed', L: 'maxParticles',
     };
 
     this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
@@ -328,8 +339,8 @@ export class UIScene extends Phaser.Scene {
 
     const p1Count = this.gameScene.particles.filter(p => p.owner === 0).length;
     const p2Count = this.gameScene.particles.filter(p => p.owner === 1).length;
-    this.p1StatsText.setText(`HP:${p1.particleHealth} ATK:${p1.particleAttack} RAD:${p1.particleRadius} VEL:${p1.particleSpeed} Units:${p1Count}`);
-    this.p2StatsText.setText(`HP:${p2.particleHealth} ATK:${p2.particleAttack} RAD:${p2.particleRadius} VEL:${p2.particleSpeed} Units:${p2Count}`);
+    this.p1StatsText.setText(`HP:${p1.particleHealth} ATK:${p1.particleAttack} RAD:${p1.particleRadius} VEL:${p1.particleSpeed} Units:${p1Count}/${p1.maxParticles}`);
+    this.p2StatsText.setText(`HP:${p2.particleHealth} ATK:${p2.particleAttack} RAD:${p2.particleRadius} VEL:${p2.particleSpeed} Units:${p2Count}/${p2.maxParticles}`);
 
     // Update button affordability and cost display
     for (const btn of this.buttons) {

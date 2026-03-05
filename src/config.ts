@@ -17,6 +17,8 @@ export const CONFIG = {
   PARTICLE_SPEED: 180,
   SPAWN_INTERVAL_MS: 60,
   MAX_PARTICLES_PER_PLAYER: 1000,
+  /** Per-level increase for maxParticles upgrade */
+  MAX_PARTICLES_PER_LEVEL: 50,
   MAX_PARTICLES_TOTAL: 2000,
   /** Random drift per second (fraction of speed) to prevent stuck particles */
   PARTICLE_DRIFT_STRENGTH: 0.3,
@@ -42,6 +44,7 @@ export const CONFIG = {
     radius: 3,
     spawnRate: 10,
     speed: 7,
+    maxParticles: 10,
   },
   /** Cost multiplier per upgrade level: cost = baseCost * UPGRADE_COST_MULTIPLIER^level */
   UPGRADE_COST_MULTIPLIER: 1.3,
