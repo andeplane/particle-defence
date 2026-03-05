@@ -2,19 +2,41 @@ import { CONFIG } from '../../config';
 import { Grid } from '../Grid';
 import { ensurePathExists } from './ensurePath';
 
-export function generateRandomGrid(): Grid {
-  const { MAZE_COLS, MAZE_ROWS, PERCOLATION_THRESHOLD, BASE_WIDTH_CELLS } = CONFIG;
+export type RandomGridParams = {
+  cols: number;
+  rows: number;
+  baseWidth: number;
+  percolationThreshold: number;
+  fallbackThreshold: number;
+  maxAttemptsFallback: number;
+  gameWidth: number;
+  gameHeight: number;
+};
+
+const defaultParams: RandomGridParams = {
+  cols: CONFIG.MAZE_COLS,
+  rows: CONFIG.MAZE_ROWS,
+  baseWidth: CONFIG.BASE_WIDTH_CELLS,
+  percolationThreshold: CONFIG.PERCOLATION_THRESHOLD,
+  fallbackThreshold: 0.7,
+  maxAttemptsFallback: 100,
+  gameWidth: CONFIG.GAME_WIDTH,
+  gameHeight: CONFIG.GAME_HEIGHT,
+};
+
+export function generateRandomGrid(overrides?: Partial<RandomGridParams>): Grid {
+  const p = overrides ? { ...defaultParams, ...overrides } : defaultParams;
 
   let grid: Grid;
   let attempts = 0;
 
   do {
-    let cells = createPercolationCells(MAZE_COLS, MAZE_ROWS, PERCOLATION_THRESHOLD, BASE_WIDTH_CELLS);
-    if (attempts > 100) {
-      cells = createPercolationCells(MAZE_COLS, MAZE_ROWS, 0.7, BASE_WIDTH_CELLS);
+    let cells = createPercolationCells(p.cols, p.rows, p.percolationThreshold, p.baseWidth);
+    if (attempts > p.maxAttemptsFallback) {
+      cells = createPercolationCells(p.cols, p.rows, p.fallbackThreshold, p.baseWidth);
     }
-    ensurePathExists(cells, MAZE_COLS, MAZE_ROWS, BASE_WIDTH_CELLS);
-    grid = new Grid(MAZE_COLS, MAZE_ROWS, BASE_WIDTH_CELLS, cells);
+    ensurePathExists(cells, p.cols, p.rows, p.baseWidth);
+    grid = new Grid(p.cols, p.rows, p.baseWidth, cells, p.gameWidth, p.gameHeight);
     attempts++;
   } while (!grid.hasPath());
 

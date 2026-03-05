@@ -1,14 +1,20 @@
 import { CONFIG } from './config';
-import type { AbstractParticle } from './particles';
+import type { IParticle } from './particles';
 
-export class SpatialHash {
-  private cellSize: number;
-  private cells: Map<number, AbstractParticle[]> = new Map();
-  private cols: number;
+export interface ISpatialHash {
+  clear(): void;
+  insert(p: IParticle): void;
+  getNearby(p: IParticle): IParticle[];
+}
 
-  constructor() {
-    this.cellSize = CONFIG.SPATIAL_CELL_SIZE;
-    this.cols = Math.ceil(CONFIG.GAME_WIDTH / this.cellSize);
+export class SpatialHash implements ISpatialHash {
+  private readonly cellSize: number;
+  private readonly cells: Map<number, IParticle[]> = new Map();
+  private readonly cols: number;
+
+  constructor(cellSize: number = CONFIG.SPATIAL_CELL_SIZE, gameWidth: number = CONFIG.GAME_WIDTH) {
+    this.cellSize = cellSize;
+    this.cols = Math.ceil(gameWidth / this.cellSize);
   }
 
   clear(): void {
@@ -21,7 +27,7 @@ export class SpatialHash {
     return row * this.cols + col;
   }
 
-  insert(p: AbstractParticle): void {
+  insert(p: IParticle): void {
     const key = this.keyFor(p.x, p.y);
     let bucket = this.cells.get(key);
     if (!bucket) {
@@ -31,10 +37,10 @@ export class SpatialHash {
     bucket.push(p);
   }
 
-  getNearby(p: AbstractParticle): AbstractParticle[] {
+  getNearby(p: IParticle): IParticle[] {
     const col = Math.floor(p.x / this.cellSize);
     const row = Math.floor(p.y / this.cellSize);
-    const result: AbstractParticle[] = [];
+    const result: IParticle[] = [];
 
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {

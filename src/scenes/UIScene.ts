@@ -1,7 +1,17 @@
 import Phaser from 'phaser';
 import { CONFIG, type UpgradeType } from '../config';
-import type { GameScene } from './GameScene';
+import type { IPlayer } from '../player';
 import type { GameMode } from './MenuScene';
+
+export interface IGameViewModel {
+  readonly players: readonly [IPlayer, IPlayer];
+  readonly mode: GameMode;
+  readonly gameTimeMs: number;
+  readonly gameOver: boolean;
+  getParticleCount(owner: 0 | 1): number;
+  purchaseUpgrade(playerId: 0 | 1, type: UpgradeType): boolean;
+  launchNuke(playerId: 0 | 1): boolean;
+}
 
 interface UpgradeButton {
   bg: Phaser.GameObjects.Rectangle;
@@ -21,10 +31,8 @@ interface NukeButton {
 }
 
 export class UIScene extends Phaser.Scene {
-  private gameScene!: GameScene;
-  private mode: GameMode = 'pvp';
+  private viewModel!: IGameViewModel;
 
-  // HUD elements
   private p1HPBar!: Phaser.GameObjects.Graphics;
   private p2HPBar!: Phaser.GameObjects.Graphics;
   private p1GoldText!: Phaser.GameObjects.Text;
@@ -35,17 +43,14 @@ export class UIScene extends Phaser.Scene {
   private p2HPText!: Phaser.GameObjects.Text;
   private buttons: UpgradeButton[] = [];
   private nukeButtons: NukeButton[] = [];
-
-  // Gold popup pool
   private popups: Phaser.GameObjects.Text[] = [];
 
   constructor() {
     super({ key: 'UIScene' });
   }
 
-  init(data: { gameScene: GameScene; mode?: GameMode }): void {
-    this.gameScene = data.gameScene;
-    this.mode = data.mode ?? 'pvp';
+  init(data: { viewModel?: IGameViewModel; gameScene?: IGameViewModel; mode?: GameMode }): void {
+    this.viewModel = data.viewModel ?? data.gameScene!;
   }
 
   create(): void {
@@ -62,13 +67,11 @@ export class UIScene extends Phaser.Scene {
     const barH = CONFIG.UI_BAR_HEIGHT;
     const y = CONFIG.UI_GAP * 2;
 
-    // P1 HP bar (top left)
     this.p1HPBar = this.add.graphics();
     this.p1HPText = this.add.text(barW / 2 + CONFIG.UI_GAP * 2.5, y + barH / 2, '', {
       fontSize: `${CONFIG.UI_FONT_SMALL}px`, color: '#ffffff', fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    // P2 HP bar (top right)
     this.p2HPBar = this.add.graphics();
     this.p2HPText = this.add.text(CONFIG.GAME_WIDTH - barW / 2 - CONFIG.UI_GAP * 2.5, y + barH / 2, '', {
       fontSize: `${CONFIG.UI_FONT_SMALL}px`, color: '#ffffff', fontFamily: 'monospace',
@@ -112,23 +115,19 @@ export class UIScene extends Phaser.Scene {
     const bottomRowY = CONFIG.GAME_HEIGHT - btnH - CONFIG.UI_GAP * 2;
     const staggerOffset = (btnW + gap) * 0.4;
 
-    // P1 top row (Q W E R T)
     topRowUpgrades.forEach((u, i) => {
       const x = CONFIG.UI_GAP * 2.5 + i * (btnW + gap) + btnW / 2;
       this.createButton(x, topRowY, btnW, btnH, u.type, u.label, u.p1Key, 0);
     });
 
-    // P1 bottom row (A, then F nuke) - offset right like keyboard home row
     const p1BottomX = CONFIG.UI_GAP * 2.5 + staggerOffset + btnW / 2;
     this.createButton(p1BottomX, bottomRowY, btnW, btnH, bottomRowUpgrade.type, bottomRowUpgrade.label, bottomRowUpgrade.p1Key, 0);
 
-    // P2 top row (U I O P Y) - only in 2P mode
-    if (this.mode === 'pvp') {
+    if (this.viewModel.mode === 'pvp') {
       topRowUpgrades.forEach((u, i) => {
         const x = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - (4 - i) * (btnW + gap) - btnW / 2;
         this.createButton(x, topRowY, btnW, btnH, u.type, u.label, u.p2Key, 1);
       });
-      // P2 bottom row (J nuke, L) - mirrored
       const p2BottomX = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - staggerOffset - btnW / 2;
       this.createButton(p2BottomX, bottomRowY, btnW, btnH, bottomRowUpgrade.type, bottomRowUpgrade.label, bottomRowUpgrade.p2Key, 1);
     }
@@ -156,8 +155,7 @@ export class UIScene extends Phaser.Scene {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    bg.on('pointerdown', () => this.purchaseUpgrade(playerId, type, bg));
-
+    bg.on('pointerdown', () => this.handleUpgrade(playerId, type, bg));
     bg.on('pointerover', () => bg.setFillStyle(0x222244, 0.9));
     bg.on('pointerout', () => bg.setFillStyle(0x111122, 0.85));
 
@@ -171,12 +169,10 @@ export class UIScene extends Phaser.Scene {
     const bottomRowY = CONFIG.GAME_HEIGHT - btnH - CONFIG.UI_GAP * 2;
     const staggerOffset = (btnW + gap) * 0.4;
 
-    // P1 nuke (F) - right of A on bottom row
     const p1NukeX = CONFIG.UI_GAP * 2.5 + staggerOffset + (btnW + gap) + btnW / 2;
     this.nukeButtons.push(this.createNukeButton(p1NukeX, bottomRowY, btnW, btnH, 0, 'F'));
 
-    // P2 nuke (J) - left of L on bottom row - only in 2P mode
-    if (this.mode === 'pvp') {
+    if (this.viewModel.mode === 'pvp') {
       const p2NukeX = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - staggerOffset - (btnW + gap) - btnW / 2;
       this.nukeButtons.push(this.createNukeButton(p2NukeX, bottomRowY, btnW, btnH, 1, 'J'));
     }
@@ -204,35 +200,27 @@ export class UIScene extends Phaser.Scene {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    bg.on('pointerdown', () => this.launchNuke(playerId, bg));
+    bg.on('pointerdown', () => this.handleNuke(playerId, bg));
     bg.on('pointerover', () => bg.setFillStyle(0x332222, 0.9));
     bg.on('pointerout', () => bg.setFillStyle(0x221111, 0.85));
 
     return { bg, labelText, statusText, keyText, playerId };
   }
 
-  private launchNuke(playerId: 0 | 1, btn?: Phaser.GameObjects.Rectangle): void {
-    if (this.gameScene.gameOver) return;
-    if (this.gameScene.launchNuke(playerId)) {
+  private handleNuke(playerId: 0 | 1, btn?: Phaser.GameObjects.Rectangle): void {
+    if (this.viewModel.gameOver) return;
+    if (this.viewModel.launchNuke(playerId)) {
       if (btn) {
         this.tweens.add({
-          targets: btn,
-          scaleX: 1.15,
-          scaleY: 1.15,
-          duration: 80,
-          yoyo: true,
-          ease: 'Quad.easeOut',
+          targets: btn, scaleX: 1.15, scaleY: 1.15,
+          duration: 80, yoyo: true, ease: 'Quad.easeOut',
         });
       }
     } else {
       if (btn) {
         this.tweens.add({
-          targets: btn,
-          x: btn.x + 3,
-          duration: 40,
-          yoyo: true,
-          repeat: 2,
-          ease: 'Sine.inOut',
+          targets: btn, x: btn.x + 3,
+          duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut',
         });
       }
     }
@@ -250,51 +238,40 @@ export class UIScene extends Phaser.Scene {
       const key = event.key.toUpperCase();
       if (key === 'F') {
         const nukeBtn = this.nukeButtons.find(b => b.playerId === 0);
-        this.launchNuke(0, nukeBtn?.bg);
+        this.handleNuke(0, nukeBtn?.bg);
       }
-      if (this.mode === 'pvp' && key === 'J') {
+      if (this.viewModel.mode === 'pvp' && key === 'J') {
         const nukeBtn = this.nukeButtons.find(b => b.playerId === 1);
-        this.launchNuke(1, nukeBtn?.bg);
+        this.handleNuke(1, nukeBtn?.bg);
       }
       if (p1Keys[key]) {
         const btn = this.buttons.find(b => b.playerId === 0 && b.type === p1Keys[key]);
-        this.purchaseUpgrade(0, p1Keys[key], btn?.bg);
+        this.handleUpgrade(0, p1Keys[key], btn?.bg);
       }
-      if (this.mode === 'pvp' && p2Keys[key]) {
+      if (this.viewModel.mode === 'pvp' && p2Keys[key]) {
         const btn = this.buttons.find(b => b.playerId === 1 && b.type === p2Keys[key]);
-        this.purchaseUpgrade(1, p2Keys[key], btn?.bg);
+        this.handleUpgrade(1, p2Keys[key], btn?.bg);
       }
     });
   }
 
-  private purchaseUpgrade(playerId: 0 | 1, type: UpgradeType, btn?: Phaser.GameObjects.Rectangle): void {
-    if (this.gameScene.gameOver) return;
-    const player = this.gameScene.players[playerId];
+  private handleUpgrade(playerId: 0 | 1, type: UpgradeType, btn?: Phaser.GameObjects.Rectangle): void {
+    if (this.viewModel.gameOver) return;
+    const player = this.viewModel.players[playerId];
     const cost = player.getUpgradeCost(type);
-    if (player.buyUpgrade(type)) {
-      // Flash button
+    if (this.viewModel.purchaseUpgrade(playerId, type)) {
       if (btn) {
         this.tweens.add({
-          targets: btn,
-          scaleX: 1.15,
-          scaleY: 1.15,
-          duration: 80,
-          yoyo: true,
-          ease: 'Quad.easeOut',
+          targets: btn, scaleX: 1.15, scaleY: 1.15,
+          duration: 80, yoyo: true, ease: 'Quad.easeOut',
         });
       }
-      // Gold popup
       this.showGoldPopup(playerId, `-$${cost}`);
     } else {
-      // Shake button to indicate can't afford
       if (btn) {
         this.tweens.add({
-          targets: btn,
-          x: btn.x + 3,
-          duration: 40,
-          yoyo: true,
-          repeat: 2,
-          ease: 'Sine.inOut',
+          targets: btn, x: btn.x + 3,
+          duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut',
         });
       }
     }
@@ -321,9 +298,9 @@ export class UIScene extends Phaser.Scene {
   }
 
   update(): void {
-    if (!this.gameScene.players) return;
+    if (!this.viewModel.players) return;
 
-    const [p1, p2] = this.gameScene.players;
+    const [p1, p2] = this.viewModel.players;
 
     const barX = CONFIG.UI_GAP * 2.5;
     const barY = CONFIG.UI_GAP * 2;
@@ -334,26 +311,24 @@ export class UIScene extends Phaser.Scene {
     this.p2HPText.setText(`${p2.baseHP}/${CONFIG.BASE_HP}`);
 
     this.p1GoldText.setText(`Gold: $${p1.gold}  Kills: ${p1.kills}`);
-    const p2Prefix = this.mode === 'ai' ? 'AI ' : '';
+    const p2Prefix = this.viewModel.mode === 'ai' ? 'AI ' : '';
     this.p2GoldText.setText(`${p2Prefix}Gold: $${p2.gold}  Kills: ${p2.kills}`);
 
-    const p1Count = this.gameScene.particles.filter(p => p.owner === 0).length;
-    const p2Count = this.gameScene.particles.filter(p => p.owner === 1).length;
+    const p1Count = this.viewModel.getParticleCount(0);
+    const p2Count = this.viewModel.getParticleCount(1);
     this.p1StatsText.setText(`HP:${p1.particleHealth} ATK:${p1.particleAttack} RAD:${p1.particleRadius} VEL:${p1.particleSpeed} Units:${p1Count}/${p1.maxParticles}`);
     this.p2StatsText.setText(`HP:${p2.particleHealth} ATK:${p2.particleAttack} RAD:${p2.particleRadius} VEL:${p2.particleSpeed} Units:${p2Count}/${p2.maxParticles}`);
 
-    // Update button affordability and cost display
     for (const btn of this.buttons) {
-      const player = this.gameScene.players[btn.playerId];
+      const player = this.viewModel.players[btn.playerId];
       const canAfford = player.canAfford(btn.type);
       btn.bg.setAlpha(canAfford ? 1 : 0.4);
       btn.costText.setText(`$${player.getUpgradeCost(btn.type)}`);
     }
 
-    // Update nuke button cooldown display
-    const gameTimeMs = this.gameScene.gameTimeMs;
+    const gameTimeMs = this.viewModel.gameTimeMs;
     for (const btn of this.nukeButtons) {
-      const player = this.gameScene.players[btn.playerId];
+      const player = this.viewModel.players[btn.playerId];
       const canUse = player.canUseNuke(gameTimeMs);
       btn.bg.setAlpha(canUse ? 1 : 0.4);
       const remainingMs = player.getNukeCooldownRemainingMs(gameTimeMs);
@@ -376,16 +351,13 @@ export class UIScene extends Phaser.Scene {
   ): void {
     const radius = CONFIG.UI_GAP;
     gfx.clear();
-    // Background
     gfx.fillStyle(0x111111, 0.8);
     gfx.fillRoundedRect(x, y, w, h, radius);
-    // Fill
     const pct = Math.max(0, current / max);
     if (pct > 0) {
       gfx.fillStyle(color, 0.8);
       gfx.fillRoundedRect(x + 2, y + 2, (w - 4) * pct, h - 4, radius - 1);
     }
-    // Border
     gfx.lineStyle(2, color, 0.5);
     gfx.strokeRoundedRect(x, y, w, h, radius);
   }

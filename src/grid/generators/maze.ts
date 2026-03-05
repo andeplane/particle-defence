@@ -5,16 +5,32 @@ import { ensurePathExists } from './ensurePath';
 /** Fraction of extra walls to carve for additional paths (0.15 = 15%) */
 const EXTRA_PATH_FRACTION = 0.15;
 
-export function generateMazeGrid(): Grid {
-  const { MAZE_COLS, MAZE_ROWS, BASE_WIDTH_CELLS } = CONFIG;
+export type MazeGridParams = {
+  cols: number;
+  rows: number;
+  baseWidth: number;
+  gameWidth: number;
+  gameHeight: number;
+};
+
+const defaultParams: MazeGridParams = {
+  cols: CONFIG.MAZE_COLS,
+  rows: CONFIG.MAZE_ROWS,
+  baseWidth: CONFIG.BASE_WIDTH_CELLS,
+  gameWidth: CONFIG.GAME_WIDTH,
+  gameHeight: CONFIG.GAME_HEIGHT,
+};
+
+export function generateMazeGrid(overrides?: Partial<MazeGridParams>): Grid {
+  const p = overrides ? { ...defaultParams, ...overrides } : defaultParams;
 
   let grid: Grid;
   let attempts = 0;
 
   do {
-    const cells = createMazeCells(MAZE_COLS, MAZE_ROWS, BASE_WIDTH_CELLS);
-    ensurePathExists(cells, MAZE_COLS, MAZE_ROWS, BASE_WIDTH_CELLS);
-    grid = new Grid(MAZE_COLS, MAZE_ROWS, BASE_WIDTH_CELLS, cells);
+    const cells = createMazeCells(p.cols, p.rows, p.baseWidth);
+    ensurePathExists(cells, p.cols, p.rows, p.baseWidth);
+    grid = new Grid(p.cols, p.rows, p.baseWidth, cells, p.gameWidth, p.gameHeight);
     attempts++;
     if (attempts > 50) {
       break;
@@ -39,8 +55,6 @@ function createMazeCells(cols: number, rows: number, baseWidth: number): boolean
     }
   }
 
-  // Two independent mazes with different random seeds (no mirroring)
-  // Left: [baseWidth, midCol], Right: [midCol, mazeRight)
   const startY = Math.floor(rows / 2) & ~1;
 
   carve(cells, mazeLeft, startY, mazeLeft, midCol + 1, rows);
@@ -54,7 +68,6 @@ function createMazeCells(cols: number, rows: number, baseWidth: number): boolean
   return cells;
 }
 
-/** Carves extra openings in center columns for better connectivity. Works for even and odd widths. */
 function carveMiddleHoles(
   cells: boolean[][],
   cols: number,

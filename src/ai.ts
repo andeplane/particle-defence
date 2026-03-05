@@ -1,34 +1,56 @@
 import { CONFIG, type UpgradeType } from './config';
-import type { Player } from './player';
-import type { GameScene } from './scenes/GameScene';
+import type { IPlayer } from './player';
+import type { IParticle } from './particles';
+
+export interface AIGameState {
+  readonly players: readonly [IPlayer, IPlayer];
+  readonly particles: readonly IParticle[];
+  readonly gameTimeMs: number;
+  readonly gameOver: boolean;
+  launchNuke(playerId: 0 | 1): boolean;
+}
+
+export type AIConfig = {
+  baseHP: number;
+};
+
+const defaultAIConfig: AIConfig = {
+  baseHP: CONFIG.BASE_HP,
+};
 
 const UPGRADE_TYPES: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles'];
 
 export class AIController {
-  private readonly playerId: 0 | 1 = 1;
+  private readonly playerId: 0 | 1;
+  private readonly config: AIConfig;
   private readonly decisionIntervalMs = 200;
   private timeSinceLastDecision = 0;
 
-  update(delta: number, gameScene: GameScene): void {
-    if (gameScene.gameOver) return;
+  constructor(playerId: 0 | 1 = 1, config: AIConfig = defaultAIConfig) {
+    this.playerId = playerId;
+    this.config = config;
+  }
+
+  update(delta: number, state: AIGameState): void {
+    if (state.gameOver) return;
 
     this.timeSinceLastDecision += delta;
     if (this.timeSinceLastDecision < this.decisionIntervalMs) return;
     this.timeSinceLastDecision = 0;
 
-    this.tryNuke(gameScene);
-    this.tryUpgrade(gameScene);
+    this.tryNuke(state);
+    this.tryUpgrade(state);
   }
 
-  private tryNuke(gameScene: GameScene): void {
-    const ai = gameScene.players[this.playerId];
-    const human = gameScene.players[0];
-    if (!ai.canUseNuke(gameScene.gameTimeMs)) return;
+  private tryNuke(state: AIGameState): void {
+    const ai = state.players[this.playerId];
+    const human = state.players[0];
+    if (!ai.canUseNuke(state.gameTimeMs)) return;
 
-    const aiParticles = gameScene.particles.filter(p => p.alive && p.owner === this.playerId).length;
-    const humanParticles = gameScene.particles.filter(p => p.alive && p.owner === 0).length;
-    const aiHpPct = ai.baseHP / CONFIG.BASE_HP;
-    const humanHpPct = human.baseHP / CONFIG.BASE_HP;
+    const aiParticles = state.particles.filter(p => p.alive && p.owner === this.playerId).length;
+    const humanParticles = state.particles.filter(p => p.alive && p.owner === 0).length;
+    const aiHpPct = ai.baseHP / this.config.baseHP;
+    const humanHpPct = human.baseHP / this.config.baseHP;
 
     const losingBadly = aiHpPct < 0.6 && humanHpPct > 0.8;
     const enemyFlood = humanParticles >= 2 * Math.max(1, aiParticles);
@@ -36,13 +58,13 @@ export class AIController {
     const valueNuke = humanParticles >= 400;
 
     if (losingBadly || enemyFlood || desperation || valueNuke) {
-      gameScene.launchNuke(this.playerId);
+      state.launchNuke(this.playerId);
     }
   }
 
-  private tryUpgrade(gameScene: GameScene): void {
-    const ai = gameScene.players[this.playerId];
-    const human = gameScene.players[0];
+  private tryUpgrade(state: AIGameState): void {
+    const ai = state.players[this.playerId];
+    const human = state.players[0];
 
     let bestType: UpgradeType | null = null;
     let bestScore = -1;
@@ -50,7 +72,7 @@ export class AIController {
     for (const type of UPGRADE_TYPES) {
       if (!ai.canAfford(type)) continue;
 
-      const score = this.scoreUpgrade(type, ai, human, gameScene);
+      const score = this.scoreUpgrade(type, ai, human, state);
       if (score > bestScore) {
         bestScore = score;
         bestType = type;
@@ -64,21 +86,19 @@ export class AIController {
 
   private scoreUpgrade(
     type: UpgradeType,
-    ai: Player,
-    human: Player,
-    gameScene: GameScene
+    ai: IPlayer,
+    human: IPlayer,
+    state: AIGameState
   ): number {
     const level = ai.getUpgradeLevel(type);
     const cost = ai.getUpgradeCost(type);
-    const gameTimeSec = gameScene.gameTimeMs / 1000;
+    const gameTimeSec = state.gameTimeMs / 1000;
 
     let score = 100;
 
-    // Cost efficiency: prefer cheaper upgrades when gold is tight
     const costPenalty = cost / 50;
     score -= costPenalty;
 
-    // Diminishing returns: prefer underleveled stats
     const levelPenalty = level * 15;
     score -= levelPenalty;
 
@@ -119,7 +139,7 @@ export class AIController {
         break;
       }
       case 'maxParticles': {
-        const aiParticles = gameScene.particles.filter(p => p.alive && p.owner === this.playerId).length;
+        const aiParticles = state.particles.filter(p => p.alive && p.owner === this.playerId).length;
         const nearCap = aiParticles >= ai.maxParticles * 0.8;
         score *= nearCap ? 1.8 : 0.7;
         break;

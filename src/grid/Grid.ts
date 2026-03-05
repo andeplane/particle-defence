@@ -1,24 +1,47 @@
 import { CONFIG } from '../config';
 
-export class Grid {
+export interface IGrid {
   readonly cols: number;
   readonly rows: number;
   readonly baseWidthCells: number;
-  readonly cells: boolean[][]; // true = walkable
+  readonly cells: boolean[][];
+  readonly cellW: number;
+  readonly cellH: number;
+  isWall(px: number, py: number): boolean;
+  isInBase(px: number, playerId: 0 | 1): boolean;
+  hasPath(): boolean;
+}
 
-  constructor(cols: number, rows: number, baseWidthCells: number, cells: boolean[][]) {
+export class Grid implements IGrid {
+  readonly cols: number;
+  readonly rows: number;
+  readonly baseWidthCells: number;
+  readonly cells: boolean[][];
+  private readonly gameWidth: number;
+  private readonly gameHeight: number;
+
+  constructor(
+    cols: number,
+    rows: number,
+    baseWidthCells: number,
+    cells: boolean[][],
+    gameWidth: number = CONFIG.GAME_WIDTH,
+    gameHeight: number = CONFIG.GAME_HEIGHT,
+  ) {
     this.cols = cols;
     this.rows = rows;
     this.baseWidthCells = baseWidthCells;
     this.cells = cells;
+    this.gameWidth = gameWidth;
+    this.gameHeight = gameHeight;
   }
 
   get cellW(): number {
-    return CONFIG.GAME_WIDTH / this.cols;
+    return this.gameWidth / this.cols;
   }
 
   get cellH(): number {
-    return CONFIG.GAME_HEIGHT / this.rows;
+    return this.gameHeight / this.rows;
   }
 
   isWall(px: number, py: number): boolean {
@@ -33,7 +56,7 @@ export class Grid {
     if (playerId === 0) {
       return px < basePixelWidth;
     } else {
-      return px > CONFIG.GAME_WIDTH - basePixelWidth;
+      return px > this.gameWidth - basePixelWidth;
     }
   }
 

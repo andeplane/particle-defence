@@ -1,8 +1,7 @@
-import type { AbstractParticle, GameContext } from './particles';
-import { CONFIG } from './config';
+import type { IParticle, GameContext } from './particles';
 
 export interface CollisionResult {
-  kills: { killer: AbstractParticle; victim: AbstractParticle }[];
+  kills: { killer: IParticle; victim: IParticle }[];
 }
 
 export function resolveCollisions(context: GameContext): CollisionResult {
@@ -56,13 +55,13 @@ export function resolveCollisions(context: GameContext): CollisionResult {
         if (!p.alive) {
           p.onDeath(context);
           result.kills.push({ killer: other, victim: p });
-          players[other.owner].gold += CONFIG.KILL_REWARD;
+          players[other.owner].gold += context.killReward;
           players[other.owner].kills++;
         }
         if (!other.alive) {
           other.onDeath(context);
           result.kills.push({ killer: p, victim: other });
-          players[p.owner].gold += CONFIG.KILL_REWARD;
+          players[p.owner].gold += context.killReward;
           players[p.owner].kills++;
         }
       }

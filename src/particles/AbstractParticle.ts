@@ -1,9 +1,76 @@
 import { CONFIG } from '../config';
 import type { GameContext } from './GameContext';
 
-let nextId = 0;
+export interface IParticle {
+  readonly id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  health: number;
+  readonly maxHealth: number;
+  readonly attack: number;
+  readonly radius: number;
+  readonly speed: number;
+  readonly owner: 0 | 1;
+  alive: boolean;
+  readonly spawnX: number;
+  readonly spawnY: number;
+  age: number;
+  readonly typeName: string;
+  readonly canMove: boolean;
+  sprite: Phaser.GameObjects.Image | null;
+  trail: Phaser.GameObjects.Particles.ParticleEmitter | null;
+  update(dt: number, context: GameContext): void;
+  onCollide(other: IParticle, context: GameContext): void;
+  onDeath(context: GameContext): void;
+  getBaseDamage(): number;
+  isStuck(): boolean;
+  takeDamage(amount: number): void;
+  destroy(): void;
+}
 
-export abstract class AbstractParticle {
+export type ParticleConfig = {
+  gameWidth: number;
+  gameHeight: number;
+  baseWidthCells: number;
+  mazeCols: number;
+  driftStrength: number;
+  enemyBias: number;
+  stuckThresholdBlocks: number;
+  stuckThresholdSeconds: number;
+  baseDamageOnReach: number;
+};
+
+const defaultParticleConfig: ParticleConfig = {
+  gameWidth: CONFIG.GAME_WIDTH,
+  gameHeight: CONFIG.GAME_HEIGHT,
+  baseWidthCells: CONFIG.BASE_WIDTH_CELLS,
+  mazeCols: CONFIG.MAZE_COLS,
+  driftStrength: CONFIG.PARTICLE_DRIFT_STRENGTH,
+  enemyBias: CONFIG.PARTICLE_ENEMY_BIAS,
+  stuckThresholdBlocks: CONFIG.STUCK_THRESHOLD_BLOCKS,
+  stuckThresholdSeconds: CONFIG.STUCK_THRESHOLD_SECONDS,
+  baseDamageOnReach: CONFIG.BASE_DAMAGE_ON_REACH,
+};
+
+export type ParticleDependencies = {
+  nextId: () => number;
+  config: ParticleConfig;
+};
+
+let _nextId = 0;
+
+const defaultDependencies: ParticleDependencies = {
+  nextId: () => _nextId++,
+  config: defaultParticleConfig,
+};
+
+export function resetParticleIds(): void {
+  _nextId = 0;
+}
+
+export abstract class AbstractParticle implements IParticle {
   readonly id: number;
   x: number;
   y: number;
@@ -21,14 +88,20 @@ export abstract class AbstractParticle {
   readonly spawnY: number;
   age: number = 0;
 
-  // Visual references (managed by GameScene)
   sprite: Phaser.GameObjects.Image | null = null;
   trail: Phaser.GameObjects.Particles.ParticleEmitter | null = null;
 
+  protected readonly config: ParticleConfig;
+
   abstract readonly typeName: string;
 
-  constructor(x: number, y: number, owner: 0 | 1, health: number, attack: number, radius: number, speed: number) {
-    this.id = nextId++;
+  constructor(
+    x: number, y: number, owner: 0 | 1,
+    health: number, attack: number, radius: number, speed: number,
+    deps: ParticleDependencies = defaultDependencies,
+  ) {
+    this.id = deps.nextId();
+    this.config = deps.config;
     this.x = x;
     this.y = y;
     this.owner = owner;
@@ -46,7 +119,6 @@ export abstract class AbstractParticle {
     this.vy = Math.sin(angle) * speed;
   }
 
-  /** Whether this particle moves through the maze (false for turrets). */
   get canMove(): boolean {
     return true;
   }
@@ -62,10 +134,10 @@ export abstract class AbstractParticle {
       const nx = this.x + this.vx * dt;
       const ny = this.y + this.vy * dt;
 
-      const clampedX = Math.max(this.radius, Math.min(CONFIG.GAME_WIDTH - this.radius, nx));
+      const clampedX = Math.max(this.radius, Math.min(this.config.gameWidth - this.radius, nx));
 
       const minY = this.radius;
-      const maxY = CONFIG.GAME_HEIGHT - this.radius;
+      const maxY = this.config.gameHeight - this.radius;
       const rangeY = maxY - minY;
       let newY = ny;
       if (ny < minY || ny > maxY) {
@@ -100,26 +172,22 @@ export abstract class AbstractParticle {
     this.onUpdate(dt, context);
   }
 
-  /** Called every tick after movement. Override for passive abilities. */
   onUpdate(_dt: number, _context: GameContext): void {}
 
-  /** Called when this particle collides with an enemy. Default: take damage equal to other's attack. */
-  onCollide(other: AbstractParticle, _context: GameContext): void {
+  onCollide(other: IParticle, _context: GameContext): void {
     this.takeDamage(other.attack);
   }
 
-  /** Called when this particle dies. Override for death effects (AoE, etc.). */
   onDeath(_context: GameContext): void {}
 
-  /** Damage dealt to enemy base when reaching it. */
   getBaseDamage(): number {
-    return CONFIG.BASE_DAMAGE_ON_REACH;
+    return this.config.baseDamageOnReach;
   }
 
   private preventBaseReturn(): void {
-    const baseX = this.owner === 0 ? 0 : CONFIG.GAME_WIDTH;
+    const baseX = this.owner === 0 ? 0 : this.config.gameWidth;
     const distToBase = Math.abs(this.x - baseX);
-    const minDist = CONFIG.BASE_WIDTH_CELLS * (CONFIG.GAME_WIDTH / CONFIG.MAZE_COLS) + 10;
+    const minDist = this.config.baseWidthCells * (this.config.gameWidth / this.config.mazeCols) + 10;
 
     if (distToBase < minDist) {
       const pushDir = this.owner === 0 ? 1 : -1;
@@ -128,12 +196,12 @@ export abstract class AbstractParticle {
   }
 
   private applyRandomDrift(dt: number): void {
-    const magnitude = CONFIG.PARTICLE_DRIFT_STRENGTH * this.speed * dt;
+    const magnitude = this.config.driftStrength * this.speed * dt;
     let driftX = (Math.random() - 0.5) * 2 * magnitude;
     let driftY = (Math.random() - 0.5) * 2 * magnitude;
 
     const towardsEnemyX = this.owner === 0 ? 1 : -1;
-    if (driftX * towardsEnemyX < 0 && Math.random() < CONFIG.PARTICLE_ENEMY_BIAS) {
+    if (driftX * towardsEnemyX < 0 && Math.random() < this.config.enemyBias) {
       driftX = -driftX;
     }
     this.vx += driftX;
@@ -151,7 +219,7 @@ export abstract class AbstractParticle {
     let driftY = (Math.random() - 0.5) * 20;
 
     const towardsEnemyX = this.owner === 0 ? 1 : -1;
-    if (driftX * towardsEnemyX < 0 && Math.random() < CONFIG.PARTICLE_ENEMY_BIAS) {
+    if (driftX * towardsEnemyX < 0 && Math.random() < this.config.enemyBias) {
       driftX = -driftX;
     }
     this.vx += driftX;
@@ -165,9 +233,9 @@ export abstract class AbstractParticle {
   }
 
   isStuck(): boolean {
-    if (this.age < CONFIG.STUCK_THRESHOLD_SECONDS) return false;
-    const blockSize = CONFIG.GAME_WIDTH / CONFIG.MAZE_COLS;
-    const maxDist = CONFIG.STUCK_THRESHOLD_BLOCKS * blockSize;
+    if (this.age < this.config.stuckThresholdSeconds) return false;
+    const blockSize = this.config.gameWidth / this.config.mazeCols;
+    const maxDist = this.config.stuckThresholdBlocks * blockSize;
     const dx = this.x - this.spawnX;
     const dy = this.y - this.spawnY;
     const dist = Math.sqrt(dx * dx + dy * dy);
