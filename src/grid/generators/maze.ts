@@ -28,6 +28,7 @@ function createMazeCells(cols: number, rows: number, baseWidth: number): boolean
   const cells: boolean[][] = [];
   const mazeLeft = baseWidth;
   const mazeRight = cols - baseWidth;
+  const midCol = Math.floor(cols / 2);
 
   for (let y = 0; y < rows; y++) {
     cells[y] = [];
@@ -38,13 +39,38 @@ function createMazeCells(cols: number, rows: number, baseWidth: number): boolean
     }
   }
 
-  const startX = mazeLeft;
+  // Two independent mazes with different random seeds (no mirroring)
+  // Left: [baseWidth, midCol], Right: [midCol, mazeRight)
   const startY = Math.floor(rows / 2) & ~1;
-  carve(cells, startX, startY, mazeLeft, mazeRight, rows);
 
-  carveExtraPaths(cells, cols, rows, baseWidth);
+  carve(cells, mazeLeft, startY, mazeLeft, midCol + 1, rows);
+  carveExtraPaths(cells, rows, mazeLeft, midCol + 1);
+
+  carve(cells, mazeRight - 1, startY, midCol, mazeRight, rows);
+  carveExtraPaths(cells, rows, midCol, mazeRight);
+
+  carveMiddleHoles(cells, cols, rows, midCol);
 
   return cells;
+}
+
+/** Carves extra openings in center columns for better connectivity. Works for even and odd widths. */
+function carveMiddleHoles(
+  cells: boolean[][],
+  cols: number,
+  rows: number,
+  midCol: number
+): void {
+  const isEven = cols % 2 === 0;
+  const centerCols = isEven ? [midCol - 1, midCol] : [midCol - 1, midCol, midCol + 1];
+
+  for (const cx of centerCols) {
+    for (let y = 0; y < rows; y++) {
+      if (Math.random() < 0.4) {
+        cells[y][cx] = true;
+      }
+    }
+  }
 }
 
 function carve(
@@ -77,13 +103,16 @@ function carve(
   }
 }
 
-function carveExtraPaths(cells: boolean[][], cols: number, rows: number, baseWidth: number): void {
-  const mazeLeft = baseWidth;
-  const mazeRight = cols - baseWidth;
+function carveExtraPaths(
+  cells: boolean[][],
+  rows: number,
+  xMin: number,
+  xMax: number
+): void {
   const candidates: [number, number][] = [];
 
   for (let y = 1; y < rows - 1; y++) {
-    for (let x = mazeLeft + 1; x < mazeRight - 1; x++) {
+    for (let x = xMin + 1; x < xMax; x++) {
       if (cells[y][x]) continue;
       const walkableNeighbors =
         (cells[y - 1][x] ? 1 : 0) +
