@@ -17,12 +17,16 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 
 ### Game Entities
 - **`src/player.ts`** - Player class with base HP, gold, kills, upgrade levels, and nuke cooldown management
-- **`src/particle.ts`** - GameParticle class representing units that navigate the maze and fight
+- **`src/particles/`** - Particle type hierarchy:
+  - **`AbstractParticle.ts`** - Abstract base class with shared state, movement logic, and lifecycle hooks
+  - **`BasicParticle.ts`** - Default particle type (current behavior)
+  - **`GameContext.ts`** - Context interface passed to particle hooks (maze, spatial hash, players, spawnExplosion)
+  - **`index.ts`** - Re-exports
 - **`src/maze.ts`** - Maze generation using percolation algorithm, pathfinding validation, collision detection helpers
 
 ### Systems
 - **`src/ai.ts`** - AIController for single-player mode. Automatically upgrades (prioritizes spawn rate, attack, health) and uses nuke when behind or when enemy has many particles
-- **`src/collision.ts`** - Collision resolution between particles (damage, bouncing, kill tracking)
+- **`src/collision.ts`** - Collision resolution; calls `onCollide`/`onDeath` hooks, handles bouncing and kill tracking
 - **`src/spatial-hash.ts`** - Spatial partitioning for efficient collision detection
 
 ## Configuration (`src/config.ts`)
@@ -108,8 +112,9 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 
 ### Combat System
 - Particles collide when within combined radius distance
-- Both particles deal damage to each other simultaneously
+- Collision damage delegated to `onCollide(other, context)` hook (default: take damage equal to other's attack)
 - Elastic collision physics with velocity bouncing
+- `onDeath(context)` called when particle dies (override for AoE, etc.)
 - Kills award gold and increment kill counter
 - Dead particles are cleaned up and removed
 
@@ -191,19 +196,33 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - Uses ES modules (`"type": "module"`)
 - TypeScript config in `tsconfig.json`
 
+## Particle Type Hierarchy
+
+Particles use an inheritance-based hierarchy. New types extend `AbstractParticle` and override hooks:
+
+- **`typeName`** (abstract) - Identity string for the particle type
+- **`canMove`** - Return false for stationary units (e.g. turrets)
+- **`onUpdate(dt, context)`** - Called every tick after movement; use for passive abilities (healing, scanning)
+- **`onCollide(other, context)`** - Called when colliding with enemy; default: `takeDamage(other.attack)`
+- **`onDeath(context)`** - Called when particle dies; override for death effects (AoE explosion)
+- **`getBaseDamage()`** - Damage dealt to enemy base on reach; default: `CONFIG.BASE_DAMAGE_ON_REACH`
+
+`GameContext` provides: `maze`, `spatialHash`, `particles`, `players`, `gameTimeMs`, `spawnExplosion()`.
+
 ## Key Design Patterns
 
 1. **Configuration Centralization** - All game parameters in `config.ts`
 2. **Scene Separation** - Game logic (GameScene) vs UI (UIScene)
 3. **Spatial Partitioning** - Efficient collision detection
-4. **Component-based Entities** - Particles have visual components (sprite, trail) managed by scene
-5. **State Management** - Player state tracks upgrades, gold, HP, etc.
+4. **Particle Inheritance** - AbstractParticle base with overridable hooks for new types
+5. **Component-based Entities** - Particles have visual components (sprite, trail) managed by scene
+6. **State Management** - Player state tracks upgrades, gold, HP, etc.
 
 ## Notes for AI Agents
 
 - **Always check `src/config.ts` first** when looking for game parameters or balance values
 - Configuration uses `RESOLUTION_SCALE` multiplier - most values scale with this
-- Particles are the main game entities - they navigate, fight, and attack bases
+- Particles are the main game entities - see `src/particles/` for the type hierarchy and hooks
 - Maze is procedurally generated each game - uses percolation algorithm
 - Collision system uses spatial hash for performance
 - UI is separate scene that overlays on top of game scene

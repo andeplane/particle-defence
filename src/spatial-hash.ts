@@ -1,9 +1,9 @@
 import { CONFIG } from './config';
-import type { GameParticle } from './particle';
+import type { AbstractParticle } from './particles';
 
 export class SpatialHash {
   private cellSize: number;
-  private cells: Map<number, GameParticle[]> = new Map();
+  private cells: Map<number, AbstractParticle[]> = new Map();
   private cols: number;
 
   constructor() {
@@ -21,7 +21,7 @@ export class SpatialHash {
     return row * this.cols + col;
   }
 
-  insert(p: GameParticle): void {
+  insert(p: AbstractParticle): void {
     const key = this.keyFor(p.x, p.y);
     let bucket = this.cells.get(key);
     if (!bucket) {
@@ -31,10 +31,10 @@ export class SpatialHash {
     bucket.push(p);
   }
 
-  getNearby(p: GameParticle): GameParticle[] {
+  getNearby(p: AbstractParticle): AbstractParticle[] {
     const col = Math.floor(p.x / this.cellSize);
     const row = Math.floor(p.y / this.cellSize);
-    const result: GameParticle[] = [];
+    const result: AbstractParticle[] = [];
 
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {

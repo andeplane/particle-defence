@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { AIController } from '../ai';
 import { CONFIG } from '../config';
 import { generateMaze, getCellSize, isInBase, isWall, type MazeGrid } from '../maze';
-import { GameParticle } from '../particle';
+import { BasicParticle, type AbstractParticle, type GameContext } from '../particles';
 import { Player } from '../player';
 import { SpatialHash } from '../spatial-hash';
 import { resolveCollisions } from '../collision';
@@ -10,7 +10,7 @@ import type { GameMode } from './MenuScene';
 
 export class GameScene extends Phaser.Scene {
   players!: [Player, Player];
-  particles: GameParticle[] = [];
+  particles: AbstractParticle[] = [];
   spatialHash!: SpatialHash;
   maze!: MazeGrid;
   mazeTexture!: Phaser.GameObjects.RenderTexture;
@@ -199,7 +199,7 @@ export class GameScene extends Phaser.Scene {
       y = CONFIG.GAME_HEIGHT / 2;
     }
 
-    const p = new GameParticle(
+    const p = new BasicParticle(
       x, y, owner,
       player.particleHealth,
       player.particleAttack,
@@ -296,9 +296,18 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    const context: GameContext = {
+      maze: this.maze,
+      spatialHash: this.spatialHash,
+      particles: this.particles,
+      players: this.players,
+      gameTimeMs: this.gameTimeMs,
+      spawnExplosion: (x, y, color) => this.spawnExplosion(x, y, color),
+    };
+
     // Update particles
     for (const p of this.particles) {
-      if (p.alive) p.update(dt, this.maze);
+      if (p.alive) p.update(dt, context);
     }
 
     // Spatial hash + collisions
@@ -307,7 +316,7 @@ export class GameScene extends Phaser.Scene {
       if (p.alive) this.spatialHash.insert(p);
     }
 
-    const collisionResult = resolveCollisions(this.particles, this.spatialHash, this.players);
+    const collisionResult = resolveCollisions(context);
 
     // Explosion effects for kills
     for (const kill of collisionResult.kills) {
@@ -321,7 +330,7 @@ export class GameScene extends Phaser.Scene {
 
       const enemyId = p.owner === 0 ? 1 : 0;
       if (isInBase(p.x, enemyId as 0 | 1)) {
-        this.players[enemyId].takeDamage(p.attack);
+        this.players[enemyId].takeDamage(p.getBaseDamage());
         const baseColor = enemyId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
         this.spawnExplosion(p.x, p.y, baseColor);
         p.alive = false;
