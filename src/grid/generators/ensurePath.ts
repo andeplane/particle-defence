@@ -23,4 +23,11 @@ export function ensurePathExists(
     cells[y][leftCol] = true;
     cells[y][rightCol] = true;
   }
+
+  // 3. Periodic boundary: top and bottom rows must match for Y-axis wrap
+  for (let x = 0; x < cols; x++) {
+    const open = cells[0][x] || cells[rows - 1][x];
+    cells[0][x] = open;
+    cells[rows - 1][x] = open;
+  }
 }
