@@ -6,13 +6,14 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 ## Project Structure
 
 ### Core Files
-- **`src/main.ts`** - Entry point, initializes Phaser game with MenuScene, GameScene, and UIScene
+- **`src/main.ts`** - Entry point, initializes Phaser game with MenuScene, MapSelectScene, GameScene, and UIScene
 - **`src/config.ts`** - **ALL GAME CONFIGURATION** - Contains all game constants, parameters, and configuration values
 - **`index.html`** - HTML entry point with game container
 
 ### Scenes
-- **`src/scenes/MenuScene.ts`** - Main menu with mode selection (1 Player vs AI / 2 Player), starts GameScene with `{ mode: 'ai' | 'pvp' }`
-- **`src/scenes/GameScene.ts`** - Main game logic, particle spawning, collision detection, base damage, win conditions. Accepts mode from init, runs AIController when mode is 'ai'
+- **`src/scenes/MenuScene.ts`** - Main menu with mode selection (1 Player vs AI / 2 Player), navigates to MapSelectScene
+- **`src/scenes/MapSelectScene.ts`** - Map type selection (Random, Maze), starts GameScene with `{ mode, gridType }`
+- **`src/scenes/GameScene.ts`** - Main game logic, particle spawning, collision detection, base damage, win conditions. Accepts mode and gridType from init, runs AIController when mode is 'ai'
 - **`src/scenes/UIScene.ts`** - UI overlay with HP bars, gold display, upgrade buttons, nuke buttons, keyboard controls. Hides P2 controls and labels as "AI" when mode is 'ai'
 
 ### Game Entities
@@ -20,9 +21,13 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - **`src/particles/`** - Particle type hierarchy:
   - **`AbstractParticle.ts`** - Abstract base class with shared state, movement logic, and lifecycle hooks
   - **`BasicParticle.ts`** - Default particle type (current behavior)
-  - **`GameContext.ts`** - Context interface passed to particle hooks (maze, spatial hash, players, spawnExplosion)
+  - **`GameContext.ts`** - Context interface passed to particle hooks (grid, spatial hash, players, spawnExplosion)
   - **`index.ts`** - Re-exports
-- **`src/maze.ts`** - Maze generation using percolation algorithm, pathfinding validation, collision detection helpers
+- **`src/grid/`** - Grid and map generators:
+  - **`Grid.ts`** - Grid class with cells, isWall, isInBase, cellW/cellH, hasPath
+  - **`generators/random.ts`** - Percolation-based random grid
+  - **`generators/maze.ts`** - Recursive backtracker maze with extra carved paths
+  - **`generators/index.ts`** - GridType union, generateGrid, re-exports
 
 ### Systems
 - **`src/ai.ts`** - AIController for single-player mode. Automatically upgrades (prioritizes spawn rate, attack, health) and uses nuke when behind or when enemy has many particles
@@ -174,11 +179,11 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - Stuck particle detection and respawning
 - Efficient collision pair tracking (Cantor pairing function)
 
-### Maze Generation
-- Percolation algorithm with configurable threshold
-- Ensures path exists between bases (validates connectivity)
+### Grid Generation
+- **Random** - Percolation algorithm with configurable threshold; retries until path exists
+- **Maze** - Recursive backtracker creates corridors; extra paths carved (~15%) for multiple routes
+- Both generators ensure path exists between bases via `grid.hasPath()`
 - Base areas always walkable
-- Fallback to lower threshold if no valid path found after 100 attempts
 
 ## Development
 
@@ -207,7 +212,7 @@ Particles use an inheritance-based hierarchy. New types extend `AbstractParticle
 - **`onDeath(context)`** - Called when particle dies; override for death effects (AoE explosion)
 - **`getBaseDamage()`** - Damage dealt to enemy base on reach; default: `CONFIG.BASE_DAMAGE_ON_REACH`
 
-`GameContext` provides: `maze`, `spatialHash`, `particles`, `players`, `gameTimeMs`, `spawnExplosion()`.
+`GameContext` provides: `grid`, `spatialHash`, `particles`, `players`, `gameTimeMs`, `spawnExplosion()`.
 
 ## Key Design Patterns
 
@@ -223,10 +228,10 @@ Particles use an inheritance-based hierarchy. New types extend `AbstractParticle
 - **Always check `src/config.ts` first** when looking for game parameters or balance values
 - Configuration uses `RESOLUTION_SCALE` multiplier - most values scale with this
 - Particles are the main game entities - see `src/particles/` for the type hierarchy and hooks
-- Maze is procedurally generated each game - uses percolation algorithm
+- Grid is procedurally generated each game - see `src/grid/` for generators (Random, Maze)
 - Collision system uses spatial hash for performance
 - UI is separate scene that overlays on top of game scene
 - Keyboard controls are handled in UIScene
-- Game state (players, particles, maze) is managed in GameScene
-- **Flow**: MenuScene (first) → GameScene → UIScene (launched). Game over returns to MenuScene
+- Game state (players, particles, grid) is managed in GameScene
+- **Flow**: MenuScene → MapSelectScene → GameScene → UIScene (launched). Game over returns to MenuScene
 - **AI mode**: AIController runs in GameScene.update() when mode is 'ai', makes decisions every ~200ms

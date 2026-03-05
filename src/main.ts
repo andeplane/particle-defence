@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { CONFIG } from './config';
 import { GameScene } from './scenes/GameScene';
+import { MapSelectScene } from './scenes/MapSelectScene';
 import { MenuScene } from './scenes/MenuScene';
 import { UIScene } from './scenes/UIScene';
 
@@ -10,7 +11,7 @@ const config: Phaser.Types.Core.GameConfig = {
   height: CONFIG.GAME_HEIGHT,
   parent: 'game-container',
   backgroundColor: CONFIG.BG_COLOR,
-  scene: [MenuScene, GameScene, UIScene],
+  scene: [MenuScene, MapSelectScene, GameScene, UIScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

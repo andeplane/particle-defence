@@ -1,10 +1,10 @@
-import type { MazeGrid } from '../maze';
+import type { Grid } from '../grid';
 import type { SpatialHash } from '../spatial-hash';
 import type { Player } from '../player';
 import type { AbstractParticle } from './AbstractParticle';
 
 export interface GameContext {
-  maze: MazeGrid;
+  grid: Grid;
   spatialHash: SpatialHash;
   particles: AbstractParticle[];
   players: [Player, Player];

@@ -1,18 +1,23 @@
 import Phaser from 'phaser';
 import { CONFIG } from '../config';
+import type { GameMode } from './MenuScene';
+import type { GridType } from '../grid';
 
-export type GameMode = 'ai' | 'pvp';
+export class MapSelectScene extends Phaser.Scene {
+  private mode: GameMode = 'pvp';
 
-export class MenuScene extends Phaser.Scene {
   constructor() {
-    super({ key: 'MenuScene' });
+    super({ key: 'MapSelectScene' });
+  }
+
+  init(data: { mode?: GameMode }): void {
+    this.mode = data.mode ?? 'pvp';
   }
 
   create(): void {
     const centerX = CONFIG.GAME_WIDTH / 2;
     const centerY = CONFIG.GAME_HEIGHT / 2;
 
-    // Title
     this.add.text(centerX, centerY - 120, 'TOWER DEFENCE', {
       fontSize: '64px',
       color: CONFIG.PLAYER1_COLOR_STR,
@@ -20,7 +25,7 @@ export class MenuScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.text(centerX, centerY - 70, 'Choose mode', {
+    this.add.text(centerX, centerY - 70, 'Choose map', {
       fontSize: `${CONFIG.UI_FONT_LARGE + 4}px`,
       color: '#aaaaaa',
       fontFamily: 'monospace',
@@ -30,36 +35,33 @@ export class MenuScene extends Phaser.Scene {
     const btnH = 56;
     const gap = 24;
 
-    // 1 Player vs AI button
     this.createButton(
       centerX,
       centerY - 20,
       btnW,
       btnH,
-      '1 Player vs AI',
-      CONFIG.PLAYER1_COLOR,
-      () => this.startGame('ai')
+      'Random',
+      0x88aa88,
+      () => this.startGame('random')
     );
 
-    // 2 Player button
     this.createButton(
       centerX,
       centerY + gap + btnH - 20,
       btnW,
       btnH,
-      '2 Player',
-      CONFIG.PLAYER2_COLOR,
-      () => this.startGame('pvp')
+      'Maze',
+      0xaa88aa,
+      () => this.startGame('maze')
     );
 
-    // Keyboard shortcuts
     this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
       const key = event.key.toUpperCase();
-      if (key === '1') this.startGame('ai');
-      if (key === '2') this.startGame('pvp');
+      if (key === '1') this.startGame('random');
+      if (key === '2') this.startGame('maze');
     });
 
-    this.add.text(centerX, centerY + 120, '[1] vs AI  [2] 2 Player', {
+    this.add.text(centerX, centerY + 120, '[1] Random  [2] Maze', {
       fontSize: `${CONFIG.UI_FONT_SMALL}px`,
       color: '#666666',
       fontFamily: 'monospace',
@@ -102,7 +104,7 @@ export class MenuScene extends Phaser.Scene {
     });
   }
 
-  private startGame(mode: GameMode): void {
-    this.scene.start('MapSelectScene', { mode });
+  private startGame(gridType: GridType): void {
+    this.scene.start('GameScene', { mode: this.mode, gridType });
   }
 }

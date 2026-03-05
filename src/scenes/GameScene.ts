@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { AIController } from '../ai';
 import { CONFIG } from '../config';
-import { generateMaze, getCellSize, isInBase, isWall, type MazeGrid } from '../maze';
+import { generateGrid, type Grid, type GridType } from '../grid';
 import { BasicParticle, type AbstractParticle, type GameContext } from '../particles';
 import { Player } from '../player';
 import { SpatialHash } from '../spatial-hash';
@@ -12,8 +12,7 @@ export class GameScene extends Phaser.Scene {
   players!: [Player, Player];
   particles: AbstractParticle[] = [];
   spatialHash!: SpatialHash;
-  maze!: MazeGrid;
-  mazeTexture!: Phaser.GameObjects.RenderTexture;
+  grid!: Grid;
   spawnTimers: number[] = [0, 0];
   gameOver: boolean = false;
   winner: number = -1;
@@ -29,8 +28,10 @@ export class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' });
   }
 
-  init(data: { mode?: GameMode }): void {
+  init(data: { mode?: GameMode; gridType?: GridType }): void {
     this.mode = data.mode ?? 'pvp';
+    const gridType = data.gridType ?? 'random';
+    this.grid = generateGrid(gridType);
   }
 
   create(): void {
@@ -42,7 +43,6 @@ export class GameScene extends Phaser.Scene {
     this.spawnTimers = [0, 0];
     this.gameTimeMs = 0;
 
-    this.maze = generateMaze();
     this.renderMaze();
     this.renderBases();
     this.createParticleTextures();
@@ -57,7 +57,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private renderMaze(): void {
-    const { cellW, cellH } = getCellSize();
+    const { cellW, cellH } = { cellW: this.grid.cellW, cellH: this.grid.cellH };
     const gfx = this.add.graphics();
 
     // Floor
@@ -65,9 +65,9 @@ export class GameScene extends Phaser.Scene {
     gfx.fillRect(0, 0, CONFIG.GAME_WIDTH, CONFIG.GAME_HEIGHT);
 
     // Walls
-    for (let y = 0; y < CONFIG.MAZE_ROWS; y++) {
-      for (let x = 0; x < CONFIG.MAZE_COLS; x++) {
-        if (!this.maze[y][x]) {
+    for (let y = 0; y < this.grid.rows; y++) {
+      for (let x = 0; x < this.grid.cols; x++) {
+        if (!this.grid.cells[y][x]) {
           const brightness = 0.3 + Math.random() * 0.15;
           const r = Math.floor(0x1a * brightness * 3);
           const g = Math.floor(0x1a * brightness * 3);
@@ -83,8 +83,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private renderBases(): void {
-    const { cellW } = getCellSize();
-    const baseW = CONFIG.BASE_WIDTH_CELLS * cellW;
+    const baseW = this.grid.baseWidthCells * this.grid.cellW;
 
     // Player 1 base (left) - cyan glow
     const base1 = this.add.graphics();
@@ -178,8 +177,7 @@ export class GameScene extends Phaser.Scene {
     const totalAlive = this.particles.filter(p => p.alive).length;
     if (count >= CONFIG.MAX_PARTICLES_PER_PLAYER || totalAlive >= CONFIG.MAX_PARTICLES_TOTAL) return;
 
-    const { cellW } = getCellSize();
-    const baseW = CONFIG.BASE_WIDTH_CELLS * cellW;
+    const baseW = this.grid.baseWidthCells * this.grid.cellW;
     // Spawn inside base area (always walkable) or retry until we find a non-wall position
     let x = owner === 0 ? baseW / 2 : CONFIG.GAME_WIDTH - baseW / 2;
     let y = CONFIG.GAME_HEIGHT / 2;
@@ -191,10 +189,10 @@ export class GameScene extends Phaser.Scene {
         x = CONFIG.GAME_WIDTH - baseW + baseW * 0.2 + Math.random() * baseW * 0.6;
       }
       y = CONFIG.GAME_HEIGHT * 0.2 + Math.random() * CONFIG.GAME_HEIGHT * 0.6;
-      if (!isWall(this.maze, x, y)) break;
+      if (!this.grid.isWall(x, y)) break;
     }
     // Fallback: center of base (always walkable)
-    if (isWall(this.maze, x, y)) {
+    if (this.grid.isWall(x, y)) {
       x = owner === 0 ? baseW / 2 : CONFIG.GAME_WIDTH - baseW / 2;
       y = CONFIG.GAME_HEIGHT / 2;
     }
@@ -297,7 +295,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     const context: GameContext = {
-      maze: this.maze,
+      grid: this.grid,
       spatialHash: this.spatialHash,
       particles: this.particles,
       players: this.players,
@@ -329,7 +327,7 @@ export class GameScene extends Phaser.Scene {
       if (!p.alive) continue;
 
       const enemyId = p.owner === 0 ? 1 : 0;
-      if (isInBase(p.x, enemyId as 0 | 1)) {
+      if (this.grid.isInBase(p.x, enemyId as 0 | 1)) {
         this.players[enemyId].takeDamage(p.getBaseDamage());
         const baseColor = enemyId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
         this.spawnExplosion(p.x, p.y, baseColor);

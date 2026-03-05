@@ -1,5 +1,4 @@
 import { CONFIG } from '../config';
-import { isWall } from '../maze';
 import type { GameContext } from './GameContext';
 
 let nextId = 0;
@@ -74,8 +73,8 @@ export abstract class AbstractParticle {
         newY = minY + offset;
       }
 
-      const wallX = isWall(context.maze, clampedX, this.y);
-      const wallY = isWall(context.maze, this.x, newY);
+      const wallX = context.grid.isWall(clampedX, this.y);
+      const wallY = context.grid.isWall(this.x, newY);
 
       if (!wallX) {
         this.x = clampedX;
