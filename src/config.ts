@@ -19,7 +19,7 @@ export const CONFIG = {
   MAX_PARTICLES_PER_PLAYER: 1000,
   MAX_PARTICLES_TOTAL: 2000,
   /** Random drift per second (fraction of speed) to prevent stuck particles */
-  PARTICLE_DRIFT_STRENGTH: 0.15,
+  PARTICLE_DRIFT_STRENGTH: 0.3,
   /** Chance (0-1) that random drift pushes towards enemy base */
   PARTICLE_ENEMY_BIAS: 0.65,
   /** Stuck detection: respawn if particle moves less than this many blocks in this many seconds */
