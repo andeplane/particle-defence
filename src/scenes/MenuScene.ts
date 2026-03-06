@@ -13,7 +13,7 @@ export class MenuScene extends Phaser.Scene {
     const centerX = CONFIG.GAME_WIDTH / 2;
     const centerY = CONFIG.GAME_HEIGHT / 2;
 
-    this.add.text(centerX, centerY - 120, 'TOWER DEFENCE', {
+    this.add.text(centerX, centerY - 120, 'Particle Defender', {
       fontSize: '64px',
       color: CONFIG.PLAYER1_COLOR_STR,
       fontFamily: 'monospace',
