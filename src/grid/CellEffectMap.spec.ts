@@ -92,6 +92,35 @@ describe(CellEffectMap.name, () => {
     it('returns 1 for out-of-bounds pixel', () => {
       expect(map.getSlowFactor(-10, -10, 0)).toBe(1);
     });
+
+    describe('ownership slow', () => {
+      it.each([
+        { cellOwner: 0 as const, forPlayer: 1 as const, expected: 0.8, desc: 'enemy-owned cell slows P1' },
+        { cellOwner: 1 as const, forPlayer: 0 as const, expected: 0.8, desc: 'enemy-owned cell slows P0' },
+      ])('$desc', ({ cellOwner, forPlayer, expected }) => {
+        const { px, py } = pxCenter(2, 1);
+        map.enterCell(2, 1, cellOwner);
+        expect(map.getSlowFactor(px, py, forPlayer)).toBeCloseTo(expected);
+      });
+
+      it('own-owned cell does not slow', () => {
+        const { px, py } = pxCenter(2, 1);
+        map.enterCell(2, 1, 0);
+        expect(map.getSlowFactor(px, py, 0)).toBe(1);
+      });
+
+      it('unowned cell does not slow', () => {
+        const { px, py } = pxCenter(2, 1);
+        expect(map.getSlowFactor(px, py, 0)).toBe(1);
+      });
+
+      it('ownership slow stacks multiplicatively with cell slow effects', () => {
+        const { px, py } = pxCenter(3, 0);
+        map.enterCell(3, 0, 0);
+        map.addEffect(3, 0, { type: 'slow', owner: 0, factor: 0.4 });
+        expect(map.getSlowFactor(px, py, 1)).toBeCloseTo(0.8 * 0.4);
+      });
+    });
   });
 
   describe('isTempWall', () => {

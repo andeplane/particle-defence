@@ -75,15 +75,22 @@ export class CellEffectMap implements ICellEffectMap {
     const { col, row } = this.pixelToCell(px, py);
     if (!this.isInBounds(col, row)) return 1;
 
-    const list = this.effects.get(this.key(col, row));
-    if (!list) return 1;
-
     let factor = 1;
-    for (const e of list) {
-      if (e.type === 'slow' && e.owner !== forPlayer) {
-        factor *= e.factor;
+    const list = this.effects.get(this.key(col, row));
+    if (list) {
+      for (const e of list) {
+        if (e.type === 'slow' && e.owner !== forPlayer) {
+          factor *= e.factor;
+        }
       }
     }
+
+    // Enemy-owned cells slow movement
+    const owner = this.ownership.get(this.key(col, row))?.owner ?? null;
+    if (owner !== null && owner !== forPlayer) {
+      factor *= CONFIG.OWNERSHIP_SLOW_FACTOR;
+    }
+
     return factor;
   }
 

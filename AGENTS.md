@@ -121,6 +121,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - `TEMP_WALL_HP_BAR_HEIGHT: 4` - Height of the HP bar rendered on temp walls
 
 ### Cell Ownership
+- `OWNERSHIP_SLOW_FACTOR: 0.8` - Speed multiplier when moving through enemy-owned cells (20% slower)
 - `OWNERSHIP_DEFENSE_BASE: 0.05` - Base defense bonus (5%) when standing in owned cell
 - `OWNERSHIP_DEFENSE_PER_LEVEL: 0.025` - Per-level increase from defense upgrade (+2.5%)
 - `OWNERSHIP_DEFENSE_MAX: 0.25` - Max total defense bonus (25%)
@@ -217,6 +218,8 @@ Each grid cell can be "owned" by a player. Ownership is tracked per cell and aff
 - If B enters while A still has particles in the cell, A keeps ownership.
 
 **Defense bonus**: Particles of the owning player receive a damage reduction while standing in that owned cell. Base bonus is 5% (configurable). The defense upgrade increases this bonus by +2.5% per level, capped at 25% total.
+
+**Ownership slow**: Particles moving through enemy-owned cells are slowed by 20% (configurable via `OWNERSHIP_SLOW_FACTOR`). This stacks multiplicatively with other slow effects. Own-owned and unowned cells do not slow movement.
 
 **Visual feedback**: Owned cells show a subtle team-color tint (low alpha). A brief capture flash (slightly stronger tint) appears when a cell is captured.
 

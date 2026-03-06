@@ -107,6 +107,8 @@ export const CONFIG = {
   TEMP_WALL_HP_BAR_HEIGHT: 4,
 
   // Cell ownership
+  /** Speed multiplier when moving through enemy-owned cells (0.8 = 20% slower) */
+  OWNERSHIP_SLOW_FACTOR: 0.8,
   /** Base defense bonus (0-1) when standing in owned cell, before upgrade */
   OWNERSHIP_DEFENSE_BASE: 0.05,
   /** Per-level defense bonus increase from upgrade */
