@@ -5,6 +5,7 @@ import { generateGrid, type GridType } from '../grid';
 import type { CellEffect } from '../grid/CellEffect';
 import type { IParticle } from '../particles';
 import { GameEngine, type GameEngineCallbacks } from '../GameEngine';
+import { MatchStatsRecorder } from '../stats';
 import type { GameMode } from './MenuScene';
 import type { IGameViewModel } from './UIScene';
 
@@ -12,6 +13,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   engine!: GameEngine;
   mode: GameMode = 'pvp';
   debugSpeedMultiplier: number = 1;
+  private statsRecorder!: MatchStatsRecorder;
 
   setDebugSpeedMultiplier(speed: number): void {
     this.debugSpeedMultiplier = speed;
@@ -35,18 +37,30 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     const gridType = data.gridType ?? 'random';
     const grid = generateGrid(gridType);
 
+    this.statsRecorder = new MatchStatsRecorder({ cellW: grid.cellW });
+
     const callbacks: GameEngineCallbacks = {
-      onKill: (_killer, victim) => {
+      onKill: (killer, victim) => {
         const victimColor = victim.owner === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
         this.spawnExplosion(victim.x, victim.y, victimColor);
+        this.statsRecorder.recordKill(killer.owner);
+        this.statsRecorder.recordUnitDamage(killer.owner, victim.maxHealth);
+        this.statsRecorder.recordGoldIncome(killer.owner, CONFIG.KILL_REWARD);
       },
-      onBaseDamage: (playerId, _damage, px, py) => {
-        const baseColor = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+      onBaseDamage: (_playerId, damage, px, py) => {
+        const baseColor = _playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
         this.spawnExplosion(px, py, baseColor);
         this.cameras.main.shake(100, 0.003);
+        const attacker = _playerId === 0 ? 1 : 0;
+        this.statsRecorder.recordBaseDamage(attacker as 0 | 1, damage);
       },
       onParticleSpawned: (p) => this.attachVisuals(p),
-      onNuke: () => this.cameras.main.shake(300, 0.008),
+      onNuke: (playerId, killCount) => {
+        this.cameras.main.shake(300, 0.008);
+        this.statsRecorder.recordNuke(playerId, killCount);
+        const reward = Math.floor(killCount * CONFIG.KILL_REWARD * CONFIG.NUCLEAR_KILL_REWARD_FRACTION);
+        this.statsRecorder.recordGoldIncome(playerId, reward);
+      },
       onGameOver: (winner) => this.showGameOver(winner),
       onStuckRespawn: () => {},
       spawnExplosion: (x, y, color) => this.spawnExplosion(x, y, color),
@@ -76,7 +90,13 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
   purchaseUpgrade(playerId: 0 | 1, type: UpgradeType): boolean {
     if (this.engine.gameOver) return false;
-    return this.engine.players[playerId].buyUpgrade(type);
+    const cost = this.engine.players[playerId].getUpgradeCost(type);
+    const success = this.engine.players[playerId].buyUpgrade(type);
+    if (success) {
+      this.statsRecorder.recordGoldSpent(playerId, cost);
+      this.statsRecorder.recordUpgrade(playerId, type);
+    }
+    return success;
   }
 
   launchNuke(playerId: 0 | 1): boolean {
@@ -93,6 +113,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   update(_time: number, delta: number): void {
     const spedDelta = delta * this.debugSpeedMultiplier;
     this.engine.tick(spedDelta);
+    this.statsRecorder.tick(spedDelta, this.engine.particles, this.engine.players);
     this.renderCellEffects();
   }
 
@@ -330,6 +351,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   }
 
   private showGameOver(winner: number): void {
+    const matchStats = this.statsRecorder.finalize(winner as 0 | 1);
     const winnerColor = winner === 0 ? CONFIG.PLAYER1_COLOR_STR : CONFIG.PLAYER2_COLOR_STR;
     const winnerLabel = winner === 1 && this.mode === 'ai' ? 'AI WINS!' : `PLAYER ${winner + 1} WINS!`;
     const overlay = this.add.rectangle(
@@ -352,7 +374,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
     const restart = this.add.text(
       CONFIG.GAME_WIDTH / 2, CONFIG.GAME_HEIGHT / 2 + 60,
-      'Click to return to menu',
+      'Click to view match stats',
       {
         fontSize: '40px',
         color: '#ffffff',
@@ -380,7 +402,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     this.time.delayedCall(1000, () => {
       this.input.once('pointerdown', () => {
         this.scene.stop('UIScene');
-        this.scene.start('MenuScene');
+        this.scene.start('PostGameStatsScene', { stats: matchStats, mode: this.mode });
       });
     });
   }
