@@ -63,6 +63,10 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
       },
       onGameOver: (winner) => this.showGameOver(winner),
       onStuckRespawn: () => {},
+      onInterest: (playerId, amount) => {
+        const uiScene = this.scene.get('UIScene') as { showInterestPopup?: (id: 0 | 1, amt: number) => void };
+        uiScene?.showInterestPopup?.(playerId, amount);
+      },
       spawnExplosion: (x, y, color) => this.spawnExplosion(x, y, color),
     };
 

@@ -12,6 +12,7 @@ const noopCallbacks: GameEngineCallbacks = {
   onNuke: vi.fn(),
   onGameOver: vi.fn(),
   onStuckRespawn: vi.fn(),
+  onInterest: vi.fn(),
   spawnExplosion: vi.fn(),
 };
 
@@ -94,6 +95,22 @@ describe(GameEngine.name, () => {
       engine.tick(intervalMs);
 
       expect(engine.players[0].gold).toBe(200);
+    });
+
+    it('invokes onInterest callback when interest is applied', () => {
+      const onInterest = vi.fn();
+      const p0 = createPlayerWithInterest(1, 100);
+      const p1 = createPlayer(1, { ...noSpawnConfig, startingGold: 50 });
+
+      const engine = new GameEngine(createMockGrid(), { ...noopCallbacks, onInterest }, {
+        createPlayer: (id) => (id === 0 ? p0 : p1),
+        createParticle: () => createMockParticle({ alive: true }),
+      });
+      engine.init(false);
+
+      engine.tick(intervalMs);
+
+      expect(onInterest).toHaveBeenCalledWith(0, 1);
     });
 
     it('skips interest when gold is 0', () => {

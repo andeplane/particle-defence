@@ -15,6 +15,7 @@ export interface GameEngineCallbacks {
   onNuke(playerId: 0 | 1, killCount: number): void;
   onGameOver(winner: number): void;
   onStuckRespawn(owner: 0 | 1): void;
+  onInterest(playerId: 0 | 1, amount: number): void;
   spawnExplosion(x: number, y: number, color: number): void;
 }
 
@@ -212,7 +213,10 @@ export class GameEngine implements AIGameState {
       while (this.interestTimers[i] >= intervalMs) {
         this.interestTimers[i] -= intervalMs;
         const increment = Math.floor(player.gold * rate);
-        if (increment > 0) player.gold += increment;
+        if (increment > 0) {
+          player.gold += increment;
+          this.callbacks.onInterest(i as 0 | 1, increment);
+        }
       }
     }
   }

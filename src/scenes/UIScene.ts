@@ -298,10 +298,18 @@ export class UIScene extends Phaser.Scene {
   }
 
   private showGoldPopup(playerId: 0 | 1, text: string): void {
+    this.showMoneyPopup(playerId, text, '#ff4444');
+  }
+
+  showInterestPopup(playerId: 0 | 1, amount: number): void {
+    this.showMoneyPopup(playerId, `+$${amount}`, '#44ff44');
+  }
+
+  private showMoneyPopup(playerId: 0 | 1, text: string, color: string): void {
     const x = playerId === 0 ? CONFIG.UI_BAR_WIDTH + CONFIG.UI_GAP * 4 : CONFIG.GAME_WIDTH - CONFIG.UI_BAR_WIDTH - CONFIG.UI_GAP * 4;
     const y = CONFIG.UI_GAP * 2 + CONFIG.UI_BAR_HEIGHT + CONFIG.UI_GAP;
     const popup = this.add.text(x, y, text, {
-      fontSize: `${CONFIG.UI_FONT_SMALL + 2}px`, color: '#ff4444', fontFamily: 'monospace', fontStyle: 'bold',
+      fontSize: `${CONFIG.UI_FONT_SMALL + 2}px`, color, fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5);
     this.popups.push(popup);
 
