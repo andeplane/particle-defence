@@ -258,6 +258,81 @@ describe(CellEffectMap.name, () => {
     });
   });
 
+  describe('cell ownership', () => {
+    it.each([
+      { entrant: 0 as const, expectedOwner: 0 as const, desc: 'A enters empty cell, A owns' },
+      { entrant: 1 as const, expectedOwner: 1 as const, desc: 'B enters empty cell, B owns' },
+    ])('$desc', ({ entrant, expectedOwner }) => {
+      map.enterCell(2, 1, entrant);
+      expect(map.getOwnerAt(pxCenter(2, 1).px, pxCenter(2, 1).py)).toBe(expectedOwner);
+    });
+
+    it('A leaves cell, A still owns', () => {
+      map.enterCell(2, 1, 0);
+      map.leaveCell(2, 1, 0);
+      expect(map.getOwnerAt(pxCenter(2, 1).px, pxCenter(2, 1).py)).toBe(0);
+    });
+
+    it('B enters owned cell with no A occupants, B captures', () => {
+      map.enterCell(2, 1, 0);
+      map.leaveCell(2, 1, 0);
+      map.enterCell(2, 1, 1);
+      expect(map.getOwnerAt(pxCenter(2, 1).px, pxCenter(2, 1).py)).toBe(1);
+    });
+
+    it('B enters owned cell while A still present, A keeps ownership', () => {
+      map.enterCell(2, 1, 0);
+      map.enterCell(2, 1, 1);
+      expect(map.getOwnerAt(pxCenter(2, 1).px, pxCenter(2, 1).py)).toBe(0);
+    });
+
+    it('returns null for unowned cell', () => {
+      expect(map.getOwnerAt(50, 50)).toBeNull();
+    });
+
+    it('returns null for out-of-bounds', () => {
+      expect(map.getOwnerAt(-10, -10)).toBeNull();
+    });
+
+    it('hasAnyOwnedCells is false when empty', () => {
+      expect(map.hasAnyOwnedCells).toBe(false);
+    });
+
+    it('hasAnyOwnedCells is true when cells are owned', () => {
+      map.enterCell(1, 0, 0);
+      expect(map.hasAnyOwnedCells).toBe(true);
+    });
+
+    it('forEachOwnedCell iterates owned cells', () => {
+      map.enterCell(1, 0, 0);
+      map.enterCell(3, 2, 1);
+      const visited: { col: number; row: number; owner: 0 | 1 }[] = [];
+      map.forEachOwnedCell((col, row, owner) => visited.push({ col, row, owner }));
+      expect(visited).toHaveLength(2);
+      expect(visited).toContainEqual({ col: 1, row: 0, owner: 0 });
+      expect(visited).toContainEqual({ col: 3, row: 2, owner: 1 });
+    });
+
+    it('capture flash present on new capture', () => {
+      map.enterCell(2, 1, 0);
+      let hasFlash = false;
+      map.forEachOwnedCell((_col, _row, _owner, flash) => {
+        hasFlash = flash;
+      });
+      expect(hasFlash).toBe(true);
+    });
+
+    it('capture flash expires after update', () => {
+      map.enterCell(2, 1, 0);
+      map.update(500);
+      let hasFlash = false;
+      map.forEachOwnedCell((_col, _row, _owner, flash) => {
+        hasFlash = flash;
+      });
+      expect(hasFlash).toBe(false);
+    });
+  });
+
   describe('pixel-to-cell conversion', () => {
     it.each([
       { px: 0, py: 0, expectedCol: 0, expectedRow: 0 },

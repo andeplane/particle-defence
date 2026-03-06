@@ -113,6 +113,8 @@ export class GameEngine implements AIGameState {
       if (p.alive) p.update(dt, context);
     }
 
+    this.updateParticleDefenseFactors(context);
+
     this.applyCellDamage(dt);
 
     this.spatialHash.clear();
@@ -175,10 +177,12 @@ export class GameEngine implements AIGameState {
 
     const enemyId = playerId === 0 ? 1 : 0;
 
+    const context = this.createContext();
     let killCount = 0;
     for (const p of this.particles) {
       if (!p.alive) continue;
       if (p.owner === enemyId) {
+        p.leaveCurrentCell(context);
         p.destroy();
         killCount++;
       }
@@ -205,6 +209,17 @@ export class GameEngine implements AIGameState {
     };
   }
 
+  private updateParticleDefenseFactors(context: GameContext): void {
+    for (const p of this.particles) {
+      if (!p.alive) continue;
+      const owner = p.owner;
+      const cellOwner = context.cellEffects.getOwnerAt(p.x, p.y);
+      const inOwnedCell = cellOwner === owner;
+      const player = this.players[owner];
+      p.defenseFactor = inOwnedCell ? player.particleDefense : 0;
+    }
+  }
+
   private applyCellDamage(dt: number): void {
     for (const p of this.particles) {
       if (!p.alive) continue;
@@ -225,16 +240,19 @@ export class GameEngine implements AIGameState {
         this.players[enemyId].takeDamage(damage);
         this.callbacks.onBaseDamage(enemyId as 0 | 1, damage, p.x, p.y);
         p.alive = false;
+        p.leaveCurrentCell(this.createContext());
         p.destroy();
       }
     }
   }
 
   private respawnStuckParticles(): void {
+    const context = this.createContext();
     for (const p of this.particles) {
       if (!p.alive) continue;
       if (p.isStuck()) {
         const owner = p.owner;
+        p.leaveCurrentCell(context);
         p.destroy();
         this.callbacks.onStuckRespawn(owner);
         this.spawnParticle(owner);
@@ -243,8 +261,10 @@ export class GameEngine implements AIGameState {
   }
 
   private cleanupDeadParticles(): void {
+    const context = this.createContext();
     this.particles = this.particles.filter(p => {
       if (!p.alive) {
+        p.leaveCurrentCell(context);
         p.destroy();
         return false;
       }

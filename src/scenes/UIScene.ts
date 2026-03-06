@@ -117,6 +117,7 @@ export class UIScene extends Phaser.Scene {
       { type: 'radius', label: 'RAD', p1Key: 'E', p2Key: 'O' },
       { type: 'spawnRate', label: 'SPWN', p1Key: 'R', p2Key: 'P' },
       { type: 'speed', label: 'VEL', p1Key: 'T', p2Key: 'Y' },
+      { type: 'defense', label: 'DEF', p1Key: 'G', p2Key: 'K' },
     ];
     const bottomRowUpgrade = { type: 'maxParticles' as UpgradeType, label: 'MAX', p1Key: 'A', p2Key: 'L' };
 
@@ -137,7 +138,7 @@ export class UIScene extends Phaser.Scene {
 
     if (this.viewModel.mode === 'pvp') {
       topRowUpgrades.forEach((u, i) => {
-        const x = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - (4 - i) * (btnW + gap) - btnW / 2;
+        const x = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - (5 - i) * (btnW + gap) - btnW / 2;
         this.createButton(x, topRowY, btnW, btnH, u.type, u.label, u.p2Key, 1);
       });
       const p2BottomX = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - staggerOffset - btnW / 2;
@@ -240,10 +241,10 @@ export class UIScene extends Phaser.Scene {
 
   private setupKeyboard(): void {
     const p1Keys: Record<string, UpgradeType> = {
-      Q: 'health', W: 'attack', E: 'radius', R: 'spawnRate', T: 'speed', A: 'maxParticles',
+      Q: 'health', W: 'attack', E: 'radius', R: 'spawnRate', T: 'speed', G: 'defense', A: 'maxParticles',
     };
     const p2Keys: Record<string, UpgradeType> = {
-      U: 'health', I: 'attack', O: 'radius', P: 'spawnRate', Y: 'speed', L: 'maxParticles',
+      U: 'health', I: 'attack', O: 'radius', P: 'spawnRate', Y: 'speed', K: 'defense', L: 'maxParticles',
     };
 
     this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
@@ -344,8 +345,8 @@ export class UIScene extends Phaser.Scene {
 
     const p1Count = this.viewModel.getParticleCount(0);
     const p2Count = this.viewModel.getParticleCount(1);
-    this.p1StatsText.setText(`HP:${p1.particleHealth} ATK:${p1.particleAttack} RAD:${p1.particleRadius} VEL:${p1.particleSpeed} Units:${p1Count}/${p1.maxParticles}`);
-    this.p2StatsText.setText(`HP:${p2.particleHealth} ATK:${p2.particleAttack} RAD:${p2.particleRadius} VEL:${p2.particleSpeed} Units:${p2Count}/${p2.maxParticles}`);
+    this.p1StatsText.setText(`HP:${p1.particleHealth} ATK:${p1.particleAttack} RAD:${p1.particleRadius} VEL:${p1.particleSpeed} DEF:${Math.round(p1.particleDefense * 100)}% Units:${p1Count}/${p1.maxParticles}`);
+    this.p2StatsText.setText(`HP:${p2.particleHealth} ATK:${p2.particleAttack} RAD:${p2.particleRadius} VEL:${p2.particleSpeed} DEF:${Math.round(p2.particleDefense * 100)}% Units:${p2Count}/${p2.maxParticles}`);
 
     for (const btn of this.buttons) {
       const player = this.viewModel.players[btn.playerId];

@@ -105,6 +105,17 @@ describe(BasicParticle.name, () => {
       expect(p.health).toBe(7);
     });
 
+    it.each([
+      { defenseFactor: 0, damage: 10, expectedHealth: 0, desc: 'no defense' },
+      { defenseFactor: 0.2, damage: 10, expectedHealth: 2, desc: '20% defense reduces damage' },
+      { defenseFactor: 0.5, damage: 10, expectedHealth: 5, desc: '50% defense halves damage' },
+    ])('$desc', ({ defenseFactor, damage, expectedHealth }) => {
+      const p = createParticle({ health: 10 });
+      p.defenseFactor = defenseFactor;
+      p.takeDamage(damage);
+      expect(p.health).toBe(expectedHealth);
+    });
+
     it('sets alive to false when health reaches 0', () => {
       const p = createParticle({ health: 1 });
       p.takeDamage(1);
@@ -302,6 +313,39 @@ describe(BasicParticle.name, () => {
       p.update(0.1, wallContext);
 
       expect(damageWallAt).not.toHaveBeenCalled();
+    });
+
+    it('calls enterCell on update with current cell and owner', () => {
+      const enterCell = vi.fn();
+      const ownershipEffects = createMockCellEffectMap({ enterCell });
+      const ownershipContext = createMockGameContext({ cellEffects: ownershipEffects });
+
+      const deps = createDeps({ config: { ...testParticleConfig, driftStrength: 0 } });
+      const p = createParticle({ x: 50, y: 50, speed: 180, owner: 0 }, deps);
+
+      p.update(0.1, ownershipContext);
+
+      expect(enterCell).toHaveBeenCalled();
+      const lastCall = enterCell.mock.calls[enterCell.mock.calls.length - 1];
+      const expectedCol = Math.floor(p.x / ownershipContext.grid.cellW);
+      const expectedRow = Math.floor(p.y / ownershipContext.grid.cellH);
+      expect(lastCall[0]).toBe(expectedCol);
+      expect(lastCall[1]).toBe(expectedRow);
+      expect(lastCall[2]).toBe(0);
+    });
+
+    it('calls leaveCurrentCell with context', () => {
+      const leaveCell = vi.fn();
+      const ownershipEffects = createMockCellEffectMap({ leaveCell });
+      const ownershipContext = createMockGameContext({ cellEffects: ownershipEffects });
+
+      const deps = createDeps({ config: testParticleConfig });
+      const p = createParticle({ x: 50, y: 50 }, deps);
+      p.update(0.016, ownershipContext);
+
+      p.leaveCurrentCell(ownershipContext);
+
+      expect(leaveCell).toHaveBeenCalled();
     });
 
     it('no slow effect when factor is 1', () => {

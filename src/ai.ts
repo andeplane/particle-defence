@@ -18,7 +18,7 @@ const defaultAIConfig: AIConfig = {
   baseHP: CONFIG.BASE_HP,
 };
 
-const UPGRADE_TYPES: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles'];
+const UPGRADE_TYPES: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'defense', 'maxParticles'];
 
 export class AIController {
   private readonly playerId: 0 | 1;
@@ -136,6 +136,15 @@ export class AIController {
       }
       case 'radius': {
         score *= 0.6;
+        break;
+      }
+      case 'defense': {
+        const humanAttackLevel = human.getUpgradeLevel('attack');
+        if (humanAttackLevel > ai.getUpgradeLevel('defense')) {
+          score *= 1.8;
+        } else {
+          score *= 1.2;
+        }
         break;
       }
       case 'maxParticles': {

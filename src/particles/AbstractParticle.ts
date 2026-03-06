@@ -27,6 +27,10 @@ export interface IParticle {
   getBaseDamage(): number;
   isStuck(): boolean;
   takeDamage(amount: number): void;
+  /** Call before destroy to leave current cell for ownership tracking. */
+  leaveCurrentCell(context: GameContext): void;
+  /** Defense reduction (0-0.25) applied in takeDamage. Set by engine each tick. */
+  defenseFactor: number;
   destroy(): void;
 }
 
@@ -90,6 +94,13 @@ export abstract class AbstractParticle implements IParticle {
 
   sprite: Phaser.GameObjects.Image | null = null;
   trail: Phaser.GameObjects.Particles.ParticleEmitter | null = null;
+
+  /** Last cell the particle occupied (for ownership enter/leave). -1 = not yet set. */
+  private _lastCellCol: number = -1;
+  private _lastCellRow: number = -1;
+
+  /** Defense reduction (0-0.25) applied in takeDamage. Set by engine each tick based on owned cell. */
+  defenseFactor: number = 0;
 
   protected readonly config: ParticleConfig;
 
@@ -179,6 +190,8 @@ export abstract class AbstractParticle implements IParticle {
       this.preventBaseReturn();
     }
 
+    this.updateCellOwnership(context);
+
     if (this.sprite) {
       this.sprite.setPosition(this.x, this.y);
     }
@@ -196,6 +209,28 @@ export abstract class AbstractParticle implements IParticle {
 
   getBaseDamage(): number {
     return this.config.baseDamageOnReach;
+  }
+
+  private updateCellOwnership(context: GameContext): void {
+    const col = Math.floor(this.x / context.grid.cellW);
+    const row = Math.floor(this.y / context.grid.cellH);
+    if (this._lastCellCol !== col || this._lastCellRow !== row) {
+      if (this._lastCellCol >= 0 && this._lastCellRow >= 0) {
+        context.cellEffects.leaveCell(this._lastCellCol, this._lastCellRow, this.owner);
+      }
+      context.cellEffects.enterCell(col, row, this.owner);
+      this._lastCellCol = col;
+      this._lastCellRow = row;
+    }
+  }
+
+  /** Called by engine before destroy to leave current cell. Exposed for cleanup. */
+  leaveCurrentCell(context: GameContext): void {
+    if (this._lastCellCol >= 0 && this._lastCellRow >= 0) {
+      context.cellEffects.leaveCell(this._lastCellCol, this._lastCellRow, this.owner);
+      this._lastCellCol = -1;
+      this._lastCellRow = -1;
+    }
   }
 
   private damageWallAtPixel(px: number, py: number, context: GameContext): void {
@@ -263,7 +298,8 @@ export abstract class AbstractParticle implements IParticle {
   }
 
   takeDamage(amount: number): void {
-    this.health -= amount;
+    const effectiveAmount = amount * (1 - this.defenseFactor);
+    this.health -= effectiveAmount;
     if (this.health <= 0) {
       this.alive = false;
     }

@@ -52,4 +52,15 @@ export interface ICellEffectMap {
 
   /** Iterate all cells that have effects. Callback receives (col, row, effects). */
   forEach(callback: (col: number, row: number, effects: readonly CellEffect[]) => void): void;
+
+  /** Cell ownership: called when a particle enters a cell. Updates owner per capture rules. */
+  enterCell(col: number, row: number, owner: 0 | 1): void;
+  /** Cell ownership: called when a particle leaves a cell. */
+  leaveCell(col: number, row: number, owner: 0 | 1): void;
+  /** Returns current owner of cell at pixel coords, or null if unowned. */
+  getOwnerAt(px: number, py: number): 0 | 1 | null;
+  /** True if any cells are owned (for render skip). */
+  readonly hasAnyOwnedCells: boolean;
+  /** Iterate owned cells. Callback receives (col, row, owner, hasCaptureFlash). */
+  forEachOwnedCell(callback: (col: number, row: number, owner: 0 | 1, hasCaptureFlash: boolean) => void): void;
 }

@@ -54,6 +54,7 @@ export const CONFIG = {
     spawnRate: 10,
     speed: 7,
     maxParticles: 10,
+    defense: 5,
   },
   /** Cost multiplier per upgrade level: cost = baseCost * UPGRADE_COST_MULTIPLIER^level */
   UPGRADE_COST_MULTIPLIER: 1.3,
@@ -91,6 +92,20 @@ export const CONFIG = {
   DAMAGE_EFFECT_ALPHA: 0.22,
   TEMP_WALL_ALPHA: 0.55,
   TEMP_WALL_HP_BAR_HEIGHT: 4,
+
+  // Cell ownership
+  /** Base defense bonus (0-1) when standing in owned cell, before upgrade */
+  OWNERSHIP_DEFENSE_BASE: 0.05,
+  /** Per-level defense bonus increase from upgrade */
+  OWNERSHIP_DEFENSE_PER_LEVEL: 0.025,
+  /** Max total defense bonus (base + upgrade) */
+  OWNERSHIP_DEFENSE_MAX: 0.25,
+  /** Duration (ms) of capture flash overlay */
+  OWNERSHIP_CAPTURE_FLASH_MS: 300,
+  /** Alpha for subtle owned-cell tint */
+  OWNERSHIP_EFFECT_ALPHA: 0.08,
+  /** Alpha for brief capture flash (slightly stronger) */
+  OWNERSHIP_CAPTURE_FLASH_ALPHA: 0.15,
 } as const;
 
 export type UpgradeType = keyof typeof CONFIG.UPGRADE_COSTS;

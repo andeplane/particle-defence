@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import type { GameContext } from '../particles/GameContext';
 import type { IParticle } from '../particles/AbstractParticle';
 
 export function createMockParticle(overrides: Partial<IParticle> = {}): IParticle {
@@ -22,6 +23,7 @@ export function createMockParticle(overrides: Partial<IParticle> = {}): IParticl
     canMove: true,
     sprite: null,
     trail: null,
+    defenseFactor: 0,
     update: vi.fn(),
     onCollide: vi.fn(function (this: IParticle, other: IParticle) {
       this.health -= other.attack;
@@ -34,6 +36,7 @@ export function createMockParticle(overrides: Partial<IParticle> = {}): IParticl
       this.health -= amount;
       if (this.health <= 0) this.alive = false;
     }),
+    leaveCurrentCell: vi.fn((_context: GameContext) => {}),
     destroy: vi.fn(),
   };
 

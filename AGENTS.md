@@ -27,7 +27,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - **`src/grid/`** - Grid, cell effects, and map generators:
   - **`Grid.ts`** - Grid class with cells, isWall, isInBase, cellW/cellH, hasPath
   - **`CellEffect.ts`** - Cell effect type definitions (discriminated union) and `ICellEffectMap` interface
-  - **`CellEffectMap.ts`** - Cell effect map implementation: manages per-cell effects, queries, timer/HP updates
+  - **`CellEffectMap.ts`** - Cell effect map implementation: manages per-cell effects, queries, timer/HP updates, and cell ownership (enterCell/leaveCell, getOwnerAt, forEachOwnedCell)
   - **`generators/random.ts`** - Percolation-based random grid
   - **`generators/maze.ts`** - Recursive backtracker maze with extra carved paths
   - **`generators/index.ts`** - GridType union, generateGrid, re-exports
@@ -103,6 +103,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
   - `spawnRate: 10`
   - `speed: 7`
   - `maxParticles: 10`
+  - `defense: 5`
 - `UPGRADE_COST_MULTIPLIER: 1.3` - Cost multiplier per level (cost = baseCost * multiplier^level)
 
 ### Cell Effect Defaults
@@ -114,6 +115,14 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - `DAMAGE_EFFECT_ALPHA: 0.22` - Rendering alpha for damage cell overlay
 - `TEMP_WALL_ALPHA: 0.55` - Rendering alpha for temp wall overlay
 - `TEMP_WALL_HP_BAR_HEIGHT: 4` - Height of the HP bar rendered on temp walls
+
+### Cell Ownership
+- `OWNERSHIP_DEFENSE_BASE: 0.05` - Base defense bonus (5%) when standing in owned cell
+- `OWNERSHIP_DEFENSE_PER_LEVEL: 0.025` - Per-level increase from defense upgrade (+2.5%)
+- `OWNERSHIP_DEFENSE_MAX: 0.25` - Max total defense bonus (25%)
+- `OWNERSHIP_CAPTURE_FLASH_MS: 300` - Duration of capture flash overlay
+- `OWNERSHIP_EFFECT_ALPHA: 0.08` - Alpha for subtle owned-cell tint
+- `OWNERSHIP_CAPTURE_FLASH_ALPHA: 0.15` - Alpha for brief capture flash
 
 ### Spatial Hash
 - `SPATIAL_CELL_SIZE: 32` (16 * scale) - Grid cell size for collision optimization
@@ -136,7 +145,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 
 ### Helper Functions
 - `getUpgradeCost(type: UpgradeType, level: number): number` - Calculates upgrade cost based on level
-- `UpgradeType` - Type union: `'health' | 'attack' | 'radius' | 'spawnRate' | 'speed' | 'maxParticles'`
+- `UpgradeType` - Type union: `'health' | 'attack' | 'radius' | 'spawnRate' | 'speed' | 'defense' | 'maxParticles'`
 
 ## Game Mechanics
 
@@ -159,7 +168,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - Dead particles are cleaned up and removed
 
 ### Upgrade System
-- 6 upgrade types: health, attack, radius, spawnRate, speed, maxParticles (increases particle cap by 50 per level)
+- 7 upgrade types: health, attack, radius, spawnRate, speed, defense, maxParticles (increases particle cap by 50 per level)
 - Costs increase exponentially: `baseCost * 1.3^level`
 - Upgrades affect all future spawned particles
 - Upgrade levels tracked per player
@@ -188,6 +197,21 @@ Grid cells can have composable effects layered on top of the base boolean grid. 
 
 **Placement**: Use `cellEffects.addEffect(col, row, effect)` to place effects. The placement mechanism (upgrades, abilities, etc.) is not yet implemented — this is the infrastructure layer.
 
+### Cell Ownership
+Each grid cell can be "owned" by a player. Ownership is tracked per cell and affects defense.
+
+**Ownership rules**:
+- When a particle enters a cell, that player may capture it.
+- If player A owns a cell and still has at least one particle in it, ownership is locked to A.
+- If player A leaves the cell (no A particles in it) and player B enters, B captures the cell.
+- If B enters while A still has particles in the cell, A keeps ownership.
+
+**Defense bonus**: Particles of the owning player receive a damage reduction while standing in that owned cell. Base bonus is 5% (configurable). The defense upgrade increases this bonus by +2.5% per level, capped at 25% total.
+
+**Visual feedback**: Owned cells show a subtle team-color tint (low alpha). A brief capture flash (slightly stronger tint) appears when a cell is captured.
+
+**Integration**: `AbstractParticle.update()` calls `cellEffects.enterCell()` and `leaveCell()` on cell transitions. `GameEngine.updateParticleDefenseFactors()` sets each particle's `defenseFactor` based on ownership before collision and cell damage.
+
 ### Win Condition
 - Game ends when a player's base HP reaches 0
 - Winner is the surviving player
@@ -196,7 +220,7 @@ Grid cells can have composable effects layered on top of the base boolean grid. 
 
 ### Game Modes
 - **1 Player vs AI** - Human (P1) vs AI (P2). AI controls upgrades and nuke automatically. P2 UI shows "AI" label and stats.
-- **2 Player** - Both players use keyboard controls. P1: Q/W/E/R/T/A/F, P2: U/I/O/P/Y/L/J. Button layout mirrors QWERTY keyboard.
+- **2 Player** - Both players use keyboard controls. P1: Q/W/E/R/T/G/A/F, P2: U/I/O/P/Y/K/L/J. Button layout mirrors QWERTY keyboard.
 
 ## Controls
 
@@ -206,6 +230,7 @@ Grid cells can have composable effects layered on top of the base boolean grid. 
 - **E** - Upgrade Radius
 - **R** - Upgrade Spawn Rate
 - **T** - Upgrade Speed
+- **G** - Upgrade Defense (ownership defense bonus, up to 25%)
 - **A** - Upgrade Max Particles (+50 cap per level)
 - **F** - Launch Nuke
 
@@ -215,6 +240,7 @@ Grid cells can have composable effects layered on top of the base boolean grid. 
 - **O** - Upgrade Radius
 - **P** - Upgrade Spawn Rate
 - **Y** - Upgrade Speed
+- **K** - Upgrade Defense (ownership defense bonus, up to 25%)
 - **L** - Upgrade Max Particles (+50 cap per level)
 - **J** - Launch Nuke
 
@@ -315,7 +341,7 @@ describe(MyService.name, () => {
 ### Existing Test Coverage
 Tests exist for:
 - Grid generation (random, maze, pathfinding)
-- Cell effect map (add/remove, queries, timer expiry, HP damage, pixel conversion)
+- Cell effect map (add/remove, queries, timer expiry, HP damage, pixel conversion, ownership)
 - Collision detection
 - Spatial hash
 - Player logic

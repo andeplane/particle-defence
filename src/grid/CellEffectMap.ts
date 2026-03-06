@@ -1,8 +1,15 @@
+import { CONFIG } from '../config';
 import type {
   CellEffect,
   ICellEffectMap,
   TempWallTimeEffect,
 } from './CellEffect';
+
+interface CellOwnership {
+  owner: 0 | 1;
+  occupants: [number, number];
+  captureFlash?: { owner: 0 | 1; remainingMs: number };
+}
 
 export type CellEffectMapConfig = {
   cols: number;
@@ -15,6 +22,7 @@ const EMPTY_EFFECTS: readonly CellEffect[] = Object.freeze([]);
 
 export class CellEffectMap implements ICellEffectMap {
   private readonly effects = new Map<number, CellEffect[]>();
+  private readonly ownership = new Map<number, CellOwnership>();
   private readonly config: CellEffectMapConfig;
 
   constructor(config: CellEffectMapConfig) {
@@ -154,6 +162,65 @@ export class CellEffectMap implements ICellEffectMap {
 
     for (const k of toDelete) {
       this.effects.delete(k);
+    }
+
+    for (const [, data] of this.ownership) {
+      if (data.captureFlash) {
+        data.captureFlash.remainingMs -= deltaMs;
+        if (data.captureFlash.remainingMs <= 0) {
+          delete data.captureFlash;
+        }
+      }
+    }
+  }
+
+  enterCell(col: number, row: number, owner: 0 | 1): void {
+    if (!this.isInBounds(col, row)) return;
+    const k = this.key(col, row);
+    let data = this.ownership.get(k);
+    if (!data) {
+      data = {
+        owner,
+        occupants: [0, 0],
+        captureFlash: { owner, remainingMs: CONFIG.OWNERSHIP_CAPTURE_FLASH_MS },
+      };
+      data.occupants[owner] = 1;
+      this.ownership.set(k, data);
+      return;
+    }
+    data.occupants[owner]++;
+    const currentOwnerHasOccupants = data.occupants[data.owner] > 0;
+    if (!currentOwnerHasOccupants && data.owner !== owner) {
+      data.owner = owner;
+      data.captureFlash = { owner, remainingMs: CONFIG.OWNERSHIP_CAPTURE_FLASH_MS };
+    }
+  }
+
+  leaveCell(col: number, row: number, owner: 0 | 1): void {
+    if (!this.isInBounds(col, row)) return;
+    const k = this.key(col, row);
+    const data = this.ownership.get(k);
+    if (!data) return;
+    data.occupants[owner] = Math.max(0, data.occupants[owner] - 1);
+  }
+
+  getOwnerAt(px: number, py: number): 0 | 1 | null {
+    const { col, row } = this.pixelToCell(px, py);
+    if (!this.isInBounds(col, row)) return null;
+    const data = this.ownership.get(this.key(col, row));
+    if (!data) return null;
+    return data.owner;
+  }
+
+  get hasAnyOwnedCells(): boolean {
+    return this.ownership.size > 0;
+  }
+
+  forEachOwnedCell(callback: (col: number, row: number, owner: 0 | 1, hasCaptureFlash: boolean) => void): void {
+    for (const [k, data] of this.ownership) {
+      const col = k % this.config.cols;
+      const row = Math.floor(k / this.config.cols);
+      callback(col, row, data.owner, !!data.captureFlash);
     }
   }
 

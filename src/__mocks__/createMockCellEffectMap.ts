@@ -13,6 +13,11 @@ export function createMockCellEffectMap(overrides: Partial<ICellEffectMap> = {})
     update: vi.fn(),
     hasAnyEffects: false,
     forEach: vi.fn(),
+    enterCell: vi.fn(),
+    leaveCell: vi.fn(),
+    getOwnerAt: vi.fn(() => null),
+    hasAnyOwnedCells: false,
+    forEachOwnedCell: vi.fn(),
   };
 
   return { ...defaults, ...overrides };

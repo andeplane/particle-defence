@@ -204,6 +204,24 @@ describe(AIController.name, () => {
       expect(state.players[1].getUpgradeLevel('health')).toBeGreaterThan(0);
     });
 
+    it('boosts defense when human attack is higher', () => {
+      const state = createState({ gameTimeMs: 60_000 });
+      const human = state.players[0];
+      human.gold = 9999;
+      for (let i = 0; i < 5; i++) human.buyUpgrade('attack');
+
+      state.players[1].gold = 9999;
+      for (let i = 0; i < 10; i++) {
+        state.players[1].buyUpgrade('spawnRate');
+        state.players[1].buyUpgrade('attack');
+        state.players[1].buyUpgrade('health');
+      }
+
+      ai.update(300, state);
+
+      expect(state.players[1].getUpgradeLevel('defense')).toBeGreaterThan(0);
+    });
+
     it('boosts maxParticles when near cap', () => {
       const state = createState({
         gameTimeMs: 60_000,

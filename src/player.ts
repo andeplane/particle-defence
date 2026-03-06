@@ -11,6 +11,8 @@ export interface IPlayer {
   readonly spawnInterval: number;
   readonly particleSpeed: number;
   readonly maxParticles: number;
+  /** Defense bonus (0-0.25) from ownership upgrade, applied when in owned cell */
+  readonly particleDefense: number;
   readonly isAlive: boolean;
   getUpgradeLevel(upgrade: UpgradeType): number;
   getUpgradeCost(upgrade: UpgradeType): number;
@@ -64,7 +66,7 @@ export class Player implements IPlayer {
 
   private readonly config: PlayerConfig;
   private readonly upgradeLevels: Record<UpgradeType, number> = {
-    health: 0, attack: 0, radius: 0, spawnRate: 0, speed: 0, maxParticles: 0,
+    health: 0, attack: 0, radius: 0, spawnRate: 0, speed: 0, maxParticles: 0, defense: 0,
   };
 
   /** Time (ms) when nuke was last used; -1 if never used */
@@ -101,6 +103,12 @@ export class Player implements IPlayer {
 
   get maxParticles(): number {
     return this.config.maxParticlesPerPlayer + this.upgradeLevels.maxParticles * this.config.maxParticlesPerLevel;
+  }
+
+  get particleDefense(): number {
+    const base = CONFIG.OWNERSHIP_DEFENSE_BASE;
+    const fromUpgrade = this.upgradeLevels.defense * CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL;
+    return Math.min(CONFIG.OWNERSHIP_DEFENSE_MAX, base + fromUpgrade);
   }
 
   getUpgradeLevel(upgrade: UpgradeType): number {

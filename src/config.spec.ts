@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CONFIG, getUpgradeCost, type UpgradeType } from './config';
 
 describe(getUpgradeCost.name, () => {
-  const upgradeTypes: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles'];
+  const upgradeTypes: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles', 'defense'];
 
   it.each(upgradeTypes)('returns base cost at level 0 for %s', (type) => {
     const expected = CONFIG.UPGRADE_COSTS[type];
@@ -38,7 +38,7 @@ describe(getUpgradeCost.name, () => {
 describe('CONFIG', () => {
   it('has all expected upgrade cost keys', () => {
     expect(Object.keys(CONFIG.UPGRADE_COSTS)).toEqual(
-      expect.arrayContaining(['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles']),
+      expect.arrayContaining(['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles', 'defense']),
     );
   });
 

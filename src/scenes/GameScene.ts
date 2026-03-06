@@ -275,20 +275,31 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
   private renderCellEffects(): void {
     this.effectsGfx.clear();
-    if (!this.engine.cellEffects.hasAnyEffects) return;
-
     const grid = this.engine.grid;
     const cellW = grid.cellW;
     const cellH = grid.cellH;
     const gameTimeMs = this.engine.gameTimeMs;
 
-    this.engine.cellEffects.forEach((col, row, effects) => {
-      const x = col * cellW;
-      const y = row * cellH;
-      for (const effect of effects) {
-        this.renderSingleEffect(effect, x, y, cellW, cellH, gameTimeMs);
-      }
-    });
+    if (this.engine.cellEffects.hasAnyEffects) {
+      this.engine.cellEffects.forEach((col, row, effects) => {
+        const x = col * cellW;
+        const y = row * cellH;
+        for (const effect of effects) {
+          this.renderSingleEffect(effect, x, y, cellW, cellH, gameTimeMs);
+        }
+      });
+    }
+
+    if (this.engine.cellEffects.hasAnyOwnedCells) {
+      this.engine.cellEffects.forEachOwnedCell((col, row, owner, hasCaptureFlash) => {
+        const x = col * cellW;
+        const y = row * cellH;
+        const color = owner === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+        const alpha = hasCaptureFlash ? CONFIG.OWNERSHIP_CAPTURE_FLASH_ALPHA : CONFIG.OWNERSHIP_EFFECT_ALPHA;
+        this.effectsGfx.fillStyle(color, alpha);
+        this.effectsGfx.fillRect(x, y, cellW, cellH);
+      });
+    }
   }
 
   private renderSingleEffect(

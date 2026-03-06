@@ -201,6 +201,7 @@ export class MatchStatsRecorder {
       radius: player.getUpgradeLevel('radius'),
       spawnRate: player.getUpgradeLevel('spawnRate'),
       speed: player.getUpgradeLevel('speed'),
+      defense: player.getUpgradeLevel('defense'),
       maxParticles: player.getUpgradeLevel('maxParticles'),
     };
   }
