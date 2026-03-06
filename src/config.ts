@@ -45,7 +45,7 @@ export const CONFIG = {
   KILL_REWARD: 1,
   /** Fraction of KILL_REWARD awarded per nuke kill (1/4) */
   NUCLEAR_KILL_REWARD_FRACTION: 0.25,
-  NUCLEAR_FIRST_AVAILABLE_MS: 0,  // 3 minutes
+  NUCLEAR_FIRST_AVAILABLE_MS: 180_000,  // 3 minutes
   NUCLEAR_COOLDOWN_MS: 600_000,        // 10 minutes
   /** Interval (ms) between gold interest payouts */
   INTEREST_INTERVAL_MS: 30_000,

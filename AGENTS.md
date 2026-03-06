@@ -94,7 +94,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 ### Economy & Upgrades
 - `KILL_REWARD: 1` - Gold awarded per kill
 - `NUCLEAR_KILL_REWARD_FRACTION: 0.25` - Fraction of kill reward for nuke kills (1/4)
-- `NUCLEAR_FIRST_AVAILABLE_MS: 0` - When nukes become available (currently immediately)
+- `NUCLEAR_FIRST_AVAILABLE_MS: 180_000` - When nukes become available (3 minutes)
 - `NUCLEAR_COOLDOWN_MS: 600_000` - Nuke cooldown (10 minutes)
 - `INTEREST_INTERVAL_MS: 30_000` - Interval (ms) between gold interest payouts
 - `INTEREST_RATE_PER_LEVEL: 0.01` - Interest rate per upgrade level (+1%)
