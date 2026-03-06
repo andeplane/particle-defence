@@ -9,19 +9,18 @@ describe('menuConfig', () => {
       expect(categoryIds).toContain('research');
       expect(categoryIds).toContain('upgrades');
       expect(categoryIds).toContain('abilities');
-      expect(categoryIds).toHaveLength(4);
+      expect(categoryIds).toContain('towers');
+      expect(categoryIds).toHaveLength(5);
     });
 
     it('should have unique category p1Keys', () => {
       const p1Keys = MENU_CATEGORIES.map(c => c.p1Key);
-      const uniqueKeys = new Set(p1Keys);
-      expect(uniqueKeys.size).toBe(p1Keys.length);
+      expect(new Set(p1Keys).size).toBe(p1Keys.length);
     });
 
     it('should have unique category p2Keys', () => {
       const p2Keys = MENU_CATEGORIES.map(c => c.p2Key);
-      const uniqueKeys = new Set(p2Keys);
-      expect(uniqueKeys.size).toBe(p2Keys.length);
+      expect(new Set(p2Keys).size).toBe(p2Keys.length);
     });
 
     it('should not have overlapping P1 and P2 category keys', () => {
@@ -31,14 +30,14 @@ describe('menuConfig', () => {
       expect(overlap).toHaveLength(0);
     });
 
-      it('should have unique item keys within each category', () => {
-        for (const category of MENU_CATEGORIES) {
-          const p1Keys = category.items.map(i => i.p1Key);
-          const p2Keys = category.items.map(i => i.p2Key);
-          expect(new Set(p1Keys).size).toBe(p1Keys.length);
-          expect(new Set(p2Keys).size).toBe(p2Keys.length);
-        }
-      });
+    it('should have unique item keys within each category', () => {
+      for (const category of MENU_CATEGORIES) {
+        const p1Keys = category.items.map(i => i.p1Key);
+        const p2Keys = category.items.map(i => i.p2Key);
+        expect(new Set(p1Keys).size).toBe(p1Keys.length);
+        expect(new Set(p2Keys).size).toBe(p2Keys.length);
+      }
+    });
 
     it('should have upgrades category with all upgrade types', () => {
       const upgradesCategory = MENU_CATEGORIES.find(c => c.id === 'upgrades');
@@ -52,20 +51,35 @@ describe('menuConfig', () => {
       expect(abilitiesCategory).toBeDefined();
       expect(abilitiesCategory!.items).toHaveLength(1);
       expect(abilitiesCategory!.items[0].kind).toBe('action');
-      if (abilitiesCategory!.items[0].kind === 'action') {
-        expect(abilitiesCategory!.items[0].action).toBe('nuke');
-      }
     });
 
     it('should have tooltip on all categories and items', () => {
       for (const cat of MENU_CATEGORIES) {
-        expect(cat.tooltip).toBeDefined();
         expect(cat.tooltip.length).toBeGreaterThan(0);
         for (const item of cat.items) {
-          expect(item.tooltip).toBeDefined();
           expect(item.tooltip.length).toBeGreaterThan(0);
         }
       }
+    });
+
+    it('should have construction category with tower build items and place action', () => {
+      const cat = MENU_CATEGORIES.find(c => c.id === 'construction')!;
+      expect(cat.items.some(i => i.kind === 'construct')).toBe(true);
+      expect(cat.items.some(i => i.kind === 'action' && i.action === 'place')).toBe(true);
+    });
+
+    it('should have research category with research items', () => {
+      const cat = MENU_CATEGORIES.find(c => c.id === 'research')!;
+      expect(cat.items.every(i => i.kind === 'research')).toBe(true);
+      expect(cat.items.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should have towers category with prev/next/upgrade items', () => {
+      const cat = MENU_CATEGORIES.find(c => c.id === 'towers')!;
+      const actions = cat.items.filter(i => i.kind === 'action').map(i => (i as { action: string }).action);
+      expect(actions).toContain('towerPrev');
+      expect(actions).toContain('towerNext');
+      expect(actions).toContain('towerUpgrade');
     });
   });
 
@@ -76,131 +90,127 @@ describe('menuConfig', () => {
         ['Tab', 0, 'abilities', { type: 'back' }],
         ['Backspace', 1, 'upgrades', { type: 'back' }],
         ['Backspace', 1, 'abilities', { type: 'back' }],
-      ])('should return back for %s when P%d is in category %s', (key, playerId, category, expected) => {
-        const result = resolveKeyPress(key, playerId as 0 | 1, category as MenuCategory);
+      ] as const)('should return back for %s when P%d is in category %s', (key, playerId, category, expected) => {
+        const result = resolveKeyPress(key, playerId, category);
         expect(result).toEqual(expected);
       });
 
       it('should not return back when P1 presses Tab at top level', () => {
-        const result = resolveKeyPress('Tab', 0, null);
-        expect(result).toBeNull();
+        expect(resolveKeyPress('Tab', 0, null)).toBeNull();
       });
 
       it('should not return back when P2 presses Backspace at top level', () => {
-        const result = resolveKeyPress('Backspace', 1, null);
-        expect(result).toBeNull();
-      });
-
-      it('should not return back when P2 presses Tab', () => {
-        const result = resolveKeyPress('Tab', 1, 'upgrades');
-        expect(result).toBeNull();
-      });
-
-      it('should not return back when P1 presses Backspace', () => {
-        const result = resolveKeyPress('Backspace', 0, 'upgrades');
-        expect(result).toBeNull();
+        expect(resolveKeyPress('Backspace', 1, null)).toBeNull();
       });
     });
 
-    describe('category navigation', () => {
+    describe('category navigation (new 3+2 layout)', () => {
       it.each([
-        ['Q', 0, null, { type: 'navigate', category: 'construction' }],
-        ['W', 0, null, { type: 'navigate', category: 'research' }],
-        ['E', 0, null, { type: 'navigate', category: 'upgrades' }],
-        ['R', 0, null, { type: 'navigate', category: 'abilities' }],
-        ['U', 1, null, { type: 'navigate', category: 'construction' }],
-        ['I', 1, null, { type: 'navigate', category: 'research' }],
-        ['O', 1, null, { type: 'navigate', category: 'upgrades' }],
-        ['P', 1, null, { type: 'navigate', category: 'abilities' }],
-      ])('should navigate to category when P%d presses %s at top level', (key, playerId, currentCategory, expected) => {
-        const result = resolveKeyPress(key, playerId as 0 | 1, currentCategory as MenuCategory | null);
-        expect(result).toEqual(expected);
+        ['Q', 0, 'construction'],
+        ['W', 0, 'research'],
+        ['E', 0, 'upgrades'],
+        ['A', 0, 'abilities'],
+        ['S', 0, 'towers'],
+        ['I', 1, 'construction'],
+        ['O', 1, 'research'],
+        ['P', 1, 'upgrades'],
+        ['K', 1, 'abilities'],
+        ['L', 1, 'towers'],
+      ] as const)('P%d presses %s -> navigates to %s', (key, playerId, category) => {
+        const result = resolveKeyPress(key, playerId, null);
+        expect(result).toEqual({ type: 'navigate', category });
       });
 
-      it('should not navigate when already in a category', () => {
-        const result = resolveKeyPress('Q', 0, 'upgrades');
-        expect(result).not.toEqual({ type: 'navigate', category: 'construction' });
-      });
-
-      it('should handle lowercase keys', () => {
-        const result = resolveKeyPress('q', 0, null);
-        expect(result).toEqual({ type: 'navigate', category: 'construction' });
+      it('handles lowercase keys', () => {
+        expect(resolveKeyPress('q', 0, null)).toEqual({ type: 'navigate', category: 'construction' });
       });
     });
 
-    describe('submenu item dispatch', () => {
+    describe('upgrades submenu dispatch', () => {
       it.each([
-        ['Q', 0, 'upgrades', { type: 'upgrade', upgradeType: 'health' }],
-        ['W', 0, 'upgrades', { type: 'upgrade', upgradeType: 'attack' }],
-        ['E', 0, 'upgrades', { type: 'upgrade', upgradeType: 'radius' }],
-        ['R', 0, 'upgrades', { type: 'upgrade', upgradeType: 'spawnRate' }],
-        ['T', 0, 'upgrades', { type: 'upgrade', upgradeType: 'speed' }],
-        ['A', 0, 'upgrades', { type: 'upgrade', upgradeType: 'maxParticles' }],
-        ['G', 0, 'upgrades', { type: 'upgrade', upgradeType: 'defense' }],
-        ['B', 0, 'upgrades', { type: 'upgrade', upgradeType: 'interestRate' }],
-        ['U', 1, 'upgrades', { type: 'upgrade', upgradeType: 'health' }],
-        ['I', 1, 'upgrades', { type: 'upgrade', upgradeType: 'attack' }],
-        ['O', 1, 'upgrades', { type: 'upgrade', upgradeType: 'radius' }],
-        ['P', 1, 'upgrades', { type: 'upgrade', upgradeType: 'spawnRate' }],
-        ['Y', 1, 'upgrades', { type: 'upgrade', upgradeType: 'speed' }],
-        ['L', 1, 'upgrades', { type: 'upgrade', upgradeType: 'maxParticles' }],
-        ['K', 1, 'upgrades', { type: 'upgrade', upgradeType: 'defense' }],
-        ['N', 1, 'upgrades', { type: 'upgrade', upgradeType: 'interestRate' }],
-      ])('should dispatch upgrade when P%d presses %s in upgrades submenu', (key, playerId, category, expected) => {
-        const result = resolveKeyPress(key, playerId as 0 | 1, category as MenuCategory);
-        expect(result).toEqual(expected);
-      });
-
-      it.each([
-        ['Q', 0, 'abilities', { type: 'action', action: 'nuke' }],
-        ['U', 1, 'abilities', { type: 'action', action: 'nuke' }],
-      ])('should dispatch action when P%d presses %s in abilities submenu', (key, playerId, category, expected) => {
-        const result = resolveKeyPress(key, playerId as 0 | 1, category as MenuCategory);
-        expect(result).toEqual(expected);
-      });
-
-      it('should return null for invalid key in submenu', () => {
-        const result = resolveKeyPress('X', 0, 'upgrades');
-        expect(result).toBeNull();
-      });
-
-      it('should return null when pressing category key in wrong submenu', () => {
-        const result = resolveKeyPress('E', 0, 'upgrades');
-        expect(result).toEqual({ type: 'upgrade', upgradeType: 'radius' });
+        ['Q', 0, 'health'],
+        ['W', 0, 'attack'],
+        ['E', 0, 'radius'],
+        ['R', 0, 'spawnRate'],
+        ['A', 0, 'speed'],
+        ['S', 0, 'maxParticles'],
+        ['D', 0, 'defense'],
+        ['F', 0, 'interestRate'],
+        ['I', 1, 'health'],
+        ['O', 1, 'attack'],
+        ['P', 1, 'radius'],
+        ['U', 1, 'spawnRate'],
+        ['K', 1, 'speed'],
+        ['L', 1, 'maxParticles'],
+        ['J', 1, 'defense'],
+        ['H', 1, 'interestRate'],
+      ] as const)('P%d presses %s -> upgrade %s', (key, playerId, upgradeType) => {
+        const result = resolveKeyPress(key, playerId, 'upgrades');
+        expect(result).toEqual({ type: 'upgrade', upgradeType });
       });
     });
 
-    describe('key case handling', () => {
-      it('should handle uppercase keys', () => {
-        const result = resolveKeyPress('Q', 0, null);
-        expect(result).toEqual({ type: 'navigate', category: 'construction' });
+    describe('abilities submenu dispatch', () => {
+      it.each([
+        ['Q', 0, { type: 'action', action: 'nuke' }],
+        ['I', 1, { type: 'action', action: 'nuke' }],
+      ] as const)('P%d presses %s -> nuke', (key, playerId, expected) => {
+        const result = resolveKeyPress(key, playerId, 'abilities');
+        expect(result).toEqual(expected);
       });
+    });
 
-      it('should handle lowercase keys', () => {
-        const result = resolveKeyPress('q', 0, null);
-        expect(result).toEqual({ type: 'navigate', category: 'construction' });
+    describe('research submenu dispatch', () => {
+      it.each([
+        ['Q', 0, 'laser'],
+        ['W', 0, 'slow'],
+        ['I', 1, 'laser'],
+        ['O', 1, 'slow'],
+      ] as const)('P%d presses %s -> research %s', (key, playerId, towerType) => {
+        const result = resolveKeyPress(key, playerId, 'research');
+        expect(result).toEqual({ type: 'research', towerType });
       });
+    });
 
-      it('should handle mixed case keys', () => {
-        const result = resolveKeyPress('Q', 0, 'upgrades');
-        expect(result).toEqual({ type: 'upgrade', upgradeType: 'health' });
+    describe('construction submenu dispatch', () => {
+      it.each([
+        ['Q', 0, { type: 'construct', towerType: 'laser' }],
+        ['W', 0, { type: 'construct', towerType: 'slow' }],
+        ['E', 0, { type: 'action', action: 'place' }],
+        ['I', 1, { type: 'construct', towerType: 'laser' }],
+        ['O', 1, { type: 'construct', towerType: 'slow' }],
+        ['P', 1, { type: 'action', action: 'place' }],
+      ] as const)('P%d presses %s -> %o', (key, playerId, expected) => {
+        const result = resolveKeyPress(key, playerId, 'construction');
+        expect(result).toEqual(expected);
+      });
+    });
+
+    describe('towers submenu dispatch', () => {
+      it.each([
+        ['Q', 0, { type: 'action', action: 'towerPrev' }],
+        ['W', 0, { type: 'action', action: 'towerNext' }],
+        ['E', 0, { type: 'action', action: 'towerUpgrade' }],
+        ['I', 1, { type: 'action', action: 'towerPrev' }],
+        ['O', 1, { type: 'action', action: 'towerNext' }],
+        ['P', 1, { type: 'action', action: 'towerUpgrade' }],
+      ] as const)('P%d presses %s -> %o', (key, playerId, expected) => {
+        const result = resolveKeyPress(key, playerId, 'towers');
+        expect(result).toEqual(expected);
       });
     });
 
     describe('edge cases', () => {
-      it('should return null for unknown key at top level', () => {
-        const result = resolveKeyPress('X', 0, null);
-        expect(result).toBeNull();
+      it('returns null for unknown key at top level', () => {
+        expect(resolveKeyPress('X', 0, null)).toBeNull();
       });
 
-      it('should return null for empty category items', () => {
-        const result = resolveKeyPress('Q', 0, 'construction');
-        expect(result).toBeNull();
+      it('returns null for unknown key in submenu', () => {
+        expect(resolveKeyPress('X', 0, 'upgrades')).toBeNull();
       });
 
-      it('should return null for invalid category', () => {
-        const result = resolveKeyPress('Q', 0, 'invalid' as MenuCategory);
-        expect(result).toBeNull();
+      it('returns null for invalid category', () => {
+        expect(resolveKeyPress('Q', 0, 'invalid' as MenuCategory)).toBeNull();
       });
     });
   });

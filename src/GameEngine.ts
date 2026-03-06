@@ -1,6 +1,8 @@
-import { CONFIG } from './config';
+import { CONFIG, getTowerUpgradeCost, type TowerType } from './config';
 import { AIController, type AIGameState } from './ai';
-import { BasicParticle, type IParticle, type GameContext } from './particles';
+import { BasicParticle, type IParticle, type GameContext, TowerCarrierParticle } from './particles';
+import { LaserTowerParticle } from './particles/LaserTowerParticle';
+import { SlowTowerParticle } from './particles/SlowTowerParticle';
 import { createPlayer, type IPlayer } from './player';
 import { SpatialHash, type ISpatialHash } from './spatial-hash';
 import { resolveCollisions, type CollisionResult } from './collision';
@@ -16,6 +18,7 @@ export interface GameEngineCallbacks {
   onGameOver(winner: number): void;
   onStuckRespawn(owner: 0 | 1): void;
   onInterest(playerId: 0 | 1, amount: number): void;
+  onTowerPlaced(tower: IParticle, playerId: 0 | 1): void;
   spawnExplosion(x: number, y: number, color: number): void;
 }
 
@@ -56,6 +59,11 @@ export class GameEngine implements AIGameState {
   winner: number = -1;
   gameTimeMs: number = 0;
 
+  /** Active carrier per player (null if none). */
+  carriers: [TowerCarrierParticle | null, TowerCarrierParticle | null] = [null, null];
+  /** Placed towers per player. */
+  towers: [Array<LaserTowerParticle | SlowTowerParticle>, Array<LaserTowerParticle | SlowTowerParticle>] = [[], []];
+
   private readonly deps: GameEngineDependencies;
   private readonly callbacks: GameEngineCallbacks;
   private aiController: AIController | null = null;
@@ -80,6 +88,8 @@ export class GameEngine implements AIGameState {
     this.spawnTimers = [0, 0];
     this.interestTimers = [0, 0];
     this.gameTimeMs = 0;
+    this.carriers = [null, null];
+    this.towers = [[], []];
 
     if (useAI && this.deps.createAIController) {
       this.aiController = this.deps.createAIController();
@@ -113,6 +123,8 @@ export class GameEngine implements AIGameState {
 
     this.applyInterest(delta);
 
+    this.resetTowerSlowFactors();
+
     const context = this.createContext();
 
     for (const p of this.particles) {
@@ -137,6 +149,7 @@ export class GameEngine implements AIGameState {
     this.checkBaseDamage();
     this.respawnStuckParticles();
     this.cleanupDeadParticles();
+    this.cleanupDeadTowers();
     this.checkWinCondition();
   }
 
@@ -200,6 +213,94 @@ export class GameEngine implements AIGameState {
     player.useNuke(this.gameTimeMs);
     this.callbacks.onNuke(playerId, killCount);
     return true;
+  }
+
+  constructTower(playerId: 0 | 1, towerType: TowerType): boolean {
+    if (this.gameOver) return false;
+    const player = this.players[playerId];
+    if (this.carriers[playerId] !== null) return false;
+    if (this.towers[playerId].length >= CONFIG.TOWER_MAX_PER_PLAYER) return false;
+    if (!player.payForConstruction(towerType)) return false;
+
+    const baseW = this.grid.baseWidthCells * this.grid.cellW;
+    const x = playerId === 0 ? baseW / 2 : CONFIG.GAME_WIDTH - baseW / 2;
+    const y = CONFIG.GAME_HEIGHT / 2;
+
+    const carrier = new TowerCarrierParticle(
+      x, y, playerId,
+      CONFIG.TOWER_CARRIER_HP, player.particleSpeed / 2, towerType,
+    );
+
+    this.carriers[playerId] = carrier;
+    this.particles.push(carrier);
+    this.callbacks.onParticleSpawned(carrier);
+    return true;
+  }
+
+  placeTower(playerId: 0 | 1): boolean {
+    if (this.gameOver) return false;
+    const carrier = this.carriers[playerId];
+    if (!carrier || !carrier.alive) {
+      this.carriers[playerId] = null;
+      return false;
+    }
+
+    const context = this.createContext();
+    carrier.leaveCurrentCell(context);
+    carrier.destroy();
+
+    let tower: LaserTowerParticle | SlowTowerParticle;
+    if (carrier.towerType === 'laser') {
+      tower = new LaserTowerParticle(carrier.x, carrier.y, playerId);
+    } else {
+      tower = new SlowTowerParticle(carrier.x, carrier.y, playerId);
+    }
+
+    this.towers[playerId].push(tower);
+    this.particles.push(tower);
+    this.carriers[playerId] = null;
+    this.callbacks.onParticleSpawned(tower);
+    this.callbacks.onTowerPlaced(tower, playerId);
+    return true;
+  }
+
+  upgradeTower(playerId: 0 | 1, towerIndex: number): boolean {
+    if (this.gameOver) return false;
+    const playerTowers = this.towers[playerId];
+    if (towerIndex < 0 || towerIndex >= playerTowers.length) return false;
+    const tower = playerTowers[towerIndex];
+    if (!tower.alive) return false;
+
+    const cost = getTowerUpgradeCost(tower.towerType, tower.level);
+    const player = this.players[playerId];
+    if (player.gold < cost) return false;
+
+    player.gold -= cost;
+    tower.upgrade();
+    return true;
+  }
+
+  buyResearch(playerId: 0 | 1, towerType: TowerType): boolean {
+    if (this.gameOver) return false;
+    return this.players[playerId].researchTower(towerType);
+  }
+
+  private resetTowerSlowFactors(): void {
+    for (const p of this.particles) {
+      if (p.alive) p.towerSlowFactor = 1;
+    }
+  }
+
+  private cleanupDeadTowers(): void {
+    for (let i = 0; i < 2; i++) {
+      this.towers[i] = this.towers[i].filter(t => t.alive);
+    }
+    for (let i = 0; i < 2; i++) {
+      const carrier = this.carriers[i];
+      if (carrier && !carrier.alive) {
+        this.carriers[i] = null;
+      }
+    }
   }
 
   private applyInterest(delta: number): void {

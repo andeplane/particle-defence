@@ -291,6 +291,7 @@ function createParticle(
     takeDamage() {},
     leaveCurrentCell: () => {},
     defenseFactor: 0,
+    towerSlowFactor: 1,
     destroy() {},
   };
 }
@@ -325,6 +326,14 @@ function createPlayers(overrides?: {
     useNuke: () => {},
     getNukeCooldownRemainingMs: () => 0,
     takeDamage: () => {},
+    hasResearched: () => false,
+    canResearchTower: () => false,
+    researchTower: () => false,
+    getResearchCost: () => 50,
+    getConstructionCost: () => 30,
+    canAffordConstruction: () => false,
+    payForConstruction: () => false,
+    isUpgradeAtMax: () => false,
   });
 
   const p1Upgrades = { ...defaultUpgrades, ...(overrides?.p1UpgradeLevels ?? {}) };
@@ -356,5 +365,6 @@ function createSample(overrides: {
     unitDamageDealt: [0, 0],
     baseDamageDealt: [0, 0],
     frontlineXCell: [null, null],
+    towerCount: [0, 0],
   };
 }

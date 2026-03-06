@@ -18,12 +18,16 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - **`src/scenes/PostGameStatsScene.ts`** - Post-game statistics screen with 9 dual-series timeline graphs (AoE-style). Receives `MatchStats` from GameScene on game over. Displays blue (P1) vs red (P2) line charts with glow effects, grid lines, nuke event markers, and legends. Click to return to menu
 
 ### Game Entities
-- **`src/player.ts`** - Player class with base HP, gold, kills, upgrade levels, and nuke cooldown management
+- **`src/player.ts`** - Player class with base HP, gold, kills, upgrade levels, nuke cooldown management, and tower research state
 - **`src/particles/`** - Particle type hierarchy:
-  - **`AbstractParticle.ts`** - Abstract base class with shared state, movement logic, and lifecycle hooks
-  - **`BasicParticle.ts`** - Default particle type (current behavior)
-  - **`GameContext.ts`** - Context interface passed to particle hooks (grid, spatial hash, players, spawnExplosion)
-  - **`index.ts`** - Re-exports
+ - **`AbstractParticle.ts`** - Abstract base class with shared state, movement logic, and lifecycle hooks
+ - **`BasicParticle.ts`** - Default particle type (current behavior)
+ - **`TowerCarrierParticle.ts`** - Carrier particle that delivers towers to placement sites. Moves through maze, vulnerable but does not attack
+ - **`LaserTowerParticle.ts`** - Stationary laser tower. Fires at nearest enemy in range. Properties: damage, attackSpeed, range (upgradeable)
+ - **`SlowTowerParticle.ts`** - Stationary slow tower. Slows all enemies in range. Properties: slowFactor, range (upgradeable)
+ - **`towers.ts`** - Shared tower types, stat calculation helpers (`getLaserStats`, `getSlowStats`)
+ - **`GameContext.ts`** - Context interface passed to particle hooks (grid, spatial hash, players, spawnExplosion)
+ - **`index.ts`** - Re-exports
 - **`src/grid/`** - Grid, cell effects, and map generators:
   - **`Grid.ts`** - Grid class with cells, isWall, isInBase, cellW/cellH, hasPath
   - **`CellEffect.ts`** - Cell effect type definitions (discriminated union) and `ICellEffectMap` interface
@@ -129,6 +133,16 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - `OWNERSHIP_EFFECT_ALPHA: 0.08` - Alpha for subtle owned-cell tint
 - `OWNERSHIP_CAPTURE_FLASH_ALPHA: 0.15` - Alpha for brief capture flash
 
+### Towers
+- `TOWER_MAX_PER_PLAYER: 5` - Max towers per player
+- `TOWER_CARRIER_HP: 5` - Carrier particle health
+- `TOWER_UPGRADE_COST_MULTIPLIER: 1.4` - Tower upgrade cost scaling
+- **Research costs**: Laser 50g, Slow 40g
+- **Construction costs**: Laser 30g, Slow 25g
+- **Laser tower base**: HP 15, damage 2, range 120px, attack speed 2/sec
+- **Slow tower base**: HP 10, slow 30%, range 100px
+- **Per-level improvements**: Laser +1 damage, +10 range, +0.3 atk/s. Slow +5% slow, +15 range
+
 ### Spatial Hash
 - `SPATIAL_CELL_SIZE: 32` (16 * scale) - Grid cell size for collision optimization
 
@@ -225,11 +239,23 @@ Each grid cell can be "owned" by a player. Ownership is tracked per cell and aff
 
 **Integration**: `AbstractParticle.update()` calls `cellEffects.enterCell()` and `leaveCell()` on cell transitions. `GameEngine.updateParticleDefenseFactors()` sets each particle's `defenseFactor` based on ownership before collision and cell damage.
 
+### Tower System
+- **Research**: Players must first research a tower type (one-time gold cost) before they can build it
+- **Construction**: Buying a tower spawns a `TowerCarrierParticle` from the player's base that moves through the maze
+- **Placement**: When the player presses PLACE, the carrier converts to a stationary tower at its current position
+- **Carrier vulnerability**: Carriers can be attacked and killed before placement (attack=0, doesn't fight back)
+- **Tower types**: Laser (fires at nearest enemy in range) and Slow (reduces enemy speed in range)
+- **Tower upgrades**: Each placed tower has its own level; upgrading costs gold and improves stats
+- **Destructibility**: Towers have HP and can be destroyed by enemy particles colliding with them
+- **Nuke interaction**: Nukes kill enemy towers (they're still particles)
+- **Max towers**: 5 per player (configurable via `CONFIG.TOWER_MAX_PER_PLAYER`)
+- **Visual**: Tower body is a diamond-shaped glow; range shown as translucent circle; laser draws a beam to target; HP bar shown when damaged
+
 ### Win Condition
 - Game ends when a player's base HP reaches 0
 - Winner is the surviving player
 - Game over overlay shows winner, then click navigates to PostGameStatsScene
-- PostGameStatsScene displays 9 timeline graphs, then click returns to MenuScene
+- PostGameStatsScene displays 10 timeline graphs (including Tower Count), then click returns to MenuScene
 
 ### Game Modes
 - **1 Player vs AI** - Human (P1) vs AI (P2). AI controls upgrades and nuke automatically. P2 UI shows "AI" label and stats.
@@ -240,36 +266,52 @@ Each grid cell can be "owned" by a player. Ownership is tracked per cell and aff
 The UI uses a **Warcraft-style hierarchical menu**. Each player sees top-level category buttons. Pressing a category key opens its submenu; keys are reused within each submenu (context-dependent). **Hover any button** to see a tooltip with description and current/next stats.
 
 ### Layout
-- P1 buttons are left-anchored on the left half; P2 buttons are left-anchored on the right half, both in keyboard order (Q-W-E-R for P1, U-I-O-P for P2).
+- P1 buttons are left-anchored on the left half; P2 buttons are left-anchored on the right half.
+- Top-level uses a 3+2 grid: P1 keys Q/W/E (top row) + A/S (bottom row). P2 keys I/O/P (top row) + K/L (bottom row).
 - A **BACK** button appears in submenus; click it or use the back key to return to categories.
 
-### Top-Level Categories
+### Top-Level Categories (3+2 grid)
 
 | Category      | P1 Key | P2 Key | Contents |
 |---------------|--------|--------|----------|
-| Construction  | Q      | U      | Empty (placeholder for future building) |
-| Research      | W      | I      | Empty (placeholder for future research) |
-| Upgrades      | E      | O      | All stat upgrades |
-| Abilities     | R      | P      | Nuke |
+| BUILD         | Q      | I      | Construct towers (laser, slow) + place carrier |
+| RESEARCH      | W      | O      | Unlock tower types (one-time purchase) |
+| UPGRADES      | E      | P      | All particle stat upgrades |
+| ABILITIES     | A      | K      | Nuke |
+| TOWERS        | S      | L      | Manage/upgrade placed towers |
 
 ### Back
 - **P1**: Tab or click BACK button
 - **P2**: Backspace or click BACK button
 
+### Research Submenu (P1 keys / P2 keys)
+- **Q/I** - Research Laser Tower ($50, one-time)
+- **W/O** - Research Slow Tower ($40, one-time)
+
+### Construction Submenu (P1 keys / P2 keys)
+- **Q/I** - Build Laser Tower ($30, spawns carrier) -- greyed if not researched
+- **W/O** - Build Slow Tower ($25, spawns carrier) -- greyed if not researched
+- **E/P** - PLACE (converts active carrier to tower at its position)
+
 ### Upgrades Submenu (P1 keys / P2 keys)
-- **Q/U** - Upgrade Health
-- **W/I** - Upgrade Attack
-- **E/O** - Upgrade Radius
-- **R/P** - Upgrade Spawn Rate
-- **T/Y** - Upgrade Speed
-- **A/L** - Upgrade Max Particles (+50 cap per level)
-- **G/K** - Upgrade Defense (ownership defense bonus, up to 25%)
-- **B/N** - Upgrade Interest Rate (+0.25% gold interest per 30s, max 5%)
+- **Q/I** - Upgrade Health
+- **W/O** - Upgrade Attack
+- **E/P** - Upgrade Radius
+- **R/U** - Upgrade Spawn Rate
+- **A/K** - Upgrade Speed
+- **S/L** - Upgrade Max Particles (+50 cap per level)
+- **D/J** - Upgrade Defense (ownership defense bonus, up to 25%)
+- **F/H** - Upgrade Interest Rate (+0.25% gold interest per 30s, max 5%)
 
 ### Abilities Submenu (P1 keys / P2 keys)
-- **Q/U** - Launch Nuke
+- **Q/I** - Launch Nuke
 
-*In 1 Player vs AI mode, P2 controls are hidden; the AI calls `buyUpgrade` directly, not through the UI hierarchy.*
+### Towers Submenu (P1 keys / P2 keys)
+- **Q/I** - Select previous tower
+- **W/O** - Select next tower
+- **E/P** - Upgrade selected tower (shows cost, stat delta)
+
+*In 1 Player vs AI mode, P2 controls are hidden; the AI handles research, construction, placement, and upgrades automatically.*
 
 ## Technical Details
 

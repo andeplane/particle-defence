@@ -187,6 +187,15 @@ export class PostGameStatsScene extends Phaser.Scene {
           { data: samples.map(s => s.frontlineXCell[1]), color: p2c, label: p2Label },
         ],
       },
+      {
+        title: 'Tower Count',
+        series: [
+          { data: samples.map(s => s.towerCount[0]), color: p1c, label: p1Label },
+          { data: samples.map(s => s.towerCount[1]), color: p2c, label: p2Label },
+        ],
+        yMin: 0,
+        isStep: true,
+      },
     ];
   }
 

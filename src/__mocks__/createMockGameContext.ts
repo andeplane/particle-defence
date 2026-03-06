@@ -46,10 +46,18 @@ function createMinimalMockPlayer(id: 0 | 1): IPlayer {
     getUpgradeLevel: vi.fn(() => 0),
     getUpgradeCost: vi.fn(() => 5),
     canAfford: vi.fn(() => true),
+    isUpgradeAtMax: vi.fn(() => false),
     buyUpgrade: vi.fn(() => true),
     canUseNuke: vi.fn(() => true),
     useNuke: vi.fn(),
     getNukeCooldownRemainingMs: vi.fn(() => 0),
     takeDamage: vi.fn(),
+    hasResearched: vi.fn(() => false),
+    canResearchTower: vi.fn(() => false),
+    researchTower: vi.fn(() => false),
+    getResearchCost: vi.fn(() => 50),
+    getConstructionCost: vi.fn(() => 30),
+    canAffordConstruction: vi.fn(() => false),
+    payForConstruction: vi.fn(() => false),
   };
 }

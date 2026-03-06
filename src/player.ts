@@ -1,4 +1,4 @@
-import { CONFIG, getUpgradeCost, type UpgradeType } from './config';
+import { CONFIG, getUpgradeCost, type UpgradeType, type TowerType } from './config';
 
 export interface IPlayer {
   readonly id: 0 | 1;
@@ -25,6 +25,13 @@ export interface IPlayer {
   useNuke(gameTimeMs: number): void;
   getNukeCooldownRemainingMs(gameTimeMs: number): number;
   takeDamage(amount: number): void;
+  hasResearched(towerType: TowerType): boolean;
+  canResearchTower(towerType: TowerType): boolean;
+  researchTower(towerType: TowerType): boolean;
+  getResearchCost(towerType: TowerType): number;
+  getConstructionCost(towerType: TowerType): number;
+  canAffordConstruction(towerType: TowerType): boolean;
+  payForConstruction(towerType: TowerType): boolean;
 }
 
 export type PlayerConfig = {
@@ -92,6 +99,8 @@ export class Player implements IPlayer {
 
   /** Time (ms) when nuke was last used; -1 if never used */
   lastNukeTimeMs: number = -1;
+
+  private readonly researchedTowers = new Set<TowerType>();
 
   constructor(id: 0 | 1, config: PlayerConfig = defaultPlayerConfig) {
     this.id = id;
@@ -187,6 +196,41 @@ export class Player implements IPlayer {
 
   get isAlive(): boolean {
     return this.baseHP > 0;
+  }
+
+  hasResearched(towerType: TowerType): boolean {
+    return this.researchedTowers.has(towerType);
+  }
+
+  canResearchTower(towerType: TowerType): boolean {
+    if (this.researchedTowers.has(towerType)) return false;
+    return this.gold >= this.getResearchCost(towerType);
+  }
+
+  researchTower(towerType: TowerType): boolean {
+    if (!this.canResearchTower(towerType)) return false;
+    this.gold -= this.getResearchCost(towerType);
+    this.researchedTowers.add(towerType);
+    return true;
+  }
+
+  getResearchCost(towerType: TowerType): number {
+    return CONFIG.TOWER_RESEARCH_COSTS[towerType];
+  }
+
+  getConstructionCost(towerType: TowerType): number {
+    return CONFIG.TOWER_CONSTRUCTION_COSTS[towerType];
+  }
+
+  canAffordConstruction(towerType: TowerType): boolean {
+    return this.gold >= this.getConstructionCost(towerType);
+  }
+
+  payForConstruction(towerType: TowerType): boolean {
+    if (!this.canAffordConstruction(towerType)) return false;
+    if (!this.hasResearched(towerType)) return false;
+    this.gold -= this.getConstructionCost(towerType);
+    return true;
   }
 }
 

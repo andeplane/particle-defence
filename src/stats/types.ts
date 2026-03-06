@@ -22,12 +22,14 @@ export interface PerSecondSample {
   readonly baseDamageDealt: PerPlayer<number>;
 
   readonly frontlineXCell: PerPlayer<number | null>;
+
+  readonly towerCount: PerPlayer<number>;
 }
 
 export interface MatchEvent {
   readonly timeSec: number;
   readonly player: 0 | 1;
-  readonly type: 'upgrade' | 'nuke';
+  readonly type: 'upgrade' | 'nuke' | 'towerPlaced';
   readonly detail: string;
 }
 

@@ -1,8 +1,11 @@
 import Phaser from 'phaser';
-import { CONFIG, DEBUG_MODE, type UpgradeType } from '../config';
+import { CONFIG, DEBUG_MODE, getTowerUpgradeCost, type UpgradeType, type TowerType } from '../config';
 import type { IPlayer } from '../player';
 import type { GameMode } from './MenuScene';
 import { MENU_CATEGORIES, type MenuCategory, resolveKeyPress } from './menuConfig';
+import { getLaserStats, getSlowStats } from '../particles/towers';
+import type { LaserTowerParticle } from '../particles/LaserTowerParticle';
+import type { SlowTowerParticle } from '../particles/SlowTowerParticle';
 
 export interface IGameViewModel {
   readonly players: readonly [IPlayer, IPlayer];
@@ -12,6 +15,12 @@ export interface IGameViewModel {
   getParticleCount(owner: 0 | 1): number;
   purchaseUpgrade(playerId: 0 | 1, type: UpgradeType): boolean;
   launchNuke(playerId: 0 | 1): boolean;
+  researchTower(playerId: 0 | 1, towerType: TowerType): boolean;
+  constructTower(playerId: 0 | 1, towerType: TowerType): boolean;
+  placeTower(playerId: 0 | 1): boolean;
+  upgradeTower(playerId: 0 | 1, towerIndex: number): boolean;
+  hasActiveCarrier(playerId: 0 | 1): boolean;
+  getTowers(playerId: 0 | 1): ReadonlyArray<LaserTowerParticle | SlowTowerParticle>;
   debugSpeedMultiplier?: number;
   setDebugSpeedMultiplier?: (speed: number) => void;
 }
@@ -69,6 +78,11 @@ export class UIScene extends Phaser.Scene {
   private backButtons: BackButton[] = [];
   private placeholderText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
   private tooltipText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
+  private selectedTowerIndex: [number, number] = [0, 0];
+  private researchButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; towerType: TowerType; playerId: 0 | 1 }[] = [];
+  private constructButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; towerType: TowerType; playerId: 0 | 1 }[] = [];
+  private placeButtons: NukeButton[] = [];
+  private towerInfoText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
   private popups: Phaser.GameObjects.Text[] = [];
   private debugMenuCollapsed: boolean = true;
   private debugMenuBg?: Phaser.GameObjects.Rectangle;
@@ -273,6 +287,21 @@ export class UIScene extends Phaser.Scene {
       btn.bg.destroy(); btn.label.destroy(); btn.keyText.destroy();
       return false;
     });
+    this.researchButtons = this.researchButtons.filter(btn => {
+      if (btn.playerId !== playerId) return true;
+      btn.bg.destroy(); btn.labelText.destroy(); btn.costText.destroy(); btn.keyText.destroy();
+      return false;
+    });
+    this.constructButtons = this.constructButtons.filter(btn => {
+      if (btn.playerId !== playerId) return true;
+      btn.bg.destroy(); btn.labelText.destroy(); btn.costText.destroy(); btn.keyText.destroy();
+      return false;
+    });
+    this.placeButtons = this.placeButtons.filter(btn => {
+      if (btn.playerId !== playerId) return true;
+      btn.bg.destroy(); btn.labelText.destroy(); btn.statusText.destroy(); btn.keyText.destroy();
+      return false;
+    });
     const title = this.categoryTitle[playerId];
     if (title) { title.destroy(); this.categoryTitle[playerId] = null; }
     this.backButtons = this.backButtons.filter(btn => {
@@ -282,6 +311,8 @@ export class UIScene extends Phaser.Scene {
     });
     const ph = this.placeholderText[playerId];
     if (ph) { ph.destroy(); this.placeholderText[playerId] = null; }
+    const ti = this.towerInfoText[playerId];
+    if (ti) { ti.destroy(); this.towerInfoText[playerId] = null; }
     this.hideTooltip(playerId);
   }
 
@@ -316,9 +347,15 @@ export class UIScene extends Phaser.Scene {
     const category = this.activeCategory[playerId];
 
     if (category === null) {
-      const n = MENU_CATEGORIES.length;
-      MENU_CATEGORIES.forEach((cat, i) => {
-        const x = this.getButtonX(playerId, i, n, 0, isRight);
+      const topCats = MENU_CATEGORIES.slice(0, 3);
+      const botCats = MENU_CATEGORIES.slice(3);
+      topCats.forEach((cat, i) => {
+        const x = this.getButtonX(playerId, i, topCats.length, 0, isRight);
+        this.createCategoryButton(x, topRowY, btnW, btnH, cat.id, cat.label, cat.tooltip, key(cat), playerId);
+      });
+      botCats.forEach((cat, i) => {
+        const staggerOffset = (btnW + gap) * 0.4;
+        const x = this.getButtonX(playerId, i, botCats.length, staggerOffset, isRight);
         this.createCategoryButton(x, bottomRowY, btnW, btnH, cat.id, cat.label, cat.tooltip, key(cat), playerId);
       });
       return;
@@ -359,14 +396,30 @@ export class UIScene extends Phaser.Scene {
 
       if (item.kind === 'upgrade') {
         this.createUpgradeButton(x, y, btnW, btnH, item.type, item.label, key(item), playerId);
-      } else {
+      } else if (item.kind === 'research') {
+        this.createResearchButton(x, y, btnW, btnH, item.towerType, item.label, item.tooltip, key(item), playerId);
+      } else if (item.kind === 'construct') {
+        this.createConstructButton(x, y, btnW, btnH, item.towerType, item.label, item.tooltip, key(item), playerId);
+      } else if (item.kind === 'action' && item.action === 'nuke') {
         this.createActionButton(x, y, btnW, btnH, item.label, item.tooltip, key(item), playerId);
+      } else if (item.kind === 'action' && item.action === 'place') {
+        this.createPlaceButton(x, y, btnW, btnH, key(item), playerId);
+      } else if (item.kind === 'action' && (item.action === 'towerPrev' || item.action === 'towerNext' || item.action === 'towerUpgrade')) {
+        this.createTowerMgmtButton(x, y, btnW, btnH, item.action, item.label, item.tooltip, key(item), playerId);
       }
     });
 
     const backKey = playerId === 0 ? 'Tab' : 'Bksp';
     const backX = this.getButtonX(playerId, bottomRowCount, bottomRowCount + 1, staggerOffset, isRight);
     this.createBackButton(backX, bottomRowY, btnW, btnH, backKey, playerId);
+
+    if (category === 'towers') {
+      const infoX = isRight ? rightEdge - 2 * (btnW + gap) : startX + 2 * (btnW + gap);
+      const infoY = topRowY - CONFIG.UI_FONT_SMALL * 3 - CONFIG.UI_GAP * 4;
+      this.towerInfoText[playerId] = this.add.text(infoX, infoY, '', {
+        fontSize: `${CONFIG.UI_FONT_SMALL}px`, color: '#cccccc', fontFamily: 'monospace',
+      }).setOrigin(isRight ? 1 : 0, 0);
+    }
   }
 
   private createCategoryButton(
@@ -487,7 +540,159 @@ export class UIScene extends Phaser.Scene {
     this.nukeButtons.push({ bg, labelText, statusText, keyText, playerId });
   }
 
+  private createResearchButton(
+    x: number, y: number, w: number, h: number,
+    towerType: TowerType, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
+  ): void {
+    const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x112211, 0.85)
+      .setStrokeStyle(2, color, 0.5)
+      .setInteractive({ useHandCursor: true });
+    const labelText = this.add.text(x, y + h * 0.22, label, {
+      fontSize: `${CONFIG.UI_FONT_SMALL + 2}px`, color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5);
+    const costText = this.add.text(x, y + h * 0.52, '$?', {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#ffd700', fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
+    }).setOrigin(0.5);
+
+    bg.on('pointerdown', () => this.handleResearch(playerId, towerType, bg));
+    bg.on('pointerover', () => { bg.setFillStyle(0x224422, 0.9); this.showTooltip(tooltip, x, y, playerId); });
+    bg.on('pointerout', () => { bg.setFillStyle(0x112211, 0.85); this.hideTooltip(playerId); });
+    this.researchButtons.push({ bg, labelText, costText, keyText, towerType, playerId });
+  }
+
+  private createConstructButton(
+    x: number, y: number, w: number, h: number,
+    towerType: TowerType, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
+  ): void {
+    const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, 0.85)
+      .setStrokeStyle(2, color, 0.5)
+      .setInteractive({ useHandCursor: true });
+    const labelText = this.add.text(x, y + h * 0.22, label, {
+      fontSize: `${CONFIG.UI_FONT_SMALL + 2}px`, color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5);
+    const costText = this.add.text(x, y + h * 0.52, '$?', {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#ffd700', fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
+    }).setOrigin(0.5);
+
+    bg.on('pointerdown', () => this.handleConstruct(playerId, towerType, bg));
+    bg.on('pointerover', () => { bg.setFillStyle(0x222244, 0.9); this.showTooltip(tooltip, x, y, playerId); });
+    bg.on('pointerout', () => { bg.setFillStyle(0x111122, 0.85); this.hideTooltip(playerId); });
+    this.constructButtons.push({ bg, labelText, costText, keyText, towerType, playerId });
+  }
+
+  private createPlaceButton(
+    x: number, y: number, w: number, h: number,
+    keyName: string, playerId: 0 | 1,
+  ): void {
+    const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x222211, 0.85)
+      .setStrokeStyle(2, color, 0.5)
+      .setInteractive({ useHandCursor: true });
+    const labelText = this.add.text(x, y + h * 0.22, 'PLACE', {
+      fontSize: `${CONFIG.UI_FONT_SMALL + 2}px`, color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5);
+    const statusText = this.add.text(x, y + h * 0.52, '--', {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
+    }).setOrigin(0.5);
+
+    bg.on('pointerdown', () => this.handlePlace(playerId, bg));
+    bg.on('pointerover', () => { bg.setFillStyle(0x333322, 0.9); this.showTooltip('Place tower at carrier position', x, y, playerId); });
+    bg.on('pointerout', () => { bg.setFillStyle(0x222211, 0.85); this.hideTooltip(playerId); });
+    this.placeButtons.push({ bg, labelText, statusText, keyText, playerId });
+  }
+
+  private createTowerMgmtButton(
+    x: number, y: number, w: number, h: number,
+    action: string, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
+  ): void {
+    const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, 0.85)
+      .setStrokeStyle(2, color, 0.5)
+      .setInteractive({ useHandCursor: true });
+    const labelText = this.add.text(x, y + h * 0.35, label, {
+      fontSize: `${CONFIG.UI_FONT_SMALL}px`, color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5);
+    const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
+    }).setOrigin(0.5);
+
+    bg.on('pointerdown', () => {
+      if (action === 'towerPrev') this.handleTowerCycle(playerId, -1);
+      else if (action === 'towerNext') this.handleTowerCycle(playerId, 1);
+      else if (action === 'towerUpgrade') this.handleTowerUpgrade(playerId, bg);
+    });
+    bg.on('pointerover', () => { bg.setFillStyle(0x222244, 0.9); this.showTooltip(tooltip, x, y, playerId); });
+    bg.on('pointerout', () => { bg.setFillStyle(0x111122, 0.85); this.hideTooltip(playerId); });
+    this.categoryButtons.push({ bg, label: labelText, keyText, categoryId: 'towers', playerId });
+  }
+
   // ── Actions ────────────────────────────────────────────────────────
+
+  private handleResearch(playerId: 0 | 1, towerType: TowerType, btn?: Phaser.GameObjects.Rectangle): void {
+    if (this.viewModel.gameOver) return;
+    const player = this.viewModel.players[playerId];
+    const cost = player.getResearchCost(towerType);
+    if (this.viewModel.researchTower(playerId, towerType)) {
+      if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+      this.showGoldPopup(playerId, `-$${cost}`);
+      this.renderMenuForPlayer(playerId);
+    } else {
+      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+    }
+  }
+
+  private handleConstruct(playerId: 0 | 1, towerType: TowerType, btn?: Phaser.GameObjects.Rectangle): void {
+    if (this.viewModel.gameOver) return;
+    const player = this.viewModel.players[playerId];
+    const cost = player.getConstructionCost(towerType);
+    if (this.viewModel.constructTower(playerId, towerType)) {
+      if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+      this.showGoldPopup(playerId, `-$${cost}`);
+    } else {
+      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+    }
+  }
+
+  private handlePlace(playerId: 0 | 1, btn?: Phaser.GameObjects.Rectangle): void {
+    if (this.viewModel.gameOver) return;
+    if (this.viewModel.placeTower(playerId)) {
+      if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+    } else {
+      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+    }
+  }
+
+  private handleTowerCycle(playerId: 0 | 1, direction: -1 | 1): void {
+    const towers = this.viewModel.getTowers(playerId);
+    if (towers.length === 0) return;
+    this.selectedTowerIndex[playerId] = ((this.selectedTowerIndex[playerId] + direction) % towers.length + towers.length) % towers.length;
+  }
+
+  private handleTowerUpgrade(playerId: 0 | 1, btn?: Phaser.GameObjects.Rectangle): void {
+    if (this.viewModel.gameOver) return;
+    const towers = this.viewModel.getTowers(playerId);
+    const idx = this.selectedTowerIndex[playerId];
+    if (idx >= towers.length) return;
+    const tower = towers[idx];
+    const cost = getTowerUpgradeCost(tower.towerType, tower.level);
+    if (this.viewModel.upgradeTower(playerId, idx)) {
+      if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+      this.showGoldPopup(playerId, `-$${cost}`);
+    } else {
+      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+    }
+  }
 
   private handleNuke(playerId: 0 | 1, btn?: Phaser.GameObjects.Rectangle): void {
     if (this.viewModel.gameOver) return;
@@ -560,60 +765,53 @@ export class UIScene extends Phaser.Scene {
         return;
       }
 
-      // Handle P1
-      const p1Result = resolveKeyPress(key, 0, this.activeCategory[0]);
-      if (p1Result) {
-        if (p1Result.type === 'back') {
-          event.preventDefault();
-          this.activeCategory[0] = null;
-          this.renderMenuForPlayer(0);
-          return;
-        }
-        if (p1Result.type === 'navigate') {
-          this.activeCategory[0] = p1Result.category;
-          this.renderMenuForPlayer(0);
-          return;
-        }
-        if (p1Result.type === 'upgrade') {
-          const btn = this.buttons.find(b => b.playerId === 0 && b.type === p1Result.upgradeType);
-          this.handleUpgrade(0, p1Result.upgradeType, btn?.bg);
-          return;
-        }
-        if (p1Result.type === 'action' && p1Result.action === 'nuke') {
-          const nukeBtn = this.nukeButtons.find(b => b.playerId === 0);
-          this.handleNuke(0, nukeBtn?.bg);
-          return;
-        }
-      }
-
-      // Handle P2 (only in pvp mode)
+      this.dispatchKeyForPlayer(0, key, event);
       if (this.viewModel.mode === 'pvp') {
-        const p2Result = resolveKeyPress(key, 1, this.activeCategory[1]);
-        if (p2Result) {
-          if (p2Result.type === 'back') {
-            event.preventDefault();
-            this.activeCategory[1] = null;
-            this.renderMenuForPlayer(1);
-            return;
-          }
-          if (p2Result.type === 'navigate') {
-            this.activeCategory[1] = p2Result.category;
-            this.renderMenuForPlayer(1);
-            return;
-          }
-          if (p2Result.type === 'upgrade') {
-            const btn = this.buttons.find(b => b.playerId === 1 && b.type === p2Result.upgradeType);
-            this.handleUpgrade(1, p2Result.upgradeType, btn?.bg);
-            return;
-          }
-          if (p2Result.type === 'action' && p2Result.action === 'nuke') {
-            const nukeBtn = this.nukeButtons.find(b => b.playerId === 1);
-            this.handleNuke(1, nukeBtn?.bg);
-            return;
-          }
-        }
+        this.dispatchKeyForPlayer(1, key, event);
       }
     });
+  }
+
+  private dispatchKeyForPlayer(playerId: 0 | 1, key: string, event: KeyboardEvent): void {
+    const result = resolveKeyPress(key, playerId, this.activeCategory[playerId]);
+    if (!result) return;
+
+    switch (result.type) {
+      case 'back':
+        event.preventDefault();
+        this.activeCategory[playerId] = null;
+        this.renderMenuForPlayer(playerId);
+        break;
+      case 'navigate':
+        this.activeCategory[playerId] = result.category;
+        this.renderMenuForPlayer(playerId);
+        break;
+      case 'upgrade': {
+        const btn = this.buttons.find(b => b.playerId === playerId && b.type === result.upgradeType);
+        this.handleUpgrade(playerId, result.upgradeType, btn?.bg);
+        break;
+      }
+      case 'research':
+        this.handleResearch(playerId, result.towerType);
+        break;
+      case 'construct':
+        this.handleConstruct(playerId, result.towerType);
+        break;
+      case 'action':
+        if (result.action === 'nuke') {
+          const nukeBtn = this.nukeButtons.find(b => b.playerId === playerId);
+          this.handleNuke(playerId, nukeBtn?.bg);
+        } else if (result.action === 'place') {
+          this.handlePlace(playerId);
+        } else if (result.action === 'towerPrev') {
+          this.handleTowerCycle(playerId, -1);
+        } else if (result.action === 'towerNext') {
+          this.handleTowerCycle(playerId, 1);
+        } else if (result.action === 'towerUpgrade') {
+          this.handleTowerUpgrade(playerId);
+        }
+        break;
+    }
   }
 
 
@@ -703,6 +901,26 @@ export class UIScene extends Phaser.Scene {
       btn.costText.setText(`$${player.getUpgradeCost(btn.type)}`);
     }
 
+    for (const btn of this.researchButtons) {
+      const player = this.viewModel.players[btn.playerId];
+      const researched = player.hasResearched(btn.towerType);
+      const canResearch = player.canResearchTower(btn.towerType);
+      btn.bg.setAlpha(researched ? 0.3 : canResearch ? 1 : 0.4);
+      btn.costText.setText(researched ? 'DONE' : `$${player.getResearchCost(btn.towerType)}`);
+      if (researched) btn.costText.setColor('#66ff66');
+      else btn.costText.setColor('#ffd700');
+    }
+
+    for (const btn of this.constructButtons) {
+      const player = this.viewModel.players[btn.playerId];
+      const researched = player.hasResearched(btn.towerType);
+      const canAfford = player.canAffordConstruction(btn.towerType);
+      const hasCarrier = this.viewModel.hasActiveCarrier(btn.playerId);
+      const atCap = this.viewModel.getTowers(btn.playerId).length >= CONFIG.TOWER_MAX_PER_PLAYER;
+      btn.bg.setAlpha(researched && canAfford && !hasCarrier && !atCap ? 1 : 0.4);
+      btn.costText.setText(researched ? `$${player.getConstructionCost(btn.towerType)}` : 'LOCKED');
+    }
+
     const gameTimeMs = this.viewModel.gameTimeMs;
     for (const btn of this.nukeButtons) {
       const player = this.viewModel.players[btn.playerId];
@@ -719,6 +937,57 @@ export class UIScene extends Phaser.Scene {
         btn.statusText.setColor('#ff6666');
       }
     }
+
+    for (const btn of this.placeButtons) {
+      const hasCarrier = this.viewModel.hasActiveCarrier(btn.playerId);
+      btn.bg.setAlpha(hasCarrier ? 1 : 0.4);
+      if (hasCarrier) {
+        btn.statusText.setText('READY');
+        btn.statusText.setColor('#66ff66');
+      } else {
+        btn.statusText.setText('NO CARRIER');
+        btn.statusText.setColor('#666666');
+      }
+    }
+
+    this.updateTowerInfoText(0);
+    this.updateTowerInfoText(1);
+  }
+
+  private updateTowerInfoText(playerId: 0 | 1): void {
+    const info = this.towerInfoText[playerId];
+    if (!info) return;
+
+    const towers = this.viewModel.getTowers(playerId);
+    if (towers.length === 0) {
+      info.setText('No towers placed');
+      return;
+    }
+
+    const idx = Math.min(this.selectedTowerIndex[playerId], towers.length - 1);
+    this.selectedTowerIndex[playerId] = idx;
+    const tower = towers[idx];
+    const player = this.viewModel.players[playerId];
+    const cost = getTowerUpgradeCost(tower.towerType, tower.level);
+    const canAfford = player.gold >= cost;
+
+    let statsLine: string;
+    if (tower.towerType === 'laser') {
+      const cur = getLaserStats(tower.level);
+      const nxt = getLaserStats(tower.level + 1);
+      statsLine = `DMG:${cur.damage}->${nxt.damage}  RNG:${cur.range}->${nxt.range}  SPD:${cur.attackSpeed.toFixed(1)}->${nxt.attackSpeed.toFixed(1)}`;
+    } else {
+      const cur = getSlowStats(tower.level);
+      const nxt = getSlowStats(tower.level + 1);
+      statsLine = `SLOW:${Math.round(cur.slowFactor * 100)}%->${Math.round(nxt.slowFactor * 100)}%  RNG:${cur.range}->${nxt.range}`;
+    }
+
+    const hp = `HP:${Math.ceil(tower.health)}/${tower.maxHealth}`;
+    info.setText(
+      `Tower ${idx + 1}/${towers.length}: ${tower.towerType.toUpperCase()} Lv${tower.level}\n` +
+      `${hp}  ${statsLine}\n` +
+      `Upgrade: $${cost}${canAfford ? '' : ' (need gold)'}`
+    );
   }
 
   // ── Debug menu ─────────────────────────────────────────────────────

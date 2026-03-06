@@ -1,6 +1,8 @@
-import { CONFIG, type UpgradeType } from './config';
+import { CONFIG, type UpgradeType, type TowerType, TOWER_TYPES } from './config';
 import type { IPlayer } from './player';
 import type { IParticle } from './particles';
+import type { LaserTowerParticle } from './particles/LaserTowerParticle';
+import type { SlowTowerParticle } from './particles/SlowTowerParticle';
 
 export interface AIGameState {
   readonly players: readonly [IPlayer, IPlayer];
@@ -8,6 +10,12 @@ export interface AIGameState {
   readonly gameTimeMs: number;
   readonly gameOver: boolean;
   launchNuke(playerId: 0 | 1): boolean;
+  buyResearch(playerId: 0 | 1, towerType: TowerType): boolean;
+  constructTower(playerId: 0 | 1, towerType: TowerType): boolean;
+  placeTower(playerId: 0 | 1): boolean;
+  upgradeTower(playerId: 0 | 1, towerIndex: number): boolean;
+  readonly carriers: readonly [unknown, unknown];
+  readonly towers: readonly [ReadonlyArray<LaserTowerParticle | SlowTowerParticle>, ReadonlyArray<LaserTowerParticle | SlowTowerParticle>];
 }
 
 export type AIConfig = {
@@ -39,6 +47,7 @@ export class AIController {
     this.timeSinceLastDecision = 0;
 
     this.tryNuke(state);
+    this.tryTowerActions(state);
     this.tryUpgrade(state);
   }
 
@@ -59,6 +68,58 @@ export class AIController {
 
     if (losingBadly || enemyFlood || desperation || valueNuke) {
       state.launchNuke(this.playerId);
+    }
+  }
+
+  private tryTowerActions(state: AIGameState): void {
+    const ai = state.players[this.playerId];
+
+    for (const towerType of TOWER_TYPES) {
+      if (!ai.hasResearched(towerType) && ai.canResearchTower(towerType)) {
+        state.buyResearch(this.playerId, towerType);
+        return;
+      }
+    }
+
+    const carrier = state.carriers[this.playerId];
+    if (carrier && (carrier as IParticle).alive) {
+      const p = carrier as IParticle;
+      const baseW = CONFIG.BASE_WIDTH_CELLS * (CONFIG.GAME_WIDTH / CONFIG.MAZE_COLS);
+      const distFromBase = this.playerId === 0
+        ? p.x - baseW
+        : CONFIG.GAME_WIDTH - baseW - p.x;
+      if (distFromBase > CONFIG.GAME_WIDTH * 0.15) {
+        state.placeTower(this.playerId);
+        return;
+      }
+      return;
+    }
+
+    const towers = state.towers[this.playerId];
+    if (towers.length < CONFIG.TOWER_MAX_PER_PLAYER) {
+      const preferredType: TowerType = towers.length % 2 === 0 ? 'laser' : 'slow';
+      if (ai.hasResearched(preferredType) && ai.canAffordConstruction(preferredType)) {
+        state.constructTower(this.playerId, preferredType);
+        return;
+      }
+      for (const t of TOWER_TYPES) {
+        if (ai.hasResearched(t) && ai.canAffordConstruction(t)) {
+          state.constructTower(this.playerId, t);
+          return;
+        }
+      }
+    }
+
+    if (towers.length > 0 && ai.gold > 50) {
+      let lowestLevel = Infinity;
+      let lowestIdx = 0;
+      for (let i = 0; i < towers.length; i++) {
+        if (towers[i].level < lowestLevel) {
+          lowestLevel = towers[i].level;
+          lowestIdx = i;
+        }
+      }
+      state.upgradeTower(this.playerId, lowestIdx);
     }
   }
 

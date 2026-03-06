@@ -74,6 +74,15 @@ export class MatchStatsRecorder {
     });
   }
 
+  recordTowerPlaced(player: 0 | 1, towerType: string): void {
+    this.events.push({
+      timeSec: Math.floor(this.elapsedMs / 1000),
+      player,
+      type: 'towerPlaced',
+      detail: towerType,
+    });
+  }
+
   tick(
     deltaMs: number,
     particles: readonly IParticle[],
@@ -130,6 +139,11 @@ export class MatchStatsRecorder {
       MatchStatsRecorder.snapshotUpgrades(players[1]),
     ];
 
+    const towerCount: PerPlayer<number> = [
+      alive[0].filter(p => p.typeName === 'laserTower' || p.typeName === 'slowTower').length,
+      alive[1].filter(p => p.typeName === 'laserTower' || p.typeName === 'slowTower').length,
+    ];
+
     const sample: PerSecondSample = {
       timeSec,
       aliveUnits,
@@ -144,6 +158,7 @@ export class MatchStatsRecorder {
       unitDamageDealt: [this.deltas.unitDamageDealt[0], this.deltas.unitDamageDealt[1]],
       baseDamageDealt: [this.deltas.baseDamageDealt[0], this.deltas.baseDamageDealt[1]],
       frontlineXCell,
+      towerCount,
     };
 
     this.samples.push(sample);

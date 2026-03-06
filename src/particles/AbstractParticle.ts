@@ -31,6 +31,8 @@ export interface IParticle {
   leaveCurrentCell(context: GameContext): void;
   /** Defense reduction (0-0.25) applied in takeDamage. Set by engine each tick. */
   defenseFactor: number;
+  /** Tower-based slow multiplier (0-1). Set by engine each tick. 1.0 = no slow. */
+  towerSlowFactor: number;
   destroy(): void;
 }
 
@@ -102,6 +104,9 @@ export abstract class AbstractParticle implements IParticle {
   /** Defense reduction (0-0.25) applied in takeDamage. Set by engine each tick based on owned cell. */
   defenseFactor: number = 0;
 
+  /** Tower-based slow multiplier (0-1). Set by engine each tick. 1.0 = no slow. */
+  towerSlowFactor: number = 1;
+
   protected readonly config: ParticleConfig;
 
   abstract readonly typeName: string;
@@ -140,8 +145,8 @@ export abstract class AbstractParticle implements IParticle {
     this.age += dt;
 
     if (this.canMove) {
-      const slowFactor = context.cellEffects.getSlowFactor(this.x, this.y, this.owner);
-      const effectiveDt = dt * slowFactor;
+      const cellSlow = context.cellEffects.getSlowFactor(this.x, this.y, this.owner);
+      const effectiveDt = dt * cellSlow * this.towerSlowFactor;
 
       this.applyRandomDrift(effectiveDt);
 

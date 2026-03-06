@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
 import { AIController } from '../ai';
-import { CONFIG, type UpgradeType } from '../config';
+import { CONFIG, type UpgradeType, type TowerType } from '../config';
 import { generateGrid, type GridType } from '../grid';
 import type { CellEffect } from '../grid/CellEffect';
 import type { IParticle } from '../particles';
+import type { LaserTowerParticle } from '../particles/LaserTowerParticle';
+import type { SlowTowerParticle } from '../particles/SlowTowerParticle';
 import { GameEngine, type GameEngineCallbacks } from '../GameEngine';
 import { MatchStatsRecorder } from '../stats';
 import type { GameMode } from './MenuScene';
@@ -62,6 +64,10 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
         this.statsRecorder.recordGoldIncome(playerId, reward);
       },
       onGameOver: (winner) => this.showGameOver(winner),
+      onTowerPlaced: (tower, _playerId) => {
+        this.attachTowerVisuals(tower);
+        this.statsRecorder.recordTowerPlaced(_playerId, (tower as { towerType?: string }).towerType ?? 'unknown');
+      },
       onStuckRespawn: () => {},
       onInterest: (playerId, amount) => {
         const uiScene = this.scene.get('UIScene') as { showInterestPopup?: (id: 0 | 1, amt: number) => void };
@@ -81,6 +87,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     this.renderMaze();
     this.renderBases();
     this.createParticleTextures();
+    this.createTowerTextures();
 
     this.effectsGfx = this.add.graphics();
     this.effectsGfx.setDepth(3);
@@ -114,35 +121,189 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     return this.engine.launchNuke(playerId);
   }
 
+  researchTower(playerId: 0 | 1, towerType: TowerType): boolean {
+    return this.engine.buyResearch(playerId, towerType);
+  }
+
+  constructTower(playerId: 0 | 1, towerType: TowerType): boolean {
+    return this.engine.constructTower(playerId, towerType);
+  }
+
+  placeTower(playerId: 0 | 1): boolean {
+    return this.engine.placeTower(playerId);
+  }
+
+  upgradeTower(playerId: 0 | 1, towerIndex: number): boolean {
+    return this.engine.upgradeTower(playerId, towerIndex);
+  }
+
+  hasActiveCarrier(playerId: 0 | 1): boolean {
+    const carrier = this.engine.carriers[playerId];
+    return carrier !== null && carrier.alive;
+  }
+
+  getTowers(playerId: 0 | 1): ReadonlyArray<LaserTowerParticle | SlowTowerParticle> {
+    return this.engine.towers[playerId];
+  }
+
   update(_time: number, delta: number): void {
     const spedDelta = delta * this.debugSpeedMultiplier;
     this.engine.tick(spedDelta);
     this.statsRecorder.tick(spedDelta, this.engine.particles, this.engine.players);
     this.renderCellEffects();
+    this.renderTowerEffects();
   }
 
   private attachVisuals(p: IParticle): void {
-    const textureKey = p.owner === 0 ? 'particle_p1' : 'particle_p2';
+    const isTower = p.typeName === 'laserTower' || p.typeName === 'slowTower';
+    const isCarrier = p.typeName === 'towerCarrier';
+
+    let textureKey: string;
+    if (isTower || isCarrier) {
+      textureKey = p.owner === 0 ? 'tower_p1' : 'tower_p2';
+    } else {
+      textureKey = p.owner === 0 ? 'particle_p1' : 'particle_p2';
+    }
+
     const sprite = this.add.image(p.x, p.y, textureKey);
-    const scale = (p.radius * 2) / 64;
+    const scale = (isTower || isCarrier) ? (p.radius * 2.5) / 64 : (p.radius * 2) / 64;
     sprite.setScale(scale);
-    sprite.setDepth(5);
+    sprite.setDepth(isTower ? 6 : 5);
     sprite.setBlendMode(Phaser.BlendModes.ADD);
     p.sprite = sprite;
 
-    const color = p.owner === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
-    const trailEmitter = this.add.particles(0, 0, 'trail_dot', {
-      follow: sprite,
-      scale: { start: scale * 0.5, end: 0 },
-      alpha: { start: 0.4, end: 0 },
-      tint: color,
-      blendMode: Phaser.BlendModes.ADD,
-      lifespan: 300,
-      frequency: 30,
-      quantity: 1,
-    });
-    trailEmitter.setDepth(4);
-    p.trail = trailEmitter;
+    if (isCarrier) {
+      this.tweens.add({
+        targets: sprite, alpha: { from: 0.3, to: 1 },
+        duration: 400, yoyo: true, repeat: -1, ease: 'Sine.inOut',
+      });
+    }
+
+    if (!isTower) {
+      const color = p.owner === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+      const trailEmitter = this.add.particles(0, 0, 'trail_dot', {
+        follow: sprite,
+        scale: { start: scale * 0.5, end: 0 },
+        alpha: { start: 0.4, end: 0 },
+        tint: color,
+        blendMode: Phaser.BlendModes.ADD,
+        lifespan: 300,
+        frequency: 30,
+        quantity: 1,
+      });
+      trailEmitter.setDepth(4);
+      p.trail = trailEmitter;
+    }
+  }
+
+  private createTowerTextures(): void {
+    if (!this.textures.exists('tower_p1')) {
+      this.createDiamondTexture('tower_p1', CONFIG.PLAYER1_COLOR);
+    }
+    if (!this.textures.exists('tower_p2')) {
+      this.createDiamondTexture('tower_p2', CONFIG.PLAYER2_COLOR);
+    }
+  }
+
+  private createDiamondTexture(key: string, color: number): void {
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+
+    const r = (color >> 16) & 0xff;
+    const g = (color >> 8) & 0xff;
+    const b = color & 0xff;
+
+    const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    gradient.addColorStop(0, `rgba(255, 255, 255, 1)`);
+    gradient.addColorStop(0.15, `rgba(${r}, ${g}, ${b}, 1)`);
+    gradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, 0.6)`);
+    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+
+    ctx.save();
+    ctx.translate(size / 2, size / 2);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(-size / 2, -size / 2, size, size);
+    ctx.restore();
+
+    if (this.textures.exists(key)) {
+      this.textures.remove(key);
+    }
+    this.textures.addCanvas(key, canvas);
+  }
+
+  private towerRangeGfx: Phaser.GameObjects.Graphics[] = [];
+  private laserGfx!: Phaser.GameObjects.Graphics;
+
+  private attachTowerVisuals(tower: IParticle): void {
+    const color = tower.owner === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+
+    const rangeGfx = this.add.graphics();
+    rangeGfx.setDepth(3);
+    this.towerRangeGfx.push(rangeGfx);
+
+    const towerObj = tower as LaserTowerParticle | SlowTowerParticle;
+    const range = towerObj.range;
+    rangeGfx.fillStyle(color, 0.06);
+    rangeGfx.fillCircle(tower.x, tower.y, range);
+    rangeGfx.lineStyle(1, color, 0.25);
+    rangeGfx.strokeCircle(tower.x, tower.y, range);
+
+    (tower as { _rangeGfx?: Phaser.GameObjects.Graphics })._rangeGfx = rangeGfx;
+  }
+
+  private renderTowerEffects(): void {
+    if (!this.laserGfx) {
+      this.laserGfx = this.add.graphics();
+      this.laserGfx.setDepth(7);
+    }
+    this.laserGfx.clear();
+
+    for (let pid = 0; pid < 2; pid++) {
+      const towers = this.engine.towers[pid as 0 | 1];
+      const color = pid === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+
+      for (const tower of towers) {
+        if (!tower.alive) continue;
+
+        const towerAny = tower as unknown as { _rangeGfx?: Phaser.GameObjects.Graphics };
+        if (towerAny._rangeGfx) {
+          towerAny._rangeGfx.clear();
+          towerAny._rangeGfx.fillStyle(color, 0.06);
+          towerAny._rangeGfx.fillCircle(tower.x, tower.y, tower.range);
+          towerAny._rangeGfx.lineStyle(1, color, 0.25);
+          towerAny._rangeGfx.strokeCircle(tower.x, tower.y, tower.range);
+        }
+
+        if (tower.towerType === 'laser') {
+          const laser = tower as LaserTowerParticle;
+          if (laser.currentTargetId >= 0) {
+            const target = this.engine.particles.find(p => p.alive && p.id === laser.currentTargetId);
+            if (target) {
+              this.laserGfx.lineStyle(2, color, 0.8);
+              this.laserGfx.lineBetween(tower.x, tower.y, target.x, target.y);
+              this.laserGfx.fillStyle(0xffffff, 0.9);
+              this.laserGfx.fillCircle(target.x, target.y, 3);
+            }
+          }
+        }
+
+        if (tower.health < tower.maxHealth) {
+          const barW = 20;
+          const barH = 3;
+          const bx = tower.x - barW / 2;
+          const by = tower.y - tower.radius - 6;
+          const hpFrac = Math.max(0, tower.health / tower.maxHealth);
+          this.laserGfx.fillStyle(0x333333, 0.7);
+          this.laserGfx.fillRect(bx, by, barW, barH);
+          this.laserGfx.fillStyle(color, 0.9);
+          this.laserGfx.fillRect(bx, by, barW * hpFrac, barH);
+        }
+      }
+    }
   }
 
   private spawnExplosion(x: number, y: number, color: number): void {

@@ -121,11 +121,49 @@ export const CONFIG = {
   OWNERSHIP_EFFECT_ALPHA: 0.08,
   /** Alpha for brief capture flash (slightly stronger) */
   OWNERSHIP_CAPTURE_FLASH_ALPHA: 0.15,
+  // Towers
+  TOWER_MAX_PER_PLAYER: 5,
+  TOWER_CARRIER_HP: 5,
+  TOWER_UPGRADE_COST_MULTIPLIER: 1.4,
+
+  TOWER_RESEARCH_COSTS: {
+    laser: 200,
+    slow: 200,
+  } as Record<string, number>,
+
+  TOWER_CONSTRUCTION_COSTS: {
+    laser: 500,
+    slow: 500,
+  } as Record<string, number>,
+
+  TOWER_LASER_BASE_HP: 15,
+  TOWER_LASER_BASE_DAMAGE: 2,
+  TOWER_LASER_BASE_RANGE: 120,
+  TOWER_LASER_BASE_ATTACK_SPEED: 2,
+  TOWER_LASER_UPGRADE_COST: 200,
+  TOWER_LASER_DAMAGE_PER_LEVEL: 1,
+  TOWER_LASER_RANGE_PER_LEVEL: 10,
+  TOWER_LASER_ATTACK_SPEED_PER_LEVEL: 0.3,
+
+  TOWER_SLOW_BASE_HP: 10,
+  TOWER_SLOW_BASE_FACTOR: 0.3,
+  TOWER_SLOW_BASE_RANGE: 100,
+  TOWER_SLOW_UPGRADE_COST: 200,
+  TOWER_SLOW_FACTOR_PER_LEVEL: 0.05,
+  TOWER_SLOW_RANGE_PER_LEVEL: 15,
 } as const;
+
+export type TowerType = 'laser' | 'slow';
+export const TOWER_TYPES: readonly TowerType[] = ['laser', 'slow'] as const;
 
 export type UpgradeType = keyof typeof CONFIG.UPGRADE_COSTS;
 
 export function getUpgradeCost(type: UpgradeType, level: number): number {
   const base = CONFIG.UPGRADE_COSTS[type];
   return Math.floor(base * Math.pow(CONFIG.UPGRADE_COST_MULTIPLIER, level));
+}
+
+export function getTowerUpgradeCost(towerType: TowerType, level: number): number {
+  const base = towerType === 'laser' ? CONFIG.TOWER_LASER_UPGRADE_COST : CONFIG.TOWER_SLOW_UPGRADE_COST;
+  return Math.floor(base * Math.pow(CONFIG.TOWER_UPGRADE_COST_MULTIPLIER, level));
 }

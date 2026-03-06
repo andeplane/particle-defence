@@ -24,6 +24,7 @@ export function createMockParticle(overrides: Partial<IParticle> = {}): IParticl
     sprite: null,
     trail: null,
     defenseFactor: 0,
+    towerSlowFactor: 1,
     update: vi.fn(),
     onCollide: vi.fn(function (this: IParticle, other: IParticle) {
       this.health -= other.attack;

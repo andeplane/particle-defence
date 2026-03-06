@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CONFIG } from './config';
 import { Player, createPlayer, computeMaxLevels, type PlayerConfig } from './player';
-import type { UpgradeType } from './config';
+import type { UpgradeType, TowerType } from './config';
 
 const testConfig: PlayerConfig = {
   baseHP: 100,
@@ -216,6 +216,80 @@ describe(Player.name, () => {
 
       // After cooldown
       expect(player.getNukeCooldownRemainingMs(7000)).toBe(0);
+    });
+  });
+
+  describe('tower research', () => {
+    it('hasResearched returns false initially', () => {
+      expect(player.hasResearched('laser')).toBe(false);
+      expect(player.hasResearched('slow')).toBe(false);
+    });
+
+    it.each(['laser', 'slow'] as TowerType[])('canResearchTower %s returns true when affordable', (type) => {
+      player.gold = 9999;
+      expect(player.canResearchTower(type)).toBe(true);
+    });
+
+    it('canResearchTower returns false when already researched', () => {
+      player.gold = 9999;
+      player.researchTower('laser');
+      expect(player.canResearchTower('laser')).toBe(false);
+    });
+
+    it('canResearchTower returns false when cannot afford', () => {
+      player.gold = 0;
+      expect(player.canResearchTower('laser')).toBe(false);
+    });
+
+    it('researchTower deducts gold and marks as researched', () => {
+      player.gold = 9999;
+      const cost = player.getResearchCost('laser');
+      const result = player.researchTower('laser');
+
+      expect(result).toBe(true);
+      expect(player.gold).toBe(9999 - cost);
+      expect(player.hasResearched('laser')).toBe(true);
+    });
+
+    it('researchTower returns false when cannot afford', () => {
+      player.gold = 0;
+      expect(player.researchTower('laser')).toBe(false);
+      expect(player.hasResearched('laser')).toBe(false);
+    });
+  });
+
+  describe('tower construction cost', () => {
+    it('canAffordConstruction returns true when affordable', () => {
+      player.gold = 9999;
+      expect(player.canAffordConstruction('laser')).toBe(true);
+    });
+
+    it('canAffordConstruction returns false when cannot afford', () => {
+      player.gold = 0;
+      expect(player.canAffordConstruction('laser')).toBe(false);
+    });
+
+    it('payForConstruction deducts gold when researched and affordable', () => {
+      player.gold = 9999;
+      player.researchTower('laser');
+      const cost = player.getConstructionCost('laser');
+      const goldBefore = player.gold;
+
+      const result = player.payForConstruction('laser');
+
+      expect(result).toBe(true);
+      expect(player.gold).toBe(goldBefore - cost);
+    });
+
+    it('payForConstruction returns false when not researched', () => {
+      player.gold = 9999;
+      expect(player.payForConstruction('laser')).toBe(false);
+    });
+
+    it('payForConstruction returns false when cannot afford', () => {
+      player.gold = 0;
+      player.researchTower('laser');
+      expect(player.payForConstruction('laser')).toBe(false);
     });
   });
 
