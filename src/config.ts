@@ -66,7 +66,7 @@ export const CONFIG = {
     spawnRate: 10,
     speed: 7,
     maxParticles: 10,
-    defense: 5,
+    defense: 200,
     interestRate: 10,
   },
   /** Cost multiplier per upgrade level: cost = baseCost * UPGRADE_COST_MULTIPLIER^level */
