@@ -200,10 +200,77 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - **phaser**: ^3.90.0 - Game framework
 - **typescript**: ~5.9.3 - TypeScript compiler
 - **vite**: ^7.3.1 - Build tool and dev server
+- **vitest**: ^4.0.18 - Testing framework
 
 ### TypeScript Config
 - Uses ES modules (`"type": "module"`)
 - TypeScript config in `tsconfig.json`
+
+## Testing
+
+**IMPORTANT: Tests must be added for most new features and changes. Always follow the testing patterns defined in `.cursor/rules/testing-patterns.mdc`.**
+
+### Test Framework
+- **Vitest** - Unit testing framework
+- Test files must be named `<something>.spec.ts(x)`
+- Run tests: `npm run test` (watch mode) or `npm run test:run` (single run)
+- Always run tests after making changes
+
+### Testing Requirements
+- **Add tests for most new code** - New features, utilities, services, and business logic should have tests
+- **Test file naming**: `<module>.spec.ts` (e.g., `player.spec.ts`, `collision.spec.ts`)
+- **Test structure**: Use Arrange-Act-Assert pattern for clarity
+- **Type safety**: All mocks must be type-safe; never use `any`
+- **Mocking strategy**: Prefer dependency injection over `vi.mock`; use context providers for React hooks
+- **Helper functions**: Extract reusable test utilities to bottom of test files or `src/__mocks__/`
+
+### Key Testing Patterns
+
+#### Mocking
+- Prefer `vi.fn(() => ...)` for consistent mock behavior
+- Use `vi.mocked()` when reconfiguring mocks per test
+- Prefer context injection over `vi.mock` for better test isolation
+- Use `Partial<T>` for type-safe partial mocks
+
+#### Test Structure
+- Use Arrange-Act-Assert comments **only for tests with more than ~10-15 statements** (optional for shorter tests)
+
+```typescript
+describe(MyService.name, () => {
+  let service: MyService;
+  let mockDep: MockDependency;
+
+  beforeEach(() => {
+    mockDep = {
+      fetch: vi.fn(() => Promise.resolve(mockData)),
+    };
+    service = new MyService(mockDep);
+  });
+
+  it('should handle specific behavior', () => {
+    const input = createTestInput();
+    const result = service.process(input);
+    expect(result).toEqual(expectedOutput);
+  });
+});
+```
+
+#### Helper Functions
+- Place helper functions at bottom of test files
+- Use `src/__mocks__/` for shared mock data factories
+- Use `.test` TLD for fake URLs (RFC 2606)
+
+### Existing Test Coverage
+Tests exist for:
+- Grid generation (random, maze, pathfinding)
+- Collision detection
+- Spatial hash
+- Player logic
+- AI controller
+- Particle behavior
+- Configuration helpers
+
+**See `.cursor/rules/testing-patterns.mdc` for complete testing standards and examples.**
 
 ## Particle Type Hierarchy
 
