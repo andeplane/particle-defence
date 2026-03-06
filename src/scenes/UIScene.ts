@@ -536,6 +536,30 @@ export class UIScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
       const key = event.key;
 
+      // Handle speed control (keys 1, 2, 3)
+      if (key === '1' || key === '2' || key === '3') {
+        const speed = parseInt(key, 10);
+        if (this.viewModel.setDebugSpeedMultiplier) {
+          this.viewModel.setDebugSpeedMultiplier(speed);
+          // Find and update the visual button state
+          const speedBtn = this.speedButtons.find(b => b.speed === speed);
+          if (speedBtn) {
+            speedBtn.bg.setFillStyle(0x222244, 0.95);
+            speedBtn.bg.setStrokeStyle(2, 0x00ddff, 0.9);
+            speedBtn.label.setColor('#00ddff');
+          }
+          // Update other buttons
+          for (const btn of this.speedButtons) {
+            if (btn.speed !== speed) {
+              btn.bg.setFillStyle(0x111122, 0.85);
+              btn.bg.setStrokeStyle(2, 0x666666, 0.6);
+              btn.label.setColor('#aaaaaa');
+            }
+          }
+        }
+        return;
+      }
+
       // Handle P1
       const p1Result = resolveKeyPress(key, 0, this.activeCategory[0]);
       if (p1Result) {
