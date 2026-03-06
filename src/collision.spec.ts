@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { resolveCollisions } from './collision';
 import { createMockParticle } from './__mocks__/createMockParticle';
 import { createMockGameContext } from './__mocks__/createMockGameContext';

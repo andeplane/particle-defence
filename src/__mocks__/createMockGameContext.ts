@@ -1,14 +1,15 @@
 import { vi } from 'vitest';
 import type { GameContext } from '../particles/GameContext';
 import type { IPlayer } from '../player';
-import type { IGrid } from '../grid/Grid';
 import type { ISpatialHash } from '../spatial-hash';
 import type { IParticle } from '../particles/AbstractParticle';
 import { createMockGrid } from './createMockGrid';
+import { createMockCellEffectMap } from './createMockCellEffectMap';
 
 export function createMockGameContext(overrides: Partial<GameContext> = {}): GameContext {
   const defaults: GameContext = {
     grid: createMockGrid(),
+    cellEffects: createMockCellEffectMap(),
     spatialHash: {
       clear: vi.fn(),
       insert: vi.fn(),

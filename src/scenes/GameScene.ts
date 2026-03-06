@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { AIController } from '../ai';
 import { CONFIG, type UpgradeType } from '../config';
 import { generateGrid, type GridType } from '../grid';
+import type { CellEffect } from '../grid/CellEffect';
 import type { IParticle } from '../particles';
 import { GameEngine, type GameEngineCallbacks } from '../GameEngine';
 import type { GameMode } from './MenuScene';
@@ -18,6 +19,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
   private glowTextureP1Created = false;
   private glowTextureP2Created = false;
+  private effectsGfx!: Phaser.GameObjects.Graphics;
 
   get players() { return this.engine.players; }
   get particles() { return this.engine.particles; }
@@ -62,6 +64,9 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     this.renderBases();
     this.createParticleTextures();
 
+    this.effectsGfx = this.add.graphics();
+    this.effectsGfx.setDepth(3);
+
     this.scene.launch('UIScene', { viewModel: this as IGameViewModel, mode: this.mode });
   }
 
@@ -88,6 +93,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   update(_time: number, delta: number): void {
     const spedDelta = delta * this.debugSpeedMultiplier;
     this.engine.tick(spedDelta);
+    this.renderCellEffects();
   }
 
   private attachVisuals(p: IParticle): void {
@@ -244,6 +250,83 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
       this.textures.remove(key);
     }
     this.textures.addCanvas(key, canvas);
+  }
+
+  private renderCellEffects(): void {
+    this.effectsGfx.clear();
+    if (!this.engine.cellEffects.hasAnyEffects) return;
+
+    const grid = this.engine.grid;
+    const cellW = grid.cellW;
+    const cellH = grid.cellH;
+    const gameTimeMs = this.engine.gameTimeMs;
+
+    this.engine.cellEffects.forEach((col, row, effects) => {
+      const x = col * cellW;
+      const y = row * cellH;
+      for (const effect of effects) {
+        this.renderSingleEffect(effect, x, y, cellW, cellH, gameTimeMs);
+      }
+    });
+  }
+
+  private renderSingleEffect(
+    effect: CellEffect, x: number, y: number,
+    cellW: number, cellH: number, gameTimeMs: number,
+  ): void {
+    const color = this.ownerColor(effect.owner);
+
+    switch (effect.type) {
+      case 'slow': {
+        this.effectsGfx.fillStyle(color, CONFIG.SLOW_EFFECT_ALPHA);
+        this.effectsGfx.fillRect(x, y, cellW, cellH);
+        const lineAlpha = CONFIG.SLOW_EFFECT_ALPHA * 1.5;
+        this.effectsGfx.lineStyle(1, color, lineAlpha);
+        for (let i = 0; i < cellW + cellH; i += 6) {
+          const x1 = x + Math.min(i, cellW);
+          const y1 = y + Math.max(0, i - cellW);
+          const x2 = x + Math.max(0, i - cellH);
+          const y2 = y + Math.min(i, cellH);
+          this.effectsGfx.lineBetween(x1, y2, x2, y1);
+        }
+        break;
+      }
+      case 'damage': {
+        const pulse = 0.5 + 0.5 * Math.sin(gameTimeMs * 0.006);
+        const alpha = CONFIG.DAMAGE_EFFECT_ALPHA * (0.6 + 0.4 * pulse);
+        this.effectsGfx.fillStyle(color, alpha);
+        this.effectsGfx.fillRect(x, y, cellW, cellH);
+        break;
+      }
+      case 'tempWallTime': {
+        const timeFrac = Math.max(0, effect.remainingMs / effect.totalMs);
+        const alpha = CONFIG.TEMP_WALL_ALPHA * timeFrac;
+        this.effectsGfx.fillStyle(color, alpha);
+        this.effectsGfx.fillRect(x, y, cellW, cellH);
+        this.effectsGfx.lineStyle(1, color, Math.min(alpha + 0.2, 1));
+        this.effectsGfx.strokeRect(x, y, cellW, cellH);
+        const barWidth = cellW * timeFrac;
+        this.effectsGfx.fillStyle(0xffffff, 0.5);
+        this.effectsGfx.fillRect(x, y + cellH - CONFIG.TEMP_WALL_HP_BAR_HEIGHT, barWidth, CONFIG.TEMP_WALL_HP_BAR_HEIGHT);
+        break;
+      }
+      case 'tempWallHP': {
+        this.effectsGfx.fillStyle(color, CONFIG.TEMP_WALL_ALPHA);
+        this.effectsGfx.fillRect(x, y, cellW, cellH);
+        this.effectsGfx.lineStyle(1, color, CONFIG.TEMP_WALL_ALPHA + 0.2);
+        this.effectsGfx.strokeRect(x, y, cellW, cellH);
+        const hpFrac = Math.max(0, effect.hp / effect.maxHp);
+        this.effectsGfx.fillStyle(0x333333, 0.7);
+        this.effectsGfx.fillRect(x, y + cellH - CONFIG.TEMP_WALL_HP_BAR_HEIGHT, cellW, CONFIG.TEMP_WALL_HP_BAR_HEIGHT);
+        this.effectsGfx.fillStyle(color, 0.9);
+        this.effectsGfx.fillRect(x, y + cellH - CONFIG.TEMP_WALL_HP_BAR_HEIGHT, cellW * hpFrac, CONFIG.TEMP_WALL_HP_BAR_HEIGHT);
+        break;
+      }
+    }
+  }
+
+  private ownerColor(owner: 0 | 1): number {
+    return owner === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
   }
 
   private showGameOver(winner: number): void {

@@ -71,6 +71,12 @@ export const CONFIG = {
   UI_BTN_HEIGHT: 40 * RESOLUTION_SCALE,
   UI_GAP: 4 * RESOLUTION_SCALE,
 
+  // Cell effects defaults
+  SLOW_EFFECT_FACTOR: 0.4,
+  DAMAGE_CELL_DPS: 2,
+  TEMP_WALL_DEFAULT_TIME_MS: 10_000,
+  TEMP_WALL_DEFAULT_HP: 20,
+
   // Visual
   PLAYER1_COLOR: 0x00ddff,
   PLAYER2_COLOR: 0xff4444,
@@ -79,6 +85,12 @@ export const CONFIG = {
   WALL_COLOR: 0x4a4a6e,
   FLOOR_COLOR: 0x0d0d1a,
   BG_COLOR: 0x0a0a0f,
+
+  // Cell effect visual
+  SLOW_EFFECT_ALPHA: 0.18,
+  DAMAGE_EFFECT_ALPHA: 0.22,
+  TEMP_WALL_ALPHA: 0.55,
+  TEMP_WALL_HP_BAR_HEIGHT: 4,
 } as const;
 
 export type UpgradeType = keyof typeof CONFIG.UPGRADE_COSTS;

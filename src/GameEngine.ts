@@ -5,6 +5,8 @@ import { createPlayer, type IPlayer } from './player';
 import { SpatialHash, type ISpatialHash } from './spatial-hash';
 import { resolveCollisions, type CollisionResult } from './collision';
 import type { IGrid } from './grid';
+import type { ICellEffectMap } from './grid/CellEffect';
+import { CellEffectMap } from './grid/CellEffectMap';
 
 export interface GameEngineCallbacks {
   onKill(killer: IParticle, victim: IParticle): void;
@@ -20,6 +22,7 @@ export type GameEngineDependencies = {
   createPlayer: (id: 0 | 1) => IPlayer;
   createParticle: (x: number, y: number, owner: 0 | 1, h: number, a: number, r: number, s: number) => IParticle;
   createSpatialHash: () => ISpatialHash;
+  createCellEffectMap: (grid: IGrid) => ICellEffectMap;
   createAIController: (() => AIController) | null;
   resolveCollisions: (context: GameContext) => CollisionResult;
   killReward: number;
@@ -31,6 +34,7 @@ const defaultDependencies: GameEngineDependencies = {
   createPlayer: (id) => createPlayer(id),
   createParticle: (x, y, owner, h, a, r, s) => new BasicParticle(x, y, owner, h, a, r, s),
   createSpatialHash: () => new SpatialHash(),
+  createCellEffectMap: (grid) => new CellEffectMap({ cols: grid.cols, rows: grid.rows, cellW: grid.cellW, cellH: grid.cellH }),
   createAIController: null,
   resolveCollisions,
   killReward: CONFIG.KILL_REWARD,
@@ -42,6 +46,7 @@ export class GameEngine implements AIGameState {
   players!: [IPlayer, IPlayer];
   particles: IParticle[] = [];
   spatialHash!: ISpatialHash;
+  cellEffects!: ICellEffectMap;
   readonly grid: IGrid;
   spawnTimers: number[] = [0, 0];
   gameOver: boolean = false;
@@ -65,6 +70,7 @@ export class GameEngine implements AIGameState {
   init(useAI: boolean): void {
     this.players = [this.deps.createPlayer(0), this.deps.createPlayer(1)];
     this.spatialHash = this.deps.createSpatialHash();
+    this.cellEffects = this.deps.createCellEffectMap(this.grid);
     this.particles = [];
     this.gameOver = false;
     this.winner = -1;
@@ -91,6 +97,8 @@ export class GameEngine implements AIGameState {
 
     const dt = delta / 1000;
 
+    this.cellEffects.update(delta);
+
     for (let i = 0; i < 2; i++) {
       this.spawnTimers[i] += delta;
       if (this.spawnTimers[i] >= this.players[i].spawnInterval) {
@@ -104,6 +112,8 @@ export class GameEngine implements AIGameState {
     for (const p of this.particles) {
       if (p.alive) p.update(dt, context);
     }
+
+    this.applyCellDamage(dt);
 
     this.spatialHash.clear();
     for (const p of this.particles) {
@@ -185,6 +195,7 @@ export class GameEngine implements AIGameState {
   private createContext(): GameContext {
     return {
       grid: this.grid,
+      cellEffects: this.cellEffects,
       spatialHash: this.spatialHash,
       particles: this.particles,
       players: this.players,
@@ -192,6 +203,16 @@ export class GameEngine implements AIGameState {
       killReward: this.deps.killReward,
       spawnExplosion: (x, y, color) => this.callbacks.spawnExplosion(x, y, color),
     };
+  }
+
+  private applyCellDamage(dt: number): void {
+    for (const p of this.particles) {
+      if (!p.alive) continue;
+      const dps = this.cellEffects.getDamagePerSecond(p.x, p.y, p.owner);
+      if (dps > 0) {
+        p.takeDamage(dps * dt);
+      }
+    }
   }
 
   private checkBaseDamage(): void {

@@ -129,10 +129,13 @@ export abstract class AbstractParticle implements IParticle {
     this.age += dt;
 
     if (this.canMove) {
-      this.applyRandomDrift(dt);
+      const slowFactor = context.cellEffects.getSlowFactor(this.x, this.y, this.owner);
+      const effectiveDt = dt * slowFactor;
 
-      const nx = this.x + this.vx * dt;
-      const ny = this.y + this.vy * dt;
+      this.applyRandomDrift(effectiveDt);
+
+      const nx = this.x + this.vx * effectiveDt;
+      const ny = this.y + this.vy * effectiveDt;
 
       const clampedX = Math.max(this.radius, Math.min(this.config.gameWidth - this.radius, nx));
 
@@ -145,19 +148,30 @@ export abstract class AbstractParticle implements IParticle {
         newY = minY + offset;
       }
 
-      const wallX = context.grid.isWall(clampedX, this.y);
-      const wallY = context.grid.isWall(this.x, newY);
+      const gridWallX = context.grid.isWall(clampedX, this.y);
+      const tempWallX = context.cellEffects.isTempWall(clampedX, this.y, this.owner);
+      const blockedX = gridWallX || tempWallX;
 
-      if (!wallX) {
+      const gridWallY = context.grid.isWall(this.x, newY);
+      const tempWallY = context.cellEffects.isTempWall(this.x, newY, this.owner);
+      const blockedY = gridWallY || tempWallY;
+
+      if (!blockedX) {
         this.x = clampedX;
       } else {
+        if (tempWallX) {
+          this.damageWallAtPixel(clampedX, this.y, context);
+        }
         this.vx = -this.vx;
         this.addRandomDeviation();
       }
 
-      if (!wallY) {
+      if (!blockedY) {
         this.y = newY;
       } else {
+        if (tempWallY) {
+          this.damageWallAtPixel(this.x, newY, context);
+        }
         this.vy = -this.vy;
         this.addRandomDeviation();
       }
@@ -182,6 +196,12 @@ export abstract class AbstractParticle implements IParticle {
 
   getBaseDamage(): number {
     return this.config.baseDamageOnReach;
+  }
+
+  private damageWallAtPixel(px: number, py: number, context: GameContext): void {
+    const col = Math.floor(px / context.grid.cellW);
+    const row = Math.floor(py / context.grid.cellH);
+    context.cellEffects.damageWallAt(col, row, this.attack, this.owner);
   }
 
   private preventBaseReturn(): void {

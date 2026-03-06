@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { BasicParticle } from './BasicParticle';
 import { resetParticleIds, type ParticleDependencies, type ParticleConfig } from './AbstractParticle';
 import { createMockGameContext } from '../__mocks__/createMockGameContext';
+import { createMockCellEffectMap } from '../__mocks__/createMockCellEffectMap';
 import { createMockParticle } from '../__mocks__/createMockParticle';
 import type { GameContext } from './GameContext';
 
@@ -225,6 +226,104 @@ describe(BasicParticle.name, () => {
     });
   });
 
+  describe('cell effects integration', () => {
+    it('slows movement when slow effect is active', () => {
+      const slowEffects = createMockCellEffectMap({ getSlowFactor: vi.fn(() => 0.5) });
+      const slowContext = createMockGameContext({ cellEffects: slowEffects });
+
+      const deps = createDeps({ config: { ...testParticleConfig, driftStrength: 0 } });
+      const p = createParticle({ x: 100, y: 100, speed: 180, owner: 0 }, deps);
+      const vxBefore = p.vx;
+
+      const normalContext = createMockGameContext();
+      const pNormal = createParticle({ x: 100, y: 100, speed: 180, owner: 0 }, createDeps({ config: { ...testParticleConfig, driftStrength: 0 } }));
+      pNormal.vx = vxBefore;
+      pNormal.vy = p.vy;
+
+      // Both update with same dt
+      p.update(0.1, slowContext);
+      pNormal.update(0.1, normalContext);
+
+      // Slowed particle should have moved less in x
+      const slowDist = Math.abs(p.x - 100);
+      const normalDist = Math.abs(pNormal.x - 100);
+      expect(slowDist).toBeLessThan(normalDist);
+    });
+
+    it('bounces off enemy temp wall', () => {
+      const tempWallEffects = createMockCellEffectMap({
+        isTempWall: vi.fn((px: number) => px > 200),
+      });
+      const tempWallContext = createMockGameContext({ cellEffects: tempWallEffects });
+
+      const deps = createDeps({ config: { ...testParticleConfig, driftStrength: 0, enemyBias: 0 } });
+      const p = createParticle({ x: 199, y: 100, speed: 180, owner: 0 }, deps);
+      const vxBefore = p.vx;
+
+      p.update(0.1, tempWallContext);
+
+      expect(Math.sign(p.vx)).toBe(-Math.sign(vxBefore));
+    });
+
+    it('damages enemy temp wall HP on bounce', () => {
+      const damageWallAt = vi.fn<(col: number, row: number, damage: number, attackerOwner: 0 | 1) => boolean>()
+        .mockReturnValue(true);
+      const tempWallEffects = createMockCellEffectMap({
+        isTempWall: vi.fn((px: number) => px > 200),
+        damageWallAt,
+      });
+      const tempWallContext = createMockGameContext({ cellEffects: tempWallEffects });
+
+      const deps = createDeps({ config: { ...testParticleConfig, driftStrength: 0, enemyBias: 0 } });
+      const p = createParticle({ x: 199, y: 100, speed: 180, attack: 2, owner: 0 }, deps);
+
+      p.update(0.1, tempWallContext);
+
+      expect(damageWallAt).toHaveBeenCalled();
+      const [_col, _row, damage, attackerOwner] = damageWallAt.mock.calls[0];
+      expect(damage).toBe(2);
+      expect(attackerOwner).toBe(0);
+    });
+
+    it('does not damage wall on grid wall bounce (only temp wall)', () => {
+      const damageWallAt = vi.fn(() => false);
+      const effects = createMockCellEffectMap({ damageWallAt });
+      const wallContext = createMockGameContext({
+        grid: {
+          ...context.grid,
+          isWall: vi.fn((px: number) => px > 200),
+          isInBase: vi.fn(() => false),
+        },
+        cellEffects: effects,
+      });
+
+      const deps = createDeps({ config: { ...testParticleConfig, driftStrength: 0, enemyBias: 0 } });
+      const p = createParticle({ x: 199, y: 100, speed: 180, owner: 0 }, deps);
+      p.update(0.1, wallContext);
+
+      expect(damageWallAt).not.toHaveBeenCalled();
+    });
+
+    it('no slow effect when factor is 1', () => {
+      const noSlowEffects = createMockCellEffectMap({ getSlowFactor: vi.fn(() => 1) });
+      const ctx1 = createMockGameContext({ cellEffects: noSlowEffects });
+      const ctx2 = createMockGameContext();
+
+      const deps1 = createDeps({ config: { ...testParticleConfig, driftStrength: 0 } });
+      const deps2 = createDeps({ config: { ...testParticleConfig, driftStrength: 0 } });
+      const p1 = createParticle({ x: 100, y: 100, speed: 180, owner: 0 }, deps1);
+      const p2 = createParticle({ x: 100, y: 100, speed: 180, owner: 0 }, deps2);
+      p2.vx = p1.vx;
+      p2.vy = p1.vy;
+
+      p1.update(0.1, ctx1);
+      p2.update(0.1, ctx2);
+
+      expect(p1.x).toBeCloseTo(p2.x);
+      expect(p1.y).toBeCloseTo(p2.y);
+    });
+  });
+
   describe('destroy', () => {
     it('sets alive to false', () => {
       const p = createParticle();
@@ -240,8 +339,7 @@ describe(BasicParticle.name, () => {
 
   describe(resetParticleIds.name, () => {
     it('resets the global id counter', () => {
-      const p1 = new BasicParticle(0, 0, 0, 1, 1, 1, 100);
-      const firstId = p1.id;
+      new BasicParticle(0, 0, 0, 1, 1, 1, 100);
 
       resetParticleIds();
 

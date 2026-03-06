@@ -23,8 +23,10 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
   - **`BasicParticle.ts`** - Default particle type (current behavior)
   - **`GameContext.ts`** - Context interface passed to particle hooks (grid, spatial hash, players, spawnExplosion)
   - **`index.ts`** - Re-exports
-- **`src/grid/`** - Grid and map generators:
+- **`src/grid/`** - Grid, cell effects, and map generators:
   - **`Grid.ts`** - Grid class with cells, isWall, isInBase, cellW/cellH, hasPath
+  - **`CellEffect.ts`** - Cell effect type definitions (discriminated union) and `ICellEffectMap` interface
+  - **`CellEffectMap.ts`** - Cell effect map implementation: manages per-cell effects, queries, timer/HP updates
   - **`generators/random.ts`** - Percolation-based random grid
   - **`generators/maze.ts`** - Recursive backtracker maze with extra carved paths
   - **`generators/index.ts`** - GridType union, generateGrid, re-exports
@@ -84,6 +86,16 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
   - `maxParticles: 10`
 - `UPGRADE_COST_MULTIPLIER: 1.3` - Cost multiplier per level (cost = baseCost * multiplier^level)
 
+### Cell Effect Defaults
+- `SLOW_EFFECT_FACTOR: 0.4` - Default slow multiplier for enemies in slow cells
+- `DAMAGE_CELL_DPS: 2` - Default damage per second for damage cells
+- `TEMP_WALL_DEFAULT_TIME_MS: 10_000` - Default temp wall duration (10 seconds)
+- `TEMP_WALL_DEFAULT_HP: 20` - Default temp wall hit points
+- `SLOW_EFFECT_ALPHA: 0.18` - Rendering alpha for slow cell overlay
+- `DAMAGE_EFFECT_ALPHA: 0.22` - Rendering alpha for damage cell overlay
+- `TEMP_WALL_ALPHA: 0.55` - Rendering alpha for temp wall overlay
+- `TEMP_WALL_HP_BAR_HEIGHT: 4` - Height of the HP bar rendered on temp walls
+
 ### Spatial Hash
 - `SPATIAL_CELL_SIZE: 32` (16 * scale) - Grid cell size for collision optimization
 
@@ -116,6 +128,8 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - X-axis clamped to game bounds
 - Random drift prevents particles from getting stuck
 - Particles prevented from returning to their own base
+- Movement speed affected by cell slow effects (enemy slow cells reduce effective dt)
+- Enemy temp walls act as impassable walls; particles bounce off them and damage HP walls
 
 ### Combat System
 - Particles collide when within combined radius distance
@@ -136,6 +150,24 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - Awards reduced gold (25% of normal kill reward)
 - Has cooldown period (10 minutes)
 - Available immediately (can be changed via config)
+
+### Cell Effects System
+Grid cells can have composable effects layered on top of the base boolean grid. Each cell supports multiple effects from different players simultaneously. Effects are managed by `CellEffectMap` and accessible via `GameContext.cellEffects`.
+
+**Effect Types** (discriminated union in `CellEffect.ts`):
+- **`slow`** - Reduces enemy particle speed by `factor` (e.g. 0.4 = 40% speed). Own particles unaffected.
+- **`damage`** - Deals `damagePerSecond` to enemy particles standing in the cell. Applied each tick in `GameEngine`.
+- **`tempWallTime`** - Temporary wall that blocks enemy particles. Expires after `remainingMs` (countdown from `totalMs`). Rendered with fading opacity and time bar.
+- **`tempWallHP`** - Temporary wall that blocks enemy particles. Destroyed when `hp` reaches 0 (attacked by enemy particles that bounce off it). Rendered with HP bar.
+
+**Key architecture**: `owner` field indicates who placed the effect. Effects always target the **enemy** of the owner. Own particles pass through freely.
+
+**Integration points**:
+- `AbstractParticle.update()` checks `cellEffects.getSlowFactor()` and `cellEffects.isTempWall()` during movement
+- `GameEngine.tick()` calls `cellEffects.update(delta)` to expire timed effects, and `applyCellDamage()` for damage cells
+- `GameScene` renders effects overlay at depth 3 using `effectsGfx` graphics object
+
+**Placement**: Use `cellEffects.addEffect(col, row, effect)` to place effects. The placement mechanism (upgrades, abilities, etc.) is not yet implemented — this is the infrastructure layer.
 
 ### Win Condition
 - Game ends when a player's base HP reaches 0
@@ -263,11 +295,12 @@ describe(MyService.name, () => {
 ### Existing Test Coverage
 Tests exist for:
 - Grid generation (random, maze, pathfinding)
+- Cell effect map (add/remove, queries, timer expiry, HP damage, pixel conversion)
 - Collision detection
 - Spatial hash
 - Player logic
 - AI controller
-- Particle behavior
+- Particle behavior (including cell effect integration: slow, temp wall bounce, wall damage)
 - Configuration helpers
 
 **See `.cursor/rules/testing-patterns.mdc` for complete testing standards and examples.**
@@ -283,7 +316,7 @@ Particles use an inheritance-based hierarchy. New types extend `AbstractParticle
 - **`onDeath(context)`** - Called when particle dies; override for death effects (AoE explosion)
 - **`getBaseDamage()`** - Damage dealt to enemy base on reach; default: `CONFIG.BASE_DAMAGE_ON_REACH`
 
-`GameContext` provides: `grid`, `spatialHash`, `particles`, `players`, `gameTimeMs`, `spawnExplosion()`.
+`GameContext` provides: `grid`, `cellEffects`, `spatialHash`, `particles`, `players`, `gameTimeMs`, `spawnExplosion()`.
 
 ## Key Design Patterns
 
