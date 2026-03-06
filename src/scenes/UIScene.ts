@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { CONFIG, DEBUG_MODE, type UpgradeType } from '../config';
 import type { IPlayer } from '../player';
 import type { GameMode } from './MenuScene';
+import { MENU_CATEGORIES, type MenuCategory, resolveKeyPress } from './menuConfig';
 
 export interface IGameViewModel {
   readonly players: readonly [IPlayer, IPlayer];
@@ -14,6 +15,8 @@ export interface IGameViewModel {
   debugSpeedMultiplier?: number;
   setDebugSpeedMultiplier?: (speed: number) => void;
 }
+
+
 
 interface UpgradeButton {
   bg: Phaser.GameObjects.Rectangle;
@@ -32,6 +35,21 @@ interface NukeButton {
   playerId: 0 | 1;
 }
 
+interface CategoryButton {
+  bg: Phaser.GameObjects.Rectangle;
+  label: Phaser.GameObjects.Text;
+  keyText: Phaser.GameObjects.Text;
+  categoryId: MenuCategory;
+  playerId: 0 | 1;
+}
+
+interface BackButton {
+  bg: Phaser.GameObjects.Rectangle;
+  label: Phaser.GameObjects.Text;
+  keyText: Phaser.GameObjects.Text;
+  playerId: 0 | 1;
+}
+
 export class UIScene extends Phaser.Scene {
   private viewModel!: IGameViewModel;
 
@@ -45,6 +63,12 @@ export class UIScene extends Phaser.Scene {
   private p2HPText!: Phaser.GameObjects.Text;
   private buttons: UpgradeButton[] = [];
   private nukeButtons: NukeButton[] = [];
+  private categoryButtons: CategoryButton[] = [];
+  private activeCategory: [MenuCategory | null, MenuCategory | null] = [null, null];
+  private categoryTitle: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
+  private backButtons: BackButton[] = [];
+  private placeholderText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
+  private tooltipText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
   private popups: Phaser.GameObjects.Text[] = [];
   private debugMenuCollapsed: boolean = true;
   private debugMenuBg?: Phaser.GameObjects.Rectangle;
@@ -66,8 +90,10 @@ export class UIScene extends Phaser.Scene {
     this.createHPBars();
     this.createGoldDisplay();
     this.createStatsDisplay();
-    this.createUpgradeButtons();
-    this.createNukeButtons();
+    this.renderMenuForPlayer(0);
+    if (this.viewModel.mode === 'pvp') {
+      this.renderMenuForPlayer(1);
+    }
     this.setupKeyboard();
     if (DEBUG_MODE) {
       this.createDebugMenu();
@@ -110,122 +136,311 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(1, 0);
   }
 
-  private createUpgradeButtons(): void {
-    const topRowUpgrades: { type: UpgradeType; label: string; p1Key: string; p2Key: string }[] = [
-      { type: 'health', label: 'HP', p1Key: 'Q', p2Key: 'U' },
-      { type: 'attack', label: 'ATK', p1Key: 'W', p2Key: 'I' },
-      { type: 'radius', label: 'RAD', p1Key: 'E', p2Key: 'O' },
-      { type: 'spawnRate', label: 'SPWN', p1Key: 'R', p2Key: 'P' },
-      { type: 'speed', label: 'VEL', p1Key: 'T', p2Key: 'Y' },
-      { type: 'defense', label: 'DEF', p1Key: 'G', p2Key: 'K' },
-    ];
-    const bottomRowUpgrades: { type: UpgradeType; label: string; p1Key: string; p2Key: string }[] = [
-      { type: 'maxParticles', label: 'MAX', p1Key: 'A', p2Key: 'L' },
-      { type: 'interestRate', label: 'INT', p1Key: 'B', p2Key: 'N' },
-    ];
+  // ── Menu rendering ─────────────────────────────────────────────────
 
-    const btnW = CONFIG.UI_BTN_WIDTH;
-    const btnH = CONFIG.UI_BTN_HEIGHT;
+  private showTooltip(text: string, btnX: number, btnY: number, playerId: 0 | 1): void {
+    this.hideTooltip(playerId);
     const gap = CONFIG.UI_GAP;
-    const topRowY = CONFIG.GAME_HEIGHT - (btnH + gap) * 2 - CONFIG.UI_GAP * 2;
-    const bottomRowY = CONFIG.GAME_HEIGHT - btnH - CONFIG.UI_GAP * 2;
-    const staggerOffset = (btnW + gap) * 0.4;
+    const pad = CONFIG.UI_GAP * 2;
+    const y = btnY - gap;
+    const tooltip = this.add.text(btnX, y, text, {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`,
+      color: '#ffffff',
+      fontFamily: 'monospace',
+      backgroundColor: '#000000',
+      padding: { x: 6, y: 4 },
+    }).setOrigin(0.5, 1).setDepth(200);
+    const bounds = tooltip.getBounds();
+    if (bounds.left < pad) {
+      tooltip.setX(pad + bounds.width / 2);
+    } else if (bounds.right > CONFIG.GAME_WIDTH - pad) {
+      tooltip.setX(CONFIG.GAME_WIDTH - pad - bounds.width / 2);
+    }
+    this.tooltipText[playerId] = tooltip;
+  }
 
-    topRowUpgrades.forEach((u, i) => {
-      const x = CONFIG.UI_GAP * 2.5 + i * (btnW + gap) + btnW / 2;
-      this.createButton(x, topRowY, btnW, btnH, u.type, u.label, u.p1Key, 0);
-    });
-
-    bottomRowUpgrades.forEach((u, i) => {
-      const x = CONFIG.UI_GAP * 2.5 + staggerOffset + i * (btnW + gap) + btnW / 2;
-      this.createButton(x, bottomRowY, btnW, btnH, u.type, u.label, u.p1Key, 0);
-    });
-
-    if (this.viewModel.mode === 'pvp') {
-      topRowUpgrades.forEach((u, i) => {
-        const x = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - (5 - i) * (btnW + gap) - btnW / 2;
-        this.createButton(x, topRowY, btnW, btnH, u.type, u.label, u.p2Key, 1);
-      });
-      bottomRowUpgrades.forEach((u, i) => {
-        const x = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - staggerOffset - (1 - i) * (btnW + gap) - btnW / 2;
-        this.createButton(x, bottomRowY, btnW, btnH, u.type, u.label, u.p2Key, 1);
-      });
+  private hideTooltip(playerId: 0 | 1): void {
+    const t = this.tooltipText[playerId];
+    if (t) {
+      t.destroy();
+      this.tooltipText[playerId] = null;
     }
   }
 
-  private createButton(
+  private buildUpgradeTooltip(type: UpgradeType, player: IPlayer): string {
+    const level = player.getUpgradeLevel(type);
+    let current = '';
+    let next = '';
+    switch (type) {
+      case 'health':
+        current = `${CONFIG.PARTICLE_BASE_HEALTH + level} HP`;
+        next = `Next: ${CONFIG.PARTICLE_BASE_HEALTH + level + 1} HP`;
+        break;
+      case 'attack':
+        current = `${CONFIG.PARTICLE_BASE_ATTACK + level} ATK`;
+        next = `Next: ${CONFIG.PARTICLE_BASE_ATTACK + level + 1} ATK`;
+        break;
+      case 'radius':
+        current = `${CONFIG.PARTICLE_BASE_RADIUS + level}`;
+        next = `Next: ${CONFIG.PARTICLE_BASE_RADIUS + level + 1}`;
+        break;
+      case 'spawnRate':
+        current = `${player.spawnInterval}ms`;
+        next = `Next: ${Math.max(50, player.spawnInterval - 20)}ms`;
+        break;
+      case 'speed':
+        current = `${player.particleSpeed}`;
+        next = `Next: ${player.particleSpeed + 20}`;
+        break;
+      case 'maxParticles':
+        current = `${player.maxParticles}`;
+        next = `Next: ${player.maxParticles + CONFIG.MAX_PARTICLES_PER_LEVEL}`;
+        break;
+      case 'defense':
+        current = `${Math.round(player.particleDefense * 100)}%`;
+        next = `Next: ${Math.round(Math.min(0.25, player.particleDefense + 0.025) * 100)}%`;
+        break;
+      case 'interestRate':
+        current = `${Math.round(player.goldInterestRate * 100)}%`;
+        next = `Next: ${Math.round(Math.min(0.05, player.goldInterestRate + 0.01) * 100)}%`;
+        break;
+    }
+    const item = MENU_CATEGORIES.flatMap(c => c.items).find(i => i.kind === 'upgrade' && i.type === type);
+    const desc = item && item.kind === 'upgrade' ? item.tooltip : type;
+    return `${desc}\nCurrent: ${current}\n${next}`;
+  }
+
+  private destroyPlayerPanel(playerId: 0 | 1): void {
+    this.buttons = this.buttons.filter(btn => {
+      if (btn.playerId !== playerId) return true;
+      btn.bg.destroy(); btn.label.destroy(); btn.costText.destroy(); btn.keyText.destroy();
+      return false;
+    });
+    this.nukeButtons = this.nukeButtons.filter(btn => {
+      if (btn.playerId !== playerId) return true;
+      btn.bg.destroy(); btn.labelText.destroy(); btn.statusText.destroy(); btn.keyText.destroy();
+      return false;
+    });
+    this.categoryButtons = this.categoryButtons.filter(btn => {
+      if (btn.playerId !== playerId) return true;
+      btn.bg.destroy(); btn.label.destroy(); btn.keyText.destroy();
+      return false;
+    });
+    const title = this.categoryTitle[playerId];
+    if (title) { title.destroy(); this.categoryTitle[playerId] = null; }
+    this.backButtons = this.backButtons.filter(btn => {
+      if (btn.playerId !== playerId) return true;
+      btn.bg.destroy(); btn.label.destroy(); btn.keyText.destroy();
+      return false;
+    });
+    const ph = this.placeholderText[playerId];
+    if (ph) { ph.destroy(); this.placeholderText[playerId] = null; }
+    this.hideTooltip(playerId);
+  }
+
+  private getPanelLayout(playerId: 0 | 1) {
+    const btnW = CONFIG.UI_BTN_WIDTH;
+    const btnH = CONFIG.UI_BTN_HEIGHT;
+    const gap = CONFIG.UI_GAP;
+    const bottomMargin = CONFIG.UI_GAP * 0.5;
+    const topRowY = CONFIG.GAME_HEIGHT - (btnH + gap) * 2 - bottomMargin;
+    const bottomRowY = CONFIG.GAME_HEIGHT - btnH - bottomMargin;
+    const isRight = playerId === 1;
+    const startX = CONFIG.UI_GAP * 2.5;
+    const rightEdge = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - btnW / 2;
+    return { btnW, btnH, gap, startX, rightEdge, topRowY, bottomRowY, isRight };
+  }
+
+  private getButtonX(
+    playerId: 0 | 1, index: number, totalInRow: number,
+    rowOffset: number, isRight: boolean
+  ): number {
+    const { btnW, gap, startX, rightEdge } = this.getPanelLayout(playerId);
+    if (isRight) {
+      return (rightEdge - rowOffset) - (totalInRow - 1 - index) * (btnW + gap);
+    }
+    return startX + rowOffset + index * (btnW + gap) + btnW / 2;
+  }
+
+  private renderMenuForPlayer(playerId: 0 | 1): void {
+    this.destroyPlayerPanel(playerId);
+    const { btnW, btnH, gap, startX, rightEdge, topRowY, bottomRowY, isRight } = this.getPanelLayout(playerId);
+    const key = (def: { p1Key: string; p2Key: string }) => (playerId === 0 ? def.p1Key : def.p2Key);
+    const category = this.activeCategory[playerId];
+
+    if (category === null) {
+      const n = MENU_CATEGORIES.length;
+      MENU_CATEGORIES.forEach((cat, i) => {
+        const x = this.getButtonX(playerId, i, n, 0, isRight);
+        this.createCategoryButton(x, bottomRowY, btnW, btnH, cat.id, cat.label, cat.tooltip, key(cat), playerId);
+      });
+      return;
+    }
+
+    const catDef = MENU_CATEGORIES.find(c => c.id === category)!;
+    const titleY = topRowY - CONFIG.UI_FONT_SMALL - CONFIG.UI_GAP * 2;
+    const titleX = isRight ? rightEdge - 2 * (btnW + gap) : startX + 2 * (btnW + gap);
+
+    this.categoryTitle[playerId] = this.add.text(titleX, titleY, catDef.label, {
+      fontSize: `${CONFIG.UI_FONT_SMALL}px`, color: '#aaaaaa', fontFamily: 'monospace',
+    }).setOrigin(isRight ? 1 : 0, 0.5);
+
+    if (catDef.items.length === 0) {
+      this.placeholderText[playerId] = this.add.text(
+        titleX,
+        topRowY + btnH / 2,
+        'Nothing available',
+        { fontSize: `${CONFIG.UI_FONT_SMALL}px`, color: '#666666', fontFamily: 'monospace' },
+      ).setOrigin(isRight ? 1 : 0, 0.5);
+      const backKey = playerId === 0 ? 'Tab' : 'Bksp';
+      const backX = this.getButtonX(playerId, 0, 1, 0, isRight);
+      this.createBackButton(backX, bottomRowY, btnW, btnH, backKey, playerId);
+      return;
+    }
+
+    const staggerOffset = (btnW + gap) * 0.4;
+    const topRowCount = Math.min(6, catDef.items.length);
+    const bottomRowCount = catDef.items.length - topRowCount;
+
+    catDef.items.forEach((item, i) => {
+      const isTopRow = i < topRowCount;
+      const rowIndex = isTopRow ? i : i - topRowCount;
+      const totalInRow = isTopRow ? topRowCount : bottomRowCount;
+      const y = isTopRow ? topRowY : bottomRowY;
+      const rowOffset = isTopRow ? 0 : staggerOffset;
+      const x = this.getButtonX(playerId, rowIndex, totalInRow, rowOffset, isRight);
+
+      if (item.kind === 'upgrade') {
+        this.createUpgradeButton(x, y, btnW, btnH, item.type, item.label, key(item), playerId);
+      } else {
+        this.createActionButton(x, y, btnW, btnH, item.label, item.tooltip, key(item), playerId);
+      }
+    });
+
+    const backKey = playerId === 0 ? 'Tab' : 'Bksp';
+    const backX = this.getButtonX(playerId, bottomRowCount, bottomRowCount + 1, staggerOffset, isRight);
+    this.createBackButton(backX, bottomRowY, btnW, btnH, backKey, playerId);
+  }
+
+  private createCategoryButton(
     x: number, y: number, w: number, h: number,
-    type: UpgradeType, label: string, keyName: string, playerId: 0 | 1
+    categoryId: MenuCategory, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
   ): void {
     const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
-
     const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, 0.85)
       .setStrokeStyle(2, color, 0.5)
       .setInteractive({ useHandCursor: true });
+    const labelText = this.add.text(x, y + h * 0.35, label, {
+      fontSize: `${CONFIG.UI_FONT_SMALL}px`, color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5);
+    const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
+    }).setOrigin(0.5);
 
+    bg.on('pointerdown', () => { this.activeCategory[playerId] = categoryId; this.renderMenuForPlayer(playerId); });
+    bg.on('pointerover', () => {
+      bg.setFillStyle(0x222244, 0.9);
+      this.showTooltip(tooltip, x, y, playerId);
+    });
+    bg.on('pointerout', () => {
+      bg.setFillStyle(0x111122, 0.85);
+      this.hideTooltip(playerId);
+    });
+    this.categoryButtons.push({ bg, label: labelText, keyText, categoryId, playerId });
+  }
+
+  private createBackButton(
+    x: number, y: number, w: number, h: number,
+    keyName: string, playerId: 0 | 1,
+  ): void {
+    const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, 0.85)
+      .setStrokeStyle(2, color, 0.5)
+      .setInteractive({ useHandCursor: true });
+    const labelText = this.add.text(x, y + h * 0.35, 'BACK', {
+      fontSize: `${CONFIG.UI_FONT_SMALL}px`, color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5);
+    const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
+    }).setOrigin(0.5);
+
+    bg.on('pointerdown', () => {
+      this.activeCategory[playerId] = null;
+      this.renderMenuForPlayer(playerId);
+    });
+    bg.on('pointerover', () => {
+      bg.setFillStyle(0x222244, 0.9);
+      this.showTooltip('Return to menu', x, y, playerId);
+    });
+    bg.on('pointerout', () => {
+      bg.setFillStyle(0x111122, 0.85);
+      this.hideTooltip(playerId);
+    });
+    this.backButtons.push({ bg, label: labelText, keyText, playerId });
+  }
+
+  private createUpgradeButton(
+    x: number, y: number, w: number, h: number,
+    type: UpgradeType, label: string, keyName: string, playerId: 0 | 1,
+  ): void {
+    const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, 0.85)
+      .setStrokeStyle(2, color, 0.5)
+      .setInteractive({ useHandCursor: true });
     const labelText = this.add.text(x, y + h * 0.22, label, {
       fontSize: `${CONFIG.UI_FONT_SMALL + 2}px`, color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5);
-
     const costText = this.add.text(x, y + h * 0.52, '$?', {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#ffd700', fontFamily: 'monospace',
     }).setOrigin(0.5);
-
     const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5);
 
     bg.on('pointerdown', () => this.handleUpgrade(playerId, type, bg));
-    bg.on('pointerover', () => bg.setFillStyle(0x222244, 0.9));
-    bg.on('pointerout', () => bg.setFillStyle(0x111122, 0.85));
-
+    bg.on('pointerover', () => {
+      bg.setFillStyle(0x222244, 0.9);
+      const player = this.viewModel.players[playerId];
+      this.showTooltip(this.buildUpgradeTooltip(type, player), x, y, playerId);
+    });
+    bg.on('pointerout', () => {
+      bg.setFillStyle(0x111122, 0.85);
+      this.hideTooltip(playerId);
+    });
     this.buttons.push({ bg, label: labelText, costText, keyText, type, playerId });
   }
 
-  private createNukeButtons(): void {
-    const btnW = CONFIG.UI_BTN_WIDTH;
-    const btnH = CONFIG.UI_BTN_HEIGHT;
-    const gap = CONFIG.UI_GAP;
-    const bottomRowY = CONFIG.GAME_HEIGHT - btnH - CONFIG.UI_GAP * 2;
-    const staggerOffset = (btnW + gap) * 0.4;
-
-    const p1NukeX = CONFIG.UI_GAP * 2.5 + staggerOffset + 2 * (btnW + gap) + btnW / 2;
-    this.nukeButtons.push(this.createNukeButton(p1NukeX, bottomRowY, btnW, btnH, 0, 'F'));
-
-    if (this.viewModel.mode === 'pvp') {
-      const p2NukeX = CONFIG.GAME_WIDTH - CONFIG.UI_GAP * 2.5 - staggerOffset - 2 * (btnW + gap) - btnW / 2;
-      this.nukeButtons.push(this.createNukeButton(p2NukeX, bottomRowY, btnW, btnH, 1, 'J'));
-    }
-  }
-
-  private createNukeButton(
+  private createActionButton(
     x: number, y: number, w: number, h: number,
-    playerId: 0 | 1, keyName: string
-  ): NukeButton {
+    label: string, tooltip: string, keyName: string, playerId: 0 | 1,
+  ): void {
     const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
-
     const bg = this.add.rectangle(x, y + h / 2, w, h, 0x221111, 0.85)
       .setStrokeStyle(2, color, 0.5)
       .setInteractive({ useHandCursor: true });
-
-    const labelText = this.add.text(x, y + h * 0.22, 'NUKE', {
+    const labelText = this.add.text(x, y + h * 0.22, label, {
       fontSize: `${CONFIG.UI_FONT_SMALL + 2}px`, color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5);
-
     const statusText = this.add.text(x, y + h * 0.52, '--:--', {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#ff6666', fontFamily: 'monospace',
     }).setOrigin(0.5);
-
     const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5);
 
     bg.on('pointerdown', () => this.handleNuke(playerId, bg));
-    bg.on('pointerover', () => bg.setFillStyle(0x332222, 0.9));
-    bg.on('pointerout', () => bg.setFillStyle(0x221111, 0.85));
-
-    return { bg, labelText, statusText, keyText, playerId };
+    bg.on('pointerover', () => {
+      bg.setFillStyle(0x332222, 0.9);
+      this.showTooltip(tooltip, x, y, playerId);
+    });
+    bg.on('pointerout', () => {
+      bg.setFillStyle(0x221111, 0.85);
+      this.hideTooltip(playerId);
+    });
+    this.nukeButtons.push({ bg, labelText, statusText, keyText, playerId });
   }
+
+  // ── Actions ────────────────────────────────────────────────────────
 
   private handleNuke(playerId: 0 | 1, btn?: Phaser.GameObjects.Rectangle): void {
     if (this.viewModel.gameOver) return;
@@ -244,35 +459,6 @@ export class UIScene extends Phaser.Scene {
         });
       }
     }
-  }
-
-  private setupKeyboard(): void {
-    const p1Keys: Record<string, UpgradeType> = {
-      Q: 'health', W: 'attack', E: 'radius', R: 'spawnRate', T: 'speed', G: 'defense', A: 'maxParticles', B: 'interestRate',
-    };
-    const p2Keys: Record<string, UpgradeType> = {
-      U: 'health', I: 'attack', O: 'radius', P: 'spawnRate', Y: 'speed', K: 'defense', L: 'maxParticles', N: 'interestRate',
-    };
-
-    this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
-      const key = event.key.toUpperCase();
-      if (key === 'F') {
-        const nukeBtn = this.nukeButtons.find(b => b.playerId === 0);
-        this.handleNuke(0, nukeBtn?.bg);
-      }
-      if (this.viewModel.mode === 'pvp' && key === 'J') {
-        const nukeBtn = this.nukeButtons.find(b => b.playerId === 1);
-        this.handleNuke(1, nukeBtn?.bg);
-      }
-      if (p1Keys[key]) {
-        const btn = this.buttons.find(b => b.playerId === 0 && b.type === p1Keys[key]);
-        this.handleUpgrade(0, p1Keys[key], btn?.bg);
-      }
-      if (this.viewModel.mode === 'pvp' && p2Keys[key]) {
-        const btn = this.buttons.find(b => b.playerId === 1 && b.type === p2Keys[key]);
-        this.handleUpgrade(1, p2Keys[key], btn?.bg);
-      }
-    });
   }
 
   private handleUpgrade(playerId: 0 | 1, type: UpgradeType, btn?: Phaser.GameObjects.Rectangle): void {
@@ -296,6 +482,71 @@ export class UIScene extends Phaser.Scene {
       }
     }
   }
+
+  // ── Keyboard ───────────────────────────────────────────────────────
+
+  private setupKeyboard(): void {
+    this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
+      const key = event.key;
+
+      // Handle P1
+      const p1Result = resolveKeyPress(key, 0, this.activeCategory[0]);
+      if (p1Result) {
+        if (p1Result.type === 'back') {
+          event.preventDefault();
+          this.activeCategory[0] = null;
+          this.renderMenuForPlayer(0);
+          return;
+        }
+        if (p1Result.type === 'navigate') {
+          this.activeCategory[0] = p1Result.category;
+          this.renderMenuForPlayer(0);
+          return;
+        }
+        if (p1Result.type === 'upgrade') {
+          const btn = this.buttons.find(b => b.playerId === 0 && b.type === p1Result.upgradeType);
+          this.handleUpgrade(0, p1Result.upgradeType, btn?.bg);
+          return;
+        }
+        if (p1Result.type === 'action' && p1Result.action === 'nuke') {
+          const nukeBtn = this.nukeButtons.find(b => b.playerId === 0);
+          this.handleNuke(0, nukeBtn?.bg);
+          return;
+        }
+      }
+
+      // Handle P2 (only in pvp mode)
+      if (this.viewModel.mode === 'pvp') {
+        const p2Result = resolveKeyPress(key, 1, this.activeCategory[1]);
+        if (p2Result) {
+          if (p2Result.type === 'back') {
+            event.preventDefault();
+            this.activeCategory[1] = null;
+            this.renderMenuForPlayer(1);
+            return;
+          }
+          if (p2Result.type === 'navigate') {
+            this.activeCategory[1] = p2Result.category;
+            this.renderMenuForPlayer(1);
+            return;
+          }
+          if (p2Result.type === 'upgrade') {
+            const btn = this.buttons.find(b => b.playerId === 1 && b.type === p2Result.upgradeType);
+            this.handleUpgrade(1, p2Result.upgradeType, btn?.bg);
+            return;
+          }
+          if (p2Result.type === 'action' && p2Result.action === 'nuke') {
+            const nukeBtn = this.nukeButtons.find(b => b.playerId === 1);
+            this.handleNuke(1, nukeBtn?.bg);
+            return;
+          }
+        }
+      }
+    });
+  }
+
+
+  // ── Popups ─────────────────────────────────────────────────────────
 
   private showGoldPopup(playerId: 0 | 1, text: string): void {
     this.showMoneyPopup(playerId, text, '#ff4444');
@@ -324,6 +575,8 @@ export class UIScene extends Phaser.Scene {
       },
     });
   }
+
+  // ── Update loop ────────────────────────────────────────────────────
 
   update(): void {
     if (!this.viewModel.players) return;
@@ -387,6 +640,8 @@ export class UIScene extends Phaser.Scene {
       }
     }
   }
+
+  // ── Debug menu ─────────────────────────────────────────────────────
 
   private createDebugMenu(): void {
     const centerX = CONFIG.GAME_WIDTH / 2;
@@ -470,7 +725,6 @@ export class UIScene extends Phaser.Scene {
     });
 
     updateSpeedVisual(1);
-
     this.updateDebugMenuVisibility();
   }
 
@@ -501,6 +755,8 @@ export class UIScene extends Phaser.Scene {
       if (this.debugSpeedSliderHandle) this.debugSpeedSliderHandle.setVisible(true);
     }
   }
+
+  // ── Drawing helpers ────────────────────────────────────────────────
 
   private drawHPBar(
     gfx: Phaser.GameObjects.Graphics,

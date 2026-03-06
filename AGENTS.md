@@ -230,33 +230,43 @@ Each grid cell can be "owned" by a player. Ownership is tracked per cell and aff
 
 ### Game Modes
 - **1 Player vs AI** - Human (P1) vs AI (P2). AI controls upgrades and nuke automatically. P2 UI shows "AI" label and stats.
-- **2 Player** - Both players use keyboard controls. P1: Q/W/E/R/T/G/A/B/F, P2: U/I/O/P/Y/K/L/N/J. Button layout mirrors QWERTY keyboard.
+- **2 Player** - Both players use keyboard controls via hierarchical menu. Each player navigates independently.
 
 ## Controls
 
-### Player 1 (Left/Cyan)
-- **Q** - Upgrade Health
-- **W** - Upgrade Attack
-- **E** - Upgrade Radius
-- **R** - Upgrade Spawn Rate
-- **T** - Upgrade Speed
-- **G** - Upgrade Defense (ownership defense bonus, up to 25%)
-- **A** - Upgrade Max Particles (+50 cap per level)
-- **B** - Upgrade Interest Rate (+1% gold interest per 30s, max 5%)
-- **F** - Launch Nuke
+The UI uses a **Warcraft-style hierarchical menu**. Each player sees top-level category buttons. Pressing a category key opens its submenu; keys are reused within each submenu (context-dependent). **Hover any button** to see a tooltip with description and current/next stats.
 
-### Player 2 (Right/Red) - 2 Player mode only
-- **U** - Upgrade Health
-- **I** - Upgrade Attack
-- **O** - Upgrade Radius
-- **P** - Upgrade Spawn Rate
-- **Y** - Upgrade Speed
-- **K** - Upgrade Defense (ownership defense bonus, up to 25%)
-- **L** - Upgrade Max Particles (+50 cap per level)
-- **N** - Upgrade Interest Rate (+1% gold interest per 30s, max 5%)
-- **J** - Launch Nuke
+### Layout
+- P1 buttons are left-anchored on the left half; P2 buttons are left-anchored on the right half, both in keyboard order (Q-W-E-R for P1, U-I-O-P for P2).
+- A **BACK** button appears in submenus; click it or use the back key to return to categories.
 
-*In 1 Player vs AI mode, P2 controls are hidden; the AI controls upgrades and nuke automatically.*
+### Top-Level Categories
+
+| Category      | P1 Key | P2 Key | Contents |
+|---------------|--------|--------|----------|
+| Construction  | Q      | U      | Empty (placeholder for future building) |
+| Research      | W      | I      | Empty (placeholder for future research) |
+| Upgrades      | E      | O      | All stat upgrades |
+| Abilities     | R      | P      | Nuke |
+
+### Back
+- **P1**: Tab or click BACK button
+- **P2**: Backspace or click BACK button
+
+### Upgrades Submenu (P1 keys / P2 keys)
+- **Q/U** - Upgrade Health
+- **W/I** - Upgrade Attack
+- **E/O** - Upgrade Radius
+- **R/P** - Upgrade Spawn Rate
+- **T/Y** - Upgrade Speed
+- **A/L** - Upgrade Max Particles (+50 cap per level)
+- **G/K** - Upgrade Defense (ownership defense bonus, up to 25%)
+- **B/N** - Upgrade Interest Rate (+1% gold interest per 30s, max 5%)
+
+### Abilities Submenu (P1 keys / P2 keys)
+- **Q/U** - Launch Nuke
+
+*In 1 Player vs AI mode, P2 controls are hidden; the AI calls `buyUpgrade` directly, not through the UI hierarchy.*
 
 ## Technical Details
 
