@@ -56,6 +56,12 @@ describe('CONFIG', () => {
     expect(CONFIG.MAX_INTEREST_RATE).toBe(0.05);
   });
 
+  it('has spawn rate and speed upgrade constants', () => {
+    expect(CONFIG.MIN_SPAWN_INTERVAL).toBe(50);
+    expect(CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL).toBe(20);
+    expect(CONFIG.SPEED_PER_LEVEL).toBe(20);
+  });
+
   it('has positive game dimensions', () => {
     expect(CONFIG.GAME_WIDTH).toBeGreaterThan(0);
     expect(CONFIG.GAME_HEIGHT).toBeGreaterThan(0);

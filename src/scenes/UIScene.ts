@@ -186,16 +186,11 @@ export class UIScene extends Phaser.Scene {
         break;
       case 'spawnRate':
         current = `${player.spawnInterval}ms`;
-        if (player.isUpgradeAtMax(type)) {
-          next = 'MAX';
-        } else {
-          // spawnRateReductionPerLevel is 20, minSpawnInterval is 50
-          next = `Next: ${Math.max(50, player.spawnInterval - 20)}ms`;
-        }
+        next = `Next: ${Math.max(CONFIG.MIN_SPAWN_INTERVAL, player.spawnInterval - CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL)}ms`;
         break;
       case 'speed':
         current = `${player.particleSpeed}`;
-        next = `Next: ${player.particleSpeed + 20}`;
+        next = `Next: ${player.particleSpeed + CONFIG.SPEED_PER_LEVEL}`;
         break;
       case 'maxParticles':
         current = `${player.maxParticles}`;
@@ -203,20 +198,15 @@ export class UIScene extends Phaser.Scene {
         break;
       case 'defense':
         current = `${Math.round(player.particleDefense * 100)}%`;
-        if (player.isUpgradeAtMax(type)) {
-          next = 'MAX';
-        } else {
-          next = `Next: ${Math.round(Math.min(CONFIG.OWNERSHIP_DEFENSE_MAX, player.particleDefense + CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL) * 100)}%`;
-        }
+        next = `Next: ${Math.round(Math.min(CONFIG.OWNERSHIP_DEFENSE_MAX, player.particleDefense + CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL) * 100)}%`;
         break;
       case 'interestRate':
         current = `${Math.round(player.goldInterestRate * 100)}%`;
-        if (player.isUpgradeAtMax(type)) {
-          next = 'MAX';
-        } else {
-          next = `Next: ${Math.round(Math.min(CONFIG.MAX_INTEREST_RATE, player.goldInterestRate + CONFIG.INTEREST_RATE_PER_LEVEL) * 100)}%`;
-        }
+        next = `Next: ${Math.round(Math.min(CONFIG.MAX_INTEREST_RATE, player.goldInterestRate + CONFIG.INTEREST_RATE_PER_LEVEL) * 100)}%`;
         break;
+    }
+    if (player.isUpgradeAtMax(type)) {
+      next = 'MAX';
     }
     const item = MENU_CATEGORIES.flatMap(c => c.items).find(i => i.kind === 'upgrade' && i.type === type);
     const desc = item && item.kind === 'upgrade' ? item.tooltip : type;

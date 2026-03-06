@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Player, createPlayer, type PlayerConfig } from './player';
+import { CONFIG } from './config';
+import { Player, createPlayer, computeMaxLevels, type PlayerConfig } from './player';
 import type { UpgradeType } from './config';
 
 const testConfig: PlayerConfig = {
@@ -129,91 +130,38 @@ describe(Player.name, () => {
       expect(player.getUpgradeLevel('health')).toBe(0);
     });
 
-    it('isUpgradeAtMax returns false for interestRate when below max', () => {
+    it.each([
+      { type: 'interestRate' as UpgradeType, levelsBelowMax: 19, levelsAtMax: 20, statCheck: (p: Player) => expect(p.goldInterestRate).toBeCloseTo(0.05) },
+      { type: 'defense' as UpgradeType, levelsBelowMax: 7, levelsAtMax: 8, statCheck: (p: Player) => expect(p.particleDefense).toBeCloseTo(0.25) },
+      { type: 'spawnRate' as UpgradeType, levelsBelowMax: 7, levelsAtMax: 8, statCheck: (p: Player) => expect(p.spawnInterval).toBe(testConfig.minSpawnInterval) },
+    ])('isUpgradeAtMax returns false when $type below max, true when at max', ({ type, levelsBelowMax, levelsAtMax, statCheck }) => {
       player.gold = 99999;
-      expect(player.isUpgradeAtMax('interestRate')).toBe(false);
-      for (let i = 0; i < 19; i++) player.buyUpgrade('interestRate');
-      expect(player.isUpgradeAtMax('interestRate')).toBe(false);
+      expect(player.isUpgradeAtMax(type)).toBe(false);
+      for (let i = 0; i < levelsBelowMax; i++) player.buyUpgrade(type);
+      expect(player.isUpgradeAtMax(type)).toBe(false);
+      player.buyUpgrade(type);
+      expect(player.isUpgradeAtMax(type)).toBe(true);
+      statCheck(player);
     });
 
-    it('isUpgradeAtMax returns true for interestRate when at max', () => {
+    it.each(['health', 'attack', 'radius', 'speed', 'maxParticles'] as UpgradeType[])('isUpgradeAtMax returns false for uncapped %s', (type) => {
       player.gold = 99999;
-      for (let i = 0; i < 20; i++) player.buyUpgrade('interestRate');
-      expect(player.isUpgradeAtMax('interestRate')).toBe(true);
-      expect(player.goldInterestRate).toBeCloseTo(0.05);
+      expect(player.isUpgradeAtMax(type)).toBe(false);
     });
 
-    it('isUpgradeAtMax returns false for defense when below max', () => {
+    it.each([
+      { type: 'interestRate' as UpgradeType, levelsToMax: 20 },
+      { type: 'defense' as UpgradeType, levelsToMax: 8 },
+      { type: 'spawnRate' as UpgradeType, levelsToMax: 8 },
+    ])('buyUpgrade returns false when $type is at max', ({ type, levelsToMax }) => {
       player.gold = 99999;
-      expect(player.isUpgradeAtMax('defense')).toBe(false);
-      for (let i = 0; i < 7; i++) player.buyUpgrade('defense');
-      expect(player.isUpgradeAtMax('defense')).toBe(false);
-    });
-
-    it('isUpgradeAtMax returns true for defense when at max', () => {
-      player.gold = 99999;
-      for (let i = 0; i < 8; i++) player.buyUpgrade('defense');
-      expect(player.isUpgradeAtMax('defense')).toBe(true);
-      expect(player.particleDefense).toBeCloseTo(0.25);
-    });
-
-    it('isUpgradeAtMax returns false for spawnRate when above min', () => {
-      player.gold = 99999;
-      expect(player.isUpgradeAtMax('spawnRate')).toBe(false);
-      // With testConfig spawnIntervalMs=200, need to buy enough to hit minSpawnInterval=50
-      // 200 - (level * 20) <= 50 => level >= 7.5, so level 8 hits the cap
-      for (let i = 0; i < 7; i++) player.buyUpgrade('spawnRate');
-      expect(player.isUpgradeAtMax('spawnRate')).toBe(false);
-    });
-
-    it('isUpgradeAtMax returns true for spawnRate when at min', () => {
-      player.gold = 99999;
-      // Buy enough to hit the minimum spawn interval
-      for (let i = 0; i < 20; i++) player.buyUpgrade('spawnRate');
-      expect(player.isUpgradeAtMax('spawnRate')).toBe(true);
-      expect(player.spawnInterval).toBe(testConfig.minSpawnInterval);
-    });
-
-    it('isUpgradeAtMax returns false for other upgrade types', () => {
-      player.gold = 99999;
-      expect(player.isUpgradeAtMax('health')).toBe(false);
-      expect(player.isUpgradeAtMax('attack')).toBe(false);
-    });
-
-    it('buyUpgrade returns false when interestRate is at max', () => {
-      player.gold = 99999;
-      for (let i = 0; i < 20; i++) player.buyUpgrade('interestRate');
-      const levelBefore = player.getUpgradeLevel('interestRate');
+      for (let i = 0; i < levelsToMax; i++) player.buyUpgrade(type);
+      const levelBefore = player.getUpgradeLevel(type);
       const goldBefore = player.gold;
-      const result = player.buyUpgrade('interestRate');
+      const result = player.buyUpgrade(type);
 
       expect(result).toBe(false);
-      expect(player.getUpgradeLevel('interestRate')).toBe(levelBefore);
-      expect(player.gold).toBe(goldBefore);
-    });
-
-    it('buyUpgrade returns false when defense is at max', () => {
-      player.gold = 99999;
-      for (let i = 0; i < 8; i++) player.buyUpgrade('defense');
-      const levelBefore = player.getUpgradeLevel('defense');
-      const goldBefore = player.gold;
-      const result = player.buyUpgrade('defense');
-
-      expect(result).toBe(false);
-      expect(player.getUpgradeLevel('defense')).toBe(levelBefore);
-      expect(player.gold).toBe(goldBefore);
-    });
-
-    it('buyUpgrade returns false when spawnRate is at max', () => {
-      player.gold = 99999;
-      // Buy enough to hit the minimum spawn interval
-      for (let i = 0; i < 20; i++) player.buyUpgrade('spawnRate');
-      const levelBefore = player.getUpgradeLevel('spawnRate');
-      const goldBefore = player.gold;
-      const result = player.buyUpgrade('spawnRate');
-
-      expect(result).toBe(false);
-      expect(player.getUpgradeLevel('spawnRate')).toBe(levelBefore);
+      expect(player.getUpgradeLevel(type)).toBe(levelBefore);
       expect(player.gold).toBe(goldBefore);
     });
 
@@ -290,6 +238,42 @@ describe(Player.name, () => {
       player.takeDamage(100);
       expect(player.isAlive).toBe(false);
     });
+  });
+});
+
+describe(computeMaxLevels.name, () => {
+  it.each([
+    { type: 'health' as UpgradeType, expected: Infinity },
+    { type: 'attack' as UpgradeType, expected: Infinity },
+    { type: 'radius' as UpgradeType, expected: Infinity },
+    { type: 'speed' as UpgradeType, expected: Infinity },
+    { type: 'maxParticles' as UpgradeType, expected: Infinity },
+    { type: 'defense' as UpgradeType, expected: 8 },
+    { type: 'interestRate' as UpgradeType, expected: 20 },
+  ])('returns $expected for $type with default config', ({ type, expected }) => {
+    const config: PlayerConfig = {
+      baseHP: CONFIG.BASE_HP,
+      startingGold: CONFIG.STARTING_GOLD,
+      particleBaseHealth: CONFIG.PARTICLE_BASE_HEALTH,
+      particleBaseAttack: CONFIG.PARTICLE_BASE_ATTACK,
+      particleBaseRadius: CONFIG.PARTICLE_BASE_RADIUS,
+      particleBaseSpeed: CONFIG.PARTICLE_SPEED,
+      spawnIntervalMs: CONFIG.SPAWN_INTERVAL_MS,
+      spawnRateReductionPerLevel: CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL,
+      minSpawnInterval: CONFIG.MIN_SPAWN_INTERVAL,
+      speedPerLevel: CONFIG.SPEED_PER_LEVEL,
+      maxParticlesPerPlayer: CONFIG.MAX_PARTICLES_PER_PLAYER,
+      maxParticlesPerLevel: CONFIG.MAX_PARTICLES_PER_LEVEL,
+      nuclearFirstAvailableMs: CONFIG.NUCLEAR_FIRST_AVAILABLE_MS,
+      nuclearCooldownMs: CONFIG.NUCLEAR_COOLDOWN_MS,
+    };
+    const maxLevels = computeMaxLevels(config);
+    expect(maxLevels[type]).toBe(expected);
+  });
+
+  it('returns spawnRate max 8 for testConfig (spawnIntervalMs=200)', () => {
+    const maxLevels = computeMaxLevels(testConfig);
+    expect(maxLevels.spawnRate).toBe(8);
   });
 });
 

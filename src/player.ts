@@ -52,14 +52,31 @@ const defaultPlayerConfig: PlayerConfig = {
   particleBaseRadius: CONFIG.PARTICLE_BASE_RADIUS,
   particleBaseSpeed: CONFIG.PARTICLE_SPEED,
   spawnIntervalMs: CONFIG.SPAWN_INTERVAL_MS,
-  spawnRateReductionPerLevel: 20,
-  minSpawnInterval: 50,
-  speedPerLevel: 20,
+  spawnRateReductionPerLevel: CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL,
+  minSpawnInterval: CONFIG.MIN_SPAWN_INTERVAL,
+  speedPerLevel: CONFIG.SPEED_PER_LEVEL,
   maxParticlesPerPlayer: CONFIG.MAX_PARTICLES_PER_PLAYER,
   maxParticlesPerLevel: CONFIG.MAX_PARTICLES_PER_LEVEL,
   nuclearFirstAvailableMs: CONFIG.NUCLEAR_FIRST_AVAILABLE_MS,
   nuclearCooldownMs: CONFIG.NUCLEAR_COOLDOWN_MS,
 };
+
+export function computeMaxLevels(config: PlayerConfig): Record<UpgradeType, number> {
+  return {
+    health: Infinity,
+    attack: Infinity,
+    radius: Infinity,
+    speed: Infinity,
+    maxParticles: Infinity,
+    spawnRate: Math.ceil(
+      (config.spawnIntervalMs - config.minSpawnInterval) / config.spawnRateReductionPerLevel
+    ),
+    defense: Math.round(
+      (CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL
+    ),
+    interestRate: Math.round(CONFIG.MAX_INTEREST_RATE / CONFIG.INTEREST_RATE_PER_LEVEL),
+  };
+}
 
 export class Player implements IPlayer {
   readonly id: 0 | 1;
@@ -68,6 +85,7 @@ export class Player implements IPlayer {
   kills: number;
 
   private readonly config: PlayerConfig;
+  private readonly maxLevels: Record<UpgradeType, number>;
   private readonly upgradeLevels: Record<UpgradeType, number> = {
     health: 0, attack: 0, radius: 0, spawnRate: 0, speed: 0, maxParticles: 0, defense: 0, interestRate: 0,
   };
@@ -78,6 +96,7 @@ export class Player implements IPlayer {
   constructor(id: 0 | 1, config: PlayerConfig = defaultPlayerConfig) {
     this.id = id;
     this.config = config;
+    this.maxLevels = computeMaxLevels(config);
     this.baseHP = config.baseHP;
     this.gold = config.startingGold;
     this.kills = 0;
@@ -132,17 +151,7 @@ export class Player implements IPlayer {
   }
 
   isUpgradeAtMax(upgrade: UpgradeType): boolean {
-    if (upgrade === 'interestRate') {
-      return this.goldInterestRate >= CONFIG.MAX_INTEREST_RATE;
-    }
-    if (upgrade === 'defense') {
-      return this.particleDefense >= CONFIG.OWNERSHIP_DEFENSE_MAX;
-    }
-    if (upgrade === 'spawnRate') {
-      return this.spawnInterval <= this.config.minSpawnInterval;
-    }
-    // Other upgrades don't have max caps currently
-    return false;
+    return this.upgradeLevels[upgrade] >= this.maxLevels[upgrade];
   }
 
   buyUpgrade(upgrade: UpgradeType): boolean {

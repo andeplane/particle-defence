@@ -24,6 +24,12 @@ export const CONFIG = {
   PARTICLE_BASE_RADIUS: 3,
   PARTICLE_SPEED: 180,
   SPAWN_INTERVAL_MS: 60,
+  /** Minimum spawn interval (ms) - spawn rate upgrade cannot go below this */
+  MIN_SPAWN_INTERVAL: 50,
+  /** Spawn interval reduction (ms) per spawn rate upgrade level */
+  SPAWN_RATE_REDUCTION_PER_LEVEL: 20,
+  /** Speed increase per speed upgrade level */
+  SPEED_PER_LEVEL: 20,
   MAX_PARTICLES_PER_PLAYER: 1000,
   /** Per-level increase for maxParticles upgrade */
   MAX_PARTICLES_PER_LEVEL: 50,

@@ -71,6 +71,7 @@ export class AIController {
 
     for (const type of UPGRADE_TYPES) {
       if (!ai.canAfford(type)) continue;
+      if (ai.isUpgradeAtMax(type)) continue;
 
       const score = this.scoreUpgrade(type, ai, human, state);
       if (score > bestScore) {
