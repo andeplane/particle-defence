@@ -6,7 +6,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 ## Project Structure
 
 ### Core Files
-- **`src/main.ts`** - Entry point, initializes Phaser game with MenuScene, MapSelectScene, GameScene, and UIScene
+- **`src/main.ts`** - Entry point, initializes Phaser game with MenuScene, MapSelectScene, GameScene, UIScene, and PostGameStatsScene
 - **`src/config.ts`** - **ALL GAME CONFIGURATION** - Contains all game constants, parameters, and configuration values
 - **`index.html`** - HTML entry point with game container
 
@@ -15,6 +15,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - **`src/scenes/MapSelectScene.ts`** - Map type selection (Random, Maze), starts GameScene with `{ mode, gridType }`
 - **`src/scenes/GameScene.ts`** - Main game logic, particle spawning, collision detection, base damage, win conditions. Accepts mode and gridType from init, runs AIController when mode is 'ai'
 - **`src/scenes/UIScene.ts`** - UI overlay with HP bars, gold display, upgrade buttons, nuke buttons, keyboard controls. Hides P2 controls and labels as "AI" when mode is 'ai'
+- **`src/scenes/PostGameStatsScene.ts`** - Post-game statistics screen with 9 dual-series timeline graphs (AoE-style). Receives `MatchStats` from GameScene on game over. Displays blue (P1) vs red (P2) line charts with glow effects, grid lines, nuke event markers, and legends. Click to return to menu
 
 ### Game Entities
 - **`src/player.ts`** - Player class with base HP, gold, kills, upgrade levels, and nuke cooldown management
@@ -35,6 +36,24 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - **`src/ai.ts`** - AIController for single-player mode. Automatically upgrades (prioritizes spawn rate, attack, health) and uses nuke when behind or when enemy has many particles
 - **`src/collision.ts`** - Collision resolution; calls `onCollide`/`onDeath` hooks, handles bouncing and kill tracking
 - **`src/spatial-hash.ts`** - Spatial partitioning for efficient collision detection
+
+### Stats & Post-Game Analytics
+- **`src/stats/types.ts`** - Type definitions: `PerSecondSample`, `MatchEvent`, `MatchStats`, `PerPlayer<T>`
+- **`src/stats/MatchStatsRecorder.ts`** - Core recorder class. Samples game state at 1Hz, accumulates per-second deltas (kills, gold, damage), computes frontline positions, and provides `rollingKPM()` and `computePower()` static helpers
+- **`src/stats/index.ts`** - Barrel re-exports
+
+**How stats integration works**: `GameScene` owns a `MatchStatsRecorder`. Engine callbacks feed event deltas (kills, gold income/spend, base damage, nuke usage, upgrades) into the recorder. Each frame, `recorder.tick()` is called with current particles and players. On game over, `recorder.finalize(winner)` produces a `MatchStats` object passed to `PostGameStatsScene`.
+
+**Graphs rendered** (all with dual blue/red player series):
+1. Army Size Over Time
+2. Military Power Curve (weighted: health×0.6 + attack×1.2 + speed×0.4 + radius×0.2)
+3. Kills / Minute (30s rolling window)
+4. Base HP Over Time
+5. Gold (Unspent)
+6. Total Upgrade Levels (step chart)
+7. Population Cap Pressure (alive/max ratio)
+8. Damage / Second (unit + base combined)
+9. Frontline Position (mean X cell-index of top-20 frontmost particles per player)
 
 ## Configuration (`src/config.ts`)
 
@@ -172,7 +191,8 @@ Grid cells can have composable effects layered on top of the base boolean grid. 
 ### Win Condition
 - Game ends when a player's base HP reaches 0
 - Winner is the surviving player
-- Game over screen with "Click to return to menu" (returns to MenuScene)
+- Game over overlay shows winner, then click navigates to PostGameStatsScene
+- PostGameStatsScene displays 9 timeline graphs, then click returns to MenuScene
 
 ### Game Modes
 - **1 Player vs AI** - Human (P1) vs AI (P2). AI controls upgrades and nuke automatically. P2 UI shows "AI" label and stats.
@@ -302,6 +322,7 @@ Tests exist for:
 - AI controller
 - Particle behavior (including cell effect integration: slow, temp wall bounce, wall damage)
 - Configuration helpers
+- Match stats recorder (sampling, deltas, frontline, rolling KPM, events, finalize)
 
 **See `.cursor/rules/testing-patterns.mdc` for complete testing standards and examples.**
 
@@ -337,5 +358,6 @@ Particles use an inheritance-based hierarchy. New types extend `AbstractParticle
 - UI is separate scene that overlays on top of game scene
 - Keyboard controls are handled in UIScene
 - Game state (players, particles, grid) is managed in GameScene
-- **Flow**: MenuScene → MapSelectScene → GameScene → UIScene (launched). Game over returns to MenuScene
+- **Flow**: MenuScene → MapSelectScene → GameScene → UIScene (launched). Game over → PostGameStatsScene → MenuScene
 - **AI mode**: AIController runs in GameScene.update() when mode is 'ai', makes decisions every ~200ms
+- **Stats awareness**: When adding new gameplay features (new particle types, abilities, economy mechanics, combat changes, etc.), consider whether they should be reflected in the post-game stats. If a new feature introduces a meaningful metric players would want to see after the match, add sampling to `MatchStatsRecorder`, a new field to `PerSecondSample` or `MatchEvent`, and a corresponding graph in `PostGameStatsScene`. Keep the stats telling a compelling story about the match
