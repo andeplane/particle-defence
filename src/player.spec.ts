@@ -143,11 +143,41 @@ describe(Player.name, () => {
       expect(player.goldInterestRate).toBeCloseTo(0.05);
     });
 
+    it('isUpgradeAtMax returns false for defense when below max', () => {
+      player.gold = 99999;
+      expect(player.isUpgradeAtMax('defense')).toBe(false);
+      for (let i = 0; i < 7; i++) player.buyUpgrade('defense');
+      expect(player.isUpgradeAtMax('defense')).toBe(false);
+    });
+
+    it('isUpgradeAtMax returns true for defense when at max', () => {
+      player.gold = 99999;
+      for (let i = 0; i < 8; i++) player.buyUpgrade('defense');
+      expect(player.isUpgradeAtMax('defense')).toBe(true);
+      expect(player.particleDefense).toBeCloseTo(0.25);
+    });
+
+    it('isUpgradeAtMax returns false for spawnRate when above min', () => {
+      player.gold = 99999;
+      expect(player.isUpgradeAtMax('spawnRate')).toBe(false);
+      // With testConfig spawnIntervalMs=200, need to buy enough to hit minSpawnInterval=50
+      // 200 - (level * 20) <= 50 => level >= 7.5, so level 8 hits the cap
+      for (let i = 0; i < 7; i++) player.buyUpgrade('spawnRate');
+      expect(player.isUpgradeAtMax('spawnRate')).toBe(false);
+    });
+
+    it('isUpgradeAtMax returns true for spawnRate when at min', () => {
+      player.gold = 99999;
+      // Buy enough to hit the minimum spawn interval
+      for (let i = 0; i < 20; i++) player.buyUpgrade('spawnRate');
+      expect(player.isUpgradeAtMax('spawnRate')).toBe(true);
+      expect(player.spawnInterval).toBe(testConfig.minSpawnInterval);
+    });
+
     it('isUpgradeAtMax returns false for other upgrade types', () => {
       player.gold = 99999;
       expect(player.isUpgradeAtMax('health')).toBe(false);
       expect(player.isUpgradeAtMax('attack')).toBe(false);
-      expect(player.isUpgradeAtMax('defense')).toBe(false);
     });
 
     it('buyUpgrade returns false when interestRate is at max', () => {
@@ -159,6 +189,31 @@ describe(Player.name, () => {
 
       expect(result).toBe(false);
       expect(player.getUpgradeLevel('interestRate')).toBe(levelBefore);
+      expect(player.gold).toBe(goldBefore);
+    });
+
+    it('buyUpgrade returns false when defense is at max', () => {
+      player.gold = 99999;
+      for (let i = 0; i < 8; i++) player.buyUpgrade('defense');
+      const levelBefore = player.getUpgradeLevel('defense');
+      const goldBefore = player.gold;
+      const result = player.buyUpgrade('defense');
+
+      expect(result).toBe(false);
+      expect(player.getUpgradeLevel('defense')).toBe(levelBefore);
+      expect(player.gold).toBe(goldBefore);
+    });
+
+    it('buyUpgrade returns false when spawnRate is at max', () => {
+      player.gold = 99999;
+      // Buy enough to hit the minimum spawn interval
+      for (let i = 0; i < 20; i++) player.buyUpgrade('spawnRate');
+      const levelBefore = player.getUpgradeLevel('spawnRate');
+      const goldBefore = player.gold;
+      const result = player.buyUpgrade('spawnRate');
+
+      expect(result).toBe(false);
+      expect(player.getUpgradeLevel('spawnRate')).toBe(levelBefore);
       expect(player.gold).toBe(goldBefore);
     });
 

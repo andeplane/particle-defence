@@ -135,6 +135,12 @@ export class Player implements IPlayer {
     if (upgrade === 'interestRate') {
       return this.goldInterestRate >= CONFIG.MAX_INTEREST_RATE;
     }
+    if (upgrade === 'defense') {
+      return this.particleDefense >= CONFIG.OWNERSHIP_DEFENSE_MAX;
+    }
+    if (upgrade === 'spawnRate') {
+      return this.spawnInterval <= this.config.minSpawnInterval;
+    }
     // Other upgrades don't have max caps currently
     return false;
   }

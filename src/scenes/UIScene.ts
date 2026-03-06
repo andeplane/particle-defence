@@ -186,7 +186,12 @@ export class UIScene extends Phaser.Scene {
         break;
       case 'spawnRate':
         current = `${player.spawnInterval}ms`;
-        next = `Next: ${Math.max(50, player.spawnInterval - 20)}ms`;
+        if (player.isUpgradeAtMax(type)) {
+          next = 'MAX';
+        } else {
+          // spawnRateReductionPerLevel is 20, minSpawnInterval is 50
+          next = `Next: ${Math.max(50, player.spawnInterval - 20)}ms`;
+        }
         break;
       case 'speed':
         current = `${player.particleSpeed}`;
@@ -198,7 +203,11 @@ export class UIScene extends Phaser.Scene {
         break;
       case 'defense':
         current = `${Math.round(player.particleDefense * 100)}%`;
-        next = `Next: ${Math.round(Math.min(0.25, player.particleDefense + 0.025) * 100)}%`;
+        if (player.isUpgradeAtMax(type)) {
+          next = 'MAX';
+        } else {
+          next = `Next: ${Math.round(Math.min(CONFIG.OWNERSHIP_DEFENSE_MAX, player.particleDefense + CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL) * 100)}%`;
+        }
         break;
       case 'interestRate':
         current = `${Math.round(player.goldInterestRate * 100)}%`;
