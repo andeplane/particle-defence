@@ -32,23 +32,44 @@ export class MapSelectScene extends Phaser.Scene {
       fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    const btnW = 280;
-    const btnH = 56;
-    const gap = 24;
+    const btnW = 180;
+    const btnH = 44;
+    const gap = 12;
+    const colGap = 160;
+    const leftX = centerX - colGap;
+    const rightX = centerX + colGap;
+    const rowH = btnH + gap;
 
-    createMenuButton(this, centerX, centerY - 20, btnW, btnH,
-      'Random', 0x88aa88, () => this.startGame('random'));
+    const mapButtons: { x: number; y: number; label: string; color: number; type: GridType }[] = [
+      { x: leftX, y: centerY - 20, label: 'Random', color: 0x88aa88, type: 'random' },
+      { x: rightX, y: centerY - 20, label: 'Maze', color: 0xaa88aa, type: 'maze' },
+      { x: leftX, y: centerY - 20 + rowH, label: 'Hourglass', color: 0xaa8844, type: 'hourglass' },
+      { x: rightX, y: centerY - 20 + rowH, label: 'Lanes', color: 0x4488aa, type: 'lanes' },
+      { x: leftX, y: centerY - 20 + 2 * rowH, label: 'Islands', color: 0x44aa88, type: 'islands' },
+      { x: rightX, y: centerY - 20 + 2 * rowH, label: 'Rooms', color: 0x8844aa, type: 'rooms' },
+      { x: leftX, y: centerY - 20 + 3 * rowH, label: 'Fortress', color: 0xaa4444, type: 'fortress' },
+    ];
 
-    createMenuButton(this, centerX, centerY + gap + btnH - 20, btnW, btnH,
-      'Maze', 0xaa88aa, () => this.startGame('maze'));
+    for (const { x, y, label, color, type } of mapButtons) {
+      createMenuButton(this, x, y, btnW, btnH, label, color, () => this.startGame(type));
+    }
 
     this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
       const key = event.key.toUpperCase();
-      if (key === '1') this.startGame('random');
-      if (key === '2') this.startGame('maze');
+      const keyToType: Record<string, GridType> = {
+        '1': 'random',
+        '2': 'maze',
+        '3': 'hourglass',
+        '4': 'lanes',
+        '5': 'islands',
+        '6': 'rooms',
+        '7': 'fortress',
+      };
+      const gridType = keyToType[key];
+      if (gridType) this.startGame(gridType);
     });
 
-    this.add.text(centerX, centerY + 120, '[1] Random  [2] Maze', {
+    this.add.text(centerX, centerY + 180, '[1-7] Select map', {
       fontSize: `${CONFIG.UI_FONT_SMALL}px`,
       color: '#666666',
       fontFamily: 'monospace',
