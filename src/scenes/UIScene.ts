@@ -77,6 +77,7 @@ export class UIScene extends Phaser.Scene {
   private debugSpeedSlider?: Phaser.GameObjects.Rectangle;
   private debugSpeedSliderFill?: Phaser.GameObjects.Rectangle;
   private debugSpeedSliderHandle?: Phaser.GameObjects.Rectangle;
+  private speedButtons: { bg: Phaser.GameObjects.Rectangle; label: Phaser.GameObjects.Text; speed: number }[] = [];
 
   constructor() {
     super({ key: 'UIScene' });
@@ -87,6 +88,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.createSpeedButtons();
     this.createHPBars();
     this.createGoldDisplay();
     this.createStatsDisplay();
@@ -97,6 +99,48 @@ export class UIScene extends Phaser.Scene {
     this.setupKeyboard();
     if (DEBUG_MODE) {
       this.createDebugMenu();
+    }
+  }
+
+  private createSpeedButtons(): void {
+    if (!this.viewModel.setDebugSpeedMultiplier || this.viewModel.debugSpeedMultiplier === undefined) return;
+
+    const centerX = CONFIG.GAME_WIDTH / 2;
+    const barY = CONFIG.UI_GAP * 2;
+    const barH = CONFIG.UI_BAR_HEIGHT;
+    const btnW = 56;
+    const btnH = 28;
+    const gap = CONFIG.UI_GAP;
+    const speeds = [1, 2, 3];
+    const totalW = speeds.length * btnW + (speeds.length - 1) * gap;
+    let x = centerX - totalW / 2 + btnW / 2;
+    const btnCenterY = barY + barH / 2;
+
+    for (const speed of speeds) {
+      const bg = this.add.rectangle(x, btnCenterY, btnW, btnH, 0x111122, 0.85)
+        .setStrokeStyle(2, 0x666666, 0.6)
+        .setInteractive({ useHandCursor: true });
+      const label = this.add.text(x, btnCenterY, `${speed}x`, {
+        fontSize: `${CONFIG.UI_FONT_SMALL}px`, color: '#aaaaaa', fontFamily: 'monospace',
+      }).setOrigin(0.5);
+
+      const setSpeed = () => {
+        this.viewModel.setDebugSpeedMultiplier!(speed);
+      };
+      bg.on('pointerdown', setSpeed);
+      bg.on('pointerover', () => {
+        bg.setFillStyle(0x222244, 0.9);
+        bg.setStrokeStyle(2, 0x888888, 0.8);
+      });
+      bg.on('pointerout', () => {
+        const current = this.viewModel.debugSpeedMultiplier ?? 1;
+        bg.setFillStyle(current === speed ? 0x222244 : 0x111122, current === speed ? 0.95 : 0.85);
+        bg.setStrokeStyle(2, current === speed ? 0x00ddff : 0x666666, current === speed ? 0.9 : 0.6);
+        label.setColor(current === speed ? '#00ddff' : '#aaaaaa');
+      });
+
+      this.speedButtons.push({ bg, label, speed });
+      x += btnW + gap;
     }
   }
 
@@ -583,6 +627,14 @@ export class UIScene extends Phaser.Scene {
 
   update(): void {
     if (!this.viewModel.players) return;
+
+    const currentSpeed = this.viewModel.debugSpeedMultiplier ?? 1;
+    for (const { bg, label, speed } of this.speedButtons) {
+      const active = currentSpeed === speed;
+      bg.setFillStyle(active ? 0x222244 : 0x111122, active ? 0.95 : 0.85);
+      bg.setStrokeStyle(2, active ? 0x00ddff : 0x666666, active ? 0.9 : 0.6);
+      label.setColor(active ? '#00ddff' : '#aaaaaa');
+    }
 
     if (DEBUG_MODE && this.viewModel.debugSpeedMultiplier !== undefined) {
       const speed = this.viewModel.debugSpeedMultiplier;
