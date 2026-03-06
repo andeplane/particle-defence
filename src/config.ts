@@ -49,8 +49,8 @@ export const CONFIG = {
   NUCLEAR_COOLDOWN_MS: 600_000,        // 10 minutes
   /** Interval (ms) between gold interest payouts */
   INTEREST_INTERVAL_MS: 30_000,
-  /** Interest rate per upgrade level (e.g. 0.01 = +1%) */
-  INTEREST_RATE_PER_LEVEL: 0.01,
+  /** Interest rate per upgrade level (e.g. 0.0025 = +0.25%) */
+  INTEREST_RATE_PER_LEVEL: 0.0025,
   /** Max interest rate cap (e.g. 0.05 = 5%) */
   MAX_INTEREST_RATE: 0.05,
   UPGRADE_COSTS: {

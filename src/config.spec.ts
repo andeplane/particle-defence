@@ -52,7 +52,7 @@ describe('CONFIG', () => {
 
   it('has interest interval and rate constants', () => {
     expect(CONFIG.INTEREST_INTERVAL_MS).toBe(30_000);
-    expect(CONFIG.INTEREST_RATE_PER_LEVEL).toBe(0.01);
+    expect(CONFIG.INTEREST_RATE_PER_LEVEL).toBe(0.0025);
     expect(CONFIG.MAX_INTEREST_RATE).toBe(0.05);
   });
 

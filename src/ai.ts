@@ -155,7 +155,7 @@ export class AIController {
       }
       case 'interestRate': {
         const hasGoldToSave = ai.gold >= 30;
-        const notAtCap = ai.getUpgradeLevel('interestRate') < 5;
+        const notAtCap = !ai.isUpgradeAtMax('interestRate');
         score *= hasGoldToSave && notAtCap ? 1.2 : 0.5;
         if (gameTimeSec > 120) score *= 1.3;
         break;

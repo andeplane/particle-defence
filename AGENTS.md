@@ -97,7 +97,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - `NUCLEAR_FIRST_AVAILABLE_MS: 180_000` - When nukes become available (3 minutes)
 - `NUCLEAR_COOLDOWN_MS: 600_000` - Nuke cooldown (10 minutes)
 - `INTEREST_INTERVAL_MS: 30_000` - Interval (ms) between gold interest payouts
-- `INTEREST_RATE_PER_LEVEL: 0.01` - Interest rate per upgrade level (+1%)
+- `INTEREST_RATE_PER_LEVEL: 0.0025` - Interest rate per upgrade level (+0.25%)
 - `MAX_INTEREST_RATE: 0.05` - Max interest rate cap (5%)
 - `UPGRADE_COSTS` - Base costs for each upgrade type:
   - `health: 5`
@@ -179,7 +179,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 
 ### Gold Interest
 - Gold earns periodic interest when the interest upgrade is purchased (starts at 0%)
-- +1% per upgrade level, capped at 5%
+- +0.25% per upgrade level, capped at 5% (requires 20 levels to reach max)
 - Applied every 30 seconds: `gold += floor(gold * rate)` per interval
 - Rewards saving gold; interest is discrete (floor rounding)
 
@@ -261,7 +261,7 @@ The UI uses a **Warcraft-style hierarchical menu**. Each player sees top-level c
 - **T/Y** - Upgrade Speed
 - **A/L** - Upgrade Max Particles (+50 cap per level)
 - **G/K** - Upgrade Defense (ownership defense bonus, up to 25%)
-- **B/N** - Upgrade Interest Rate (+1% gold interest per 30s, max 5%)
+- **B/N** - Upgrade Interest Rate (+0.25% gold interest per 30s, max 5%)
 
 ### Abilities Submenu (P1 keys / P2 keys)
 - **Q/U** - Launch Nuke

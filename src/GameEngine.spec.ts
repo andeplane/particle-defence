@@ -23,7 +23,7 @@ const noSpawnConfig = {
 };
 
 function createPlayerWithInterest(interestLevel: number, startingGold: number): IPlayer {
-  const p = createPlayer(0, { ...noSpawnConfig, startingGold: startingGold + 500 });
+  const p = createPlayer(0, { ...noSpawnConfig, startingGold: startingGold + 10000 });
   for (let i = 0; i < interestLevel; i++) p.buyUpgrade('interestRate');
   p.gold = startingGold;
   return p;
@@ -35,8 +35,8 @@ describe(GameEngine.name, () => {
 
     it.each([
       { interestLevel: 0, gold: 100, delta: intervalMs, expectedGold: 100, desc: 'no upgrade => no interest' },
-      { interestLevel: 1, gold: 100, delta: intervalMs, expectedGold: 101, desc: '1% one interval => +1' },
-      { interestLevel: 5, gold: 100, delta: intervalMs, expectedGold: 105, desc: '5% one interval => +5' },
+      { interestLevel: 1, gold: 400, delta: intervalMs, expectedGold: 401, desc: '0.25% one interval => +1' },
+      { interestLevel: 20, gold: 100, delta: intervalMs, expectedGold: 105, desc: '5% one interval => +5' },
     ])('$desc', ({ interestLevel, gold, delta, expectedGold }) => {
       const p0 = createPlayerWithInterest(interestLevel, gold);
       const p1 = createPlayer(1, { ...noSpawnConfig, startingGold: 50 });
@@ -53,7 +53,7 @@ describe(GameEngine.name, () => {
     });
 
     it('applies multiple compound steps when delta spans several intervals', () => {
-      const p0 = createPlayerWithInterest(1, 100);
+      const p0 = createPlayerWithInterest(1, 400);
       const p1 = createPlayer(1, { ...noSpawnConfig, startingGold: 50 });
 
       const engine = new GameEngine(createMockGrid(), noopCallbacks, {
@@ -64,11 +64,11 @@ describe(GameEngine.name, () => {
 
       engine.tick(intervalMs * 3);
 
-      expect(engine.players[0].gold).toBe(103);
+      expect(engine.players[0].gold).toBe(403);
     });
 
     it('does not apply interest before interval elapses', () => {
-      const p0 = createPlayerWithInterest(1, 100);
+      const p0 = createPlayerWithInterest(1, 400);
       const p1 = createPlayer(1, { ...noSpawnConfig, startingGold: 50 });
 
       const engine = new GameEngine(createMockGrid(), noopCallbacks, {
@@ -79,11 +79,11 @@ describe(GameEngine.name, () => {
 
       engine.tick(intervalMs / 2);
 
-      expect(engine.players[0].gold).toBe(100);
+      expect(engine.players[0].gold).toBe(400);
     });
 
     it('uses floor for deterministic rounding', () => {
-      const p0 = createPlayerWithInterest(1, 199);
+      const p0 = createPlayerWithInterest(1, 799);
       const p1 = createPlayer(1, { ...noSpawnConfig, startingGold: 50 });
 
       const engine = new GameEngine(createMockGrid(), noopCallbacks, {
@@ -94,12 +94,12 @@ describe(GameEngine.name, () => {
 
       engine.tick(intervalMs);
 
-      expect(engine.players[0].gold).toBe(200);
+      expect(engine.players[0].gold).toBe(800);
     });
 
     it('invokes onInterest callback when interest is applied', () => {
       const onInterest = vi.fn();
-      const p0 = createPlayerWithInterest(1, 100);
+      const p0 = createPlayerWithInterest(1, 400);
       const p1 = createPlayer(1, { ...noSpawnConfig, startingGold: 50 });
 
       const engine = new GameEngine(createMockGrid(), { ...noopCallbacks, onInterest }, {

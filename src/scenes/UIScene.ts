@@ -202,7 +202,11 @@ export class UIScene extends Phaser.Scene {
         break;
       case 'interestRate':
         current = `${Math.round(player.goldInterestRate * 100)}%`;
-        next = `Next: ${Math.round(Math.min(0.05, player.goldInterestRate + 0.01) * 100)}%`;
+        if (player.isUpgradeAtMax(type)) {
+          next = 'MAX';
+        } else {
+          next = `Next: ${Math.round(Math.min(CONFIG.MAX_INTEREST_RATE, player.goldInterestRate + CONFIG.INTEREST_RATE_PER_LEVEL) * 100)}%`;
+        }
         break;
     }
     const item = MENU_CATEGORIES.flatMap(c => c.items).find(i => i.kind === 'upgrade' && i.type === type);
@@ -619,7 +623,8 @@ export class UIScene extends Phaser.Scene {
     for (const btn of this.buttons) {
       const player = this.viewModel.players[btn.playerId];
       const canAfford = player.canAfford(btn.type);
-      btn.bg.setAlpha(canAfford ? 1 : 0.4);
+      const isAtMax = player.isUpgradeAtMax(btn.type);
+      btn.bg.setAlpha(canAfford && !isAtMax ? 1 : 0.4);
       btn.costText.setText(`$${player.getUpgradeCost(btn.type)}`);
     }
 

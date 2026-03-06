@@ -89,10 +89,10 @@ describe(Player.name, () => {
 
     it.each([
       { level: 0, expected: 0, desc: '0% at level 0' },
-      { level: 1, expected: 0.01, desc: '1% at level 1' },
-      { level: 3, expected: 0.03, desc: '3% at level 3' },
-      { level: 5, expected: 0.05, desc: 'capped at 5%' },
-      { level: 10, expected: 0.05, desc: 'stays capped at 5%' },
+      { level: 1, expected: 0.0025, desc: '0.25% at level 1' },
+      { level: 3, expected: 0.0075, desc: '0.75% at level 3' },
+      { level: 20, expected: 0.05, desc: 'capped at 5%' },
+      { level: 21, expected: 0.05, desc: 'stays capped at 5%' },
     ])('goldInterestRate $desc', ({ level, expected }) => {
       player.gold = 99999;
       for (let i = 0; i < level; i++) player.buyUpgrade('interestRate');
@@ -127,6 +127,39 @@ describe(Player.name, () => {
 
       expect(result).toBe(false);
       expect(player.getUpgradeLevel('health')).toBe(0);
+    });
+
+    it('isUpgradeAtMax returns false for interestRate when below max', () => {
+      player.gold = 99999;
+      expect(player.isUpgradeAtMax('interestRate')).toBe(false);
+      for (let i = 0; i < 19; i++) player.buyUpgrade('interestRate');
+      expect(player.isUpgradeAtMax('interestRate')).toBe(false);
+    });
+
+    it('isUpgradeAtMax returns true for interestRate when at max', () => {
+      player.gold = 99999;
+      for (let i = 0; i < 20; i++) player.buyUpgrade('interestRate');
+      expect(player.isUpgradeAtMax('interestRate')).toBe(true);
+      expect(player.goldInterestRate).toBeCloseTo(0.05);
+    });
+
+    it('isUpgradeAtMax returns false for other upgrade types', () => {
+      player.gold = 99999;
+      expect(player.isUpgradeAtMax('health')).toBe(false);
+      expect(player.isUpgradeAtMax('attack')).toBe(false);
+      expect(player.isUpgradeAtMax('defense')).toBe(false);
+    });
+
+    it('buyUpgrade returns false when interestRate is at max', () => {
+      player.gold = 99999;
+      for (let i = 0; i < 20; i++) player.buyUpgrade('interestRate');
+      const levelBefore = player.getUpgradeLevel('interestRate');
+      const goldBefore = player.gold;
+      const result = player.buyUpgrade('interestRate');
+
+      expect(result).toBe(false);
+      expect(player.getUpgradeLevel('interestRate')).toBe(levelBefore);
+      expect(player.gold).toBe(goldBefore);
     });
 
     it('upgrade cost increases with level', () => {

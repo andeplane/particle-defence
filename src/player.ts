@@ -19,6 +19,7 @@ export interface IPlayer {
   getUpgradeLevel(upgrade: UpgradeType): number;
   getUpgradeCost(upgrade: UpgradeType): number;
   canAfford(upgrade: UpgradeType): boolean;
+  isUpgradeAtMax(upgrade: UpgradeType): boolean;
   buyUpgrade(upgrade: UpgradeType): boolean;
   canUseNuke(gameTimeMs: number): boolean;
   useNuke(gameTimeMs: number): void;
@@ -130,8 +131,17 @@ export class Player implements IPlayer {
     return this.gold >= this.getUpgradeCost(upgrade);
   }
 
+  isUpgradeAtMax(upgrade: UpgradeType): boolean {
+    if (upgrade === 'interestRate') {
+      return this.goldInterestRate >= CONFIG.MAX_INTEREST_RATE;
+    }
+    // Other upgrades don't have max caps currently
+    return false;
+  }
+
   buyUpgrade(upgrade: UpgradeType): boolean {
     if (!this.canAfford(upgrade)) return false;
+    if (this.isUpgradeAtMax(upgrade)) return false;
     this.gold -= this.getUpgradeCost(upgrade);
     this.upgradeLevels[upgrade]++;
     return true;
