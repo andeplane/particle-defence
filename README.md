@@ -9,8 +9,9 @@ Particle Defence is a 2-player tower defence game where you spawn particles from
 **Features:**
 - **1 Player vs AI** – Battle an AI that upgrades automatically and uses nukes tactically
 - **2 Player** – Local multiplayer, both players use keyboard
-- **5 upgrade types** – Health, Attack, Radius, Spawn Rate, Speed (costs scale with level)
+- **8 upgrade types** – Health, Attack, Radius, Spawn Rate, Speed, Defense, Max Particles, Interest Rate (costs scale with level)
 - **Nuclear weapon** – Instantly wipe all enemy particles (cooldown, reduced gold reward)
+- **Gold interest** – Save gold to earn periodic interest (+1% per upgrade level, max 5%, every 30 seconds)
 - Procedurally generated mazes, spatial-hash collision detection, explosion effects
 
 ## Game modes
@@ -30,6 +31,9 @@ Particle Defence is a 2-player tower defence game where you spawn particles from
 | E | Upgrade Radius |
 | R | Upgrade Spawn Rate |
 | T | Upgrade Speed |
+| G | Upgrade Defense |
+| A | Upgrade Max Particles |
+| B | Upgrade Interest Rate |
 | F | Launch Nuke |
 
 ### Player 2 (Right / Red) – 2 Player only
@@ -40,6 +44,9 @@ Particle Defence is a 2-player tower defence game where you spawn particles from
 | O | Upgrade Radius |
 | P | Upgrade Spawn Rate |
 | Y | Upgrade Speed |
+| K | Upgrade Defense |
+| L | Upgrade Max Particles |
+| N | Upgrade Interest Rate |
 | J | Launch Nuke |
 
 ## Build & run

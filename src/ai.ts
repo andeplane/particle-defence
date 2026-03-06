@@ -18,7 +18,7 @@ const defaultAIConfig: AIConfig = {
   baseHP: CONFIG.BASE_HP,
 };
 
-const UPGRADE_TYPES: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'defense', 'maxParticles'];
+const UPGRADE_TYPES: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'defense', 'maxParticles', 'interestRate'];
 
 export class AIController {
   private readonly playerId: 0 | 1;
@@ -151,6 +151,13 @@ export class AIController {
         const aiParticles = state.particles.filter(p => p.alive && p.owner === this.playerId).length;
         const nearCap = aiParticles >= ai.maxParticles * 0.8;
         score *= nearCap ? 1.8 : 0.7;
+        break;
+      }
+      case 'interestRate': {
+        const hasGoldToSave = ai.gold >= 30;
+        const notAtCap = ai.getUpgradeLevel('interestRate') < 5;
+        score *= hasGoldToSave && notAtCap ? 1.2 : 0.5;
+        if (gameTimeSec > 120) score *= 1.3;
         break;
       }
     }

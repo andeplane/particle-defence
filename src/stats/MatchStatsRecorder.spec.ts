@@ -301,7 +301,7 @@ function createPlayers(overrides?: {
   p1MaxParticles?: number; p2MaxParticles?: number;
   p1UpgradeLevels?: Partial<Record<string, number>>;
 }): [IPlayer, IPlayer] {
-  const defaultUpgrades = { health: 0, attack: 0, radius: 0, spawnRate: 0, speed: 0, defense: 0, maxParticles: 0 };
+  const defaultUpgrades = { health: 0, attack: 0, radius: 0, spawnRate: 0, speed: 0, defense: 0, maxParticles: 0, interestRate: 0 };
 
   const makePlayer = (id: 0 | 1, hp: number, gold: number, maxP: number, upgrades: Record<string, number>): IPlayer => ({
     id,
@@ -315,6 +315,7 @@ function createPlayers(overrides?: {
     particleSpeed: 180,
     maxParticles: maxP,
     particleDefense: 0,
+    goldInterestRate: 0,
     isAlive: hp > 0,
     getUpgradeLevel: (type) => upgrades[type] ?? 0,
     getUpgradeCost: () => 5,
@@ -348,8 +349,8 @@ function createSample(overrides: {
     goldSpent: [0, 0],
     goldBanked: [0, 0],
     upgradeLevels: [
-      { health: 0, attack: 0, radius: 0, spawnRate: 0, speed: 0, defense: 0, maxParticles: 0 },
-      { health: 0, attack: 0, radius: 0, spawnRate: 0, speed: 0, defense: 0, maxParticles: 0 },
+      { health: 0, attack: 0, radius: 0, spawnRate: 0, speed: 0, defense: 0, maxParticles: 0, interestRate: 0 },
+      { health: 0, attack: 0, radius: 0, spawnRate: 0, speed: 0, defense: 0, maxParticles: 0, interestRate: 0 },
     ],
     capPressure: [0, 0],
     unitDamageDealt: [0, 0],

@@ -41,6 +41,7 @@ function createMinimalMockPlayer(id: 0 | 1): IPlayer {
     particleSpeed: 180,
     maxParticles: 1000,
     particleDefense: 0,
+    goldInterestRate: 0,
     isAlive: true,
     getUpgradeLevel: vi.fn(() => 0),
     getUpgradeCost: vi.fn(() => 5),

@@ -49,6 +49,8 @@ export class GameEngine implements AIGameState {
   cellEffects!: ICellEffectMap;
   readonly grid: IGrid;
   spawnTimers: number[] = [0, 0];
+  /** Per-player interest payout accumulators (ms) */
+  interestTimers: number[] = [0, 0];
   gameOver: boolean = false;
   winner: number = -1;
   gameTimeMs: number = 0;
@@ -75,6 +77,7 @@ export class GameEngine implements AIGameState {
     this.gameOver = false;
     this.winner = -1;
     this.spawnTimers = [0, 0];
+    this.interestTimers = [0, 0];
     this.gameTimeMs = 0;
 
     if (useAI && this.deps.createAIController) {
@@ -106,6 +109,8 @@ export class GameEngine implements AIGameState {
         this.spawnParticle(i as 0 | 1);
       }
     }
+
+    this.applyInterest(delta);
 
     const context = this.createContext();
 
@@ -194,6 +199,22 @@ export class GameEngine implements AIGameState {
     player.useNuke(this.gameTimeMs);
     this.callbacks.onNuke(playerId, killCount);
     return true;
+  }
+
+  private applyInterest(delta: number): void {
+    const intervalMs = CONFIG.INTEREST_INTERVAL_MS;
+    for (let i = 0; i < 2; i++) {
+      const player = this.players[i];
+      const rate = player.goldInterestRate;
+      if (rate <= 0 || player.gold <= 0) continue;
+
+      this.interestTimers[i] += delta;
+      while (this.interestTimers[i] >= intervalMs) {
+        this.interestTimers[i] -= intervalMs;
+        const increment = Math.floor(player.gold * rate);
+        if (increment > 0) player.gold += increment;
+      }
+    }
   }
 
   private createContext(): GameContext {

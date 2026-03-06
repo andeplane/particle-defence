@@ -203,6 +203,7 @@ export class MatchStatsRecorder {
       speed: player.getUpgradeLevel('speed'),
       defense: player.getUpgradeLevel('defense'),
       maxParticles: player.getUpgradeLevel('maxParticles'),
+      interestRate: player.getUpgradeLevel('interestRate'),
     };
   }
 }

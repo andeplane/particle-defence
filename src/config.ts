@@ -47,6 +47,12 @@ export const CONFIG = {
   NUCLEAR_KILL_REWARD_FRACTION: 0.25,
   NUCLEAR_FIRST_AVAILABLE_MS: 0,  // 3 minutes
   NUCLEAR_COOLDOWN_MS: 600_000,        // 10 minutes
+  /** Interval (ms) between gold interest payouts */
+  INTEREST_INTERVAL_MS: 30_000,
+  /** Interest rate per upgrade level (e.g. 0.01 = +1%) */
+  INTEREST_RATE_PER_LEVEL: 0.01,
+  /** Max interest rate cap (e.g. 0.05 = 5%) */
+  MAX_INTEREST_RATE: 0.05,
   UPGRADE_COSTS: {
     health: 5,
     attack: 5,
@@ -55,6 +61,7 @@ export const CONFIG = {
     speed: 7,
     maxParticles: 10,
     defense: 5,
+    interestRate: 10,
   },
   /** Cost multiplier per upgrade level: cost = baseCost * UPGRADE_COST_MULTIPLIER^level */
   UPGRADE_COST_MULTIPLIER: 1.3,

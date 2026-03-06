@@ -240,5 +240,23 @@ describe(AIController.name, () => {
 
       expect(state.players[1].getUpgradeLevel('maxParticles')).toBeGreaterThan(0);
     });
+
+    it('can buy interestRate when has gold and not at cap', () => {
+      const state = createState({ gameTimeMs: 150_000 });
+      state.players[1].gold = 9999;
+      // Saturate combat upgrades so interest can compete
+      for (let i = 0; i < 8; i++) {
+        state.players[1].buyUpgrade('spawnRate');
+        state.players[1].buyUpgrade('attack');
+        state.players[1].buyUpgrade('health');
+        state.players[1].buyUpgrade('speed');
+        state.players[1].buyUpgrade('defense');
+        state.players[1].buyUpgrade('maxParticles');
+      }
+
+      ai.update(300, state);
+
+      expect(state.players[1].getUpgradeLevel('interestRate')).toBeGreaterThan(0);
+    });
   });
 });

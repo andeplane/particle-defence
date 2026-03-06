@@ -86,6 +86,18 @@ describe(Player.name, () => {
       for (let i = 0; i < level; i++) player.buyUpgrade('defense');
       expect(player.particleDefense).toBeCloseTo(expected);
     });
+
+    it.each([
+      { level: 0, expected: 0, desc: '0% at level 0' },
+      { level: 1, expected: 0.01, desc: '1% at level 1' },
+      { level: 3, expected: 0.03, desc: '3% at level 3' },
+      { level: 5, expected: 0.05, desc: 'capped at 5%' },
+      { level: 10, expected: 0.05, desc: 'stays capped at 5%' },
+    ])('goldInterestRate $desc', ({ level, expected }) => {
+      player.gold = 99999;
+      for (let i = 0; i < level; i++) player.buyUpgrade('interestRate');
+      expect(player.goldInterestRate).toBeCloseTo(expected);
+    });
   });
 
   describe('upgrade system', () => {
@@ -127,7 +139,7 @@ describe(Player.name, () => {
     });
 
     it('getUpgradeLevel starts at 0 for all types', () => {
-      const types: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles', 'defense'];
+      const types: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles', 'defense', 'interestRate'];
       for (const type of types) {
         expect(player.getUpgradeLevel(type)).toBe(0);
       }

@@ -96,6 +96,9 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - `NUCLEAR_KILL_REWARD_FRACTION: 0.25` - Fraction of kill reward for nuke kills (1/4)
 - `NUCLEAR_FIRST_AVAILABLE_MS: 0` - When nukes become available (currently immediately)
 - `NUCLEAR_COOLDOWN_MS: 600_000` - Nuke cooldown (10 minutes)
+- `INTEREST_INTERVAL_MS: 30_000` - Interval (ms) between gold interest payouts
+- `INTEREST_RATE_PER_LEVEL: 0.01` - Interest rate per upgrade level (+1%)
+- `MAX_INTEREST_RATE: 0.05` - Max interest rate cap (5%)
 - `UPGRADE_COSTS` - Base costs for each upgrade type:
   - `health: 5`
   - `attack: 5`
@@ -104,6 +107,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
   - `speed: 7`
   - `maxParticles: 10`
   - `defense: 5`
+  - `interestRate: 10`
 - `UPGRADE_COST_MULTIPLIER: 1.3` - Cost multiplier per level (cost = baseCost * multiplier^level)
 
 ### Cell Effect Defaults
@@ -145,7 +149,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 
 ### Helper Functions
 - `getUpgradeCost(type: UpgradeType, level: number): number` - Calculates upgrade cost based on level
-- `UpgradeType` - Type union: `'health' | 'attack' | 'radius' | 'spawnRate' | 'speed' | 'defense' | 'maxParticles'`
+- `UpgradeType` - Type union: `'health' | 'attack' | 'radius' | 'spawnRate' | 'speed' | 'defense' | 'maxParticles' | 'interestRate'`
 
 ## Game Mechanics
 
@@ -168,10 +172,16 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - Dead particles are cleaned up and removed
 
 ### Upgrade System
-- 7 upgrade types: health, attack, radius, spawnRate, speed, defense, maxParticles (increases particle cap by 50 per level)
+- 8 upgrade types: health, attack, radius, spawnRate, speed, defense, maxParticles (increases particle cap by 50 per level), interestRate (gold interest)
 - Costs increase exponentially: `baseCost * 1.3^level`
 - Upgrades affect all future spawned particles
 - Upgrade levels tracked per player
+
+### Gold Interest
+- Gold earns periodic interest when the interest upgrade is purchased (starts at 0%)
+- +1% per upgrade level, capped at 5%
+- Applied every 30 seconds: `gold += floor(gold * rate)` per interval
+- Rewards saving gold; interest is discrete (floor rounding)
 
 ### Nuclear Weapon
 - Instantly kills all enemy particles
@@ -220,7 +230,7 @@ Each grid cell can be "owned" by a player. Ownership is tracked per cell and aff
 
 ### Game Modes
 - **1 Player vs AI** - Human (P1) vs AI (P2). AI controls upgrades and nuke automatically. P2 UI shows "AI" label and stats.
-- **2 Player** - Both players use keyboard controls. P1: Q/W/E/R/T/G/A/F, P2: U/I/O/P/Y/K/L/J. Button layout mirrors QWERTY keyboard.
+- **2 Player** - Both players use keyboard controls. P1: Q/W/E/R/T/G/A/B/F, P2: U/I/O/P/Y/K/L/N/J. Button layout mirrors QWERTY keyboard.
 
 ## Controls
 
@@ -232,6 +242,7 @@ Each grid cell can be "owned" by a player. Ownership is tracked per cell and aff
 - **T** - Upgrade Speed
 - **G** - Upgrade Defense (ownership defense bonus, up to 25%)
 - **A** - Upgrade Max Particles (+50 cap per level)
+- **B** - Upgrade Interest Rate (+1% gold interest per 30s, max 5%)
 - **F** - Launch Nuke
 
 ### Player 2 (Right/Red) - 2 Player mode only
@@ -242,6 +253,7 @@ Each grid cell can be "owned" by a player. Ownership is tracked per cell and aff
 - **Y** - Upgrade Speed
 - **K** - Upgrade Defense (ownership defense bonus, up to 25%)
 - **L** - Upgrade Max Particles (+50 cap per level)
+- **N** - Upgrade Interest Rate (+1% gold interest per 30s, max 5%)
 - **J** - Launch Nuke
 
 *In 1 Player vs AI mode, P2 controls are hidden; the AI controls upgrades and nuke automatically.*
@@ -340,6 +352,7 @@ describe(MyService.name, () => {
 
 ### Existing Test Coverage
 Tests exist for:
+- Game engine (interest application, compound steps, rounding)
 - Grid generation (random, maze, pathfinding)
 - Cell effect map (add/remove, queries, timer expiry, HP damage, pixel conversion, ownership)
 - Collision detection

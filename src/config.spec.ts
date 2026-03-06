@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CONFIG, getUpgradeCost, type UpgradeType } from './config';
 
 describe(getUpgradeCost.name, () => {
-  const upgradeTypes: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles', 'defense'];
+  const upgradeTypes: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles', 'defense', 'interestRate'];
 
   it.each(upgradeTypes)('returns base cost at level 0 for %s', (type) => {
     const expected = CONFIG.UPGRADE_COSTS[type];
@@ -38,8 +38,22 @@ describe(getUpgradeCost.name, () => {
 describe('CONFIG', () => {
   it('has all expected upgrade cost keys', () => {
     expect(Object.keys(CONFIG.UPGRADE_COSTS)).toEqual(
-      expect.arrayContaining(['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles', 'defense']),
+      expect.arrayContaining(['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles', 'defense', 'interestRate']),
     );
+  });
+
+  it.each([
+    { type: 'interestRate' as UpgradeType, level: 0, expected: 10 },
+    { type: 'interestRate' as UpgradeType, level: 1, expected: Math.floor(10 * 1.3) },
+    { type: 'interestRate' as UpgradeType, level: 5, expected: Math.floor(10 * Math.pow(1.3, 5)) },
+  ])('getUpgradeCost($type, $level) = $expected', ({ type, level, expected }) => {
+    expect(getUpgradeCost(type, level)).toBe(expected);
+  });
+
+  it('has interest interval and rate constants', () => {
+    expect(CONFIG.INTEREST_INTERVAL_MS).toBe(30_000);
+    expect(CONFIG.INTEREST_RATE_PER_LEVEL).toBe(0.01);
+    expect(CONFIG.MAX_INTEREST_RATE).toBe(0.05);
   });
 
   it('has positive game dimensions', () => {
