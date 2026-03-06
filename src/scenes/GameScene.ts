@@ -10,6 +10,11 @@ import type { IGameViewModel } from './UIScene';
 export class GameScene extends Phaser.Scene implements IGameViewModel {
   engine!: GameEngine;
   mode: GameMode = 'pvp';
+  debugSpeedMultiplier: number = 1;
+
+  setDebugSpeedMultiplier(speed: number): void {
+    this.debugSpeedMultiplier = speed;
+  }
 
   private glowTextureP1Created = false;
   private glowTextureP2Created = false;
@@ -81,7 +86,8 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   }
 
   update(_time: number, delta: number): void {
-    this.engine.tick(delta);
+    const spedDelta = delta * this.debugSpeedMultiplier;
+    this.engine.tick(spedDelta);
   }
 
   private attachVisuals(p: IParticle): void {

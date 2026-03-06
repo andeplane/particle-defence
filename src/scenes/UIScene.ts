@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CONFIG, type UpgradeType } from '../config';
+import { CONFIG, DEBUG_MODE, type UpgradeType } from '../config';
 import type { IPlayer } from '../player';
 import type { GameMode } from './MenuScene';
 
@@ -11,6 +11,8 @@ export interface IGameViewModel {
   getParticleCount(owner: 0 | 1): number;
   purchaseUpgrade(playerId: 0 | 1, type: UpgradeType): boolean;
   launchNuke(playerId: 0 | 1): boolean;
+  debugSpeedMultiplier?: number;
+  setDebugSpeedMultiplier?: (speed: number) => void;
 }
 
 interface UpgradeButton {
@@ -44,6 +46,13 @@ export class UIScene extends Phaser.Scene {
   private buttons: UpgradeButton[] = [];
   private nukeButtons: NukeButton[] = [];
   private popups: Phaser.GameObjects.Text[] = [];
+  private debugMenuCollapsed: boolean = true;
+  private debugMenuBg?: Phaser.GameObjects.Rectangle;
+  private debugMenuToggle?: Phaser.GameObjects.Text;
+  private debugSpeedText?: Phaser.GameObjects.Text;
+  private debugSpeedSlider?: Phaser.GameObjects.Rectangle;
+  private debugSpeedSliderFill?: Phaser.GameObjects.Rectangle;
+  private debugSpeedSliderHandle?: Phaser.GameObjects.Rectangle;
 
   constructor() {
     super({ key: 'UIScene' });
@@ -60,6 +69,9 @@ export class UIScene extends Phaser.Scene {
     this.createUpgradeButtons();
     this.createNukeButtons();
     this.setupKeyboard();
+    if (DEBUG_MODE) {
+      this.createDebugMenu();
+    }
   }
 
   private createHPBars(): void {
@@ -300,6 +312,22 @@ export class UIScene extends Phaser.Scene {
   update(): void {
     if (!this.viewModel.players) return;
 
+    if (DEBUG_MODE && this.viewModel.debugSpeedMultiplier !== undefined) {
+      const speed = this.viewModel.debugSpeedMultiplier;
+      if (this.debugSpeedText) {
+        this.debugSpeedText.setText(`Speed: ${speed.toFixed(1)}x`);
+      }
+      if (this.debugSpeedSliderFill && this.debugSpeedSliderHandle && !this.debugMenuCollapsed) {
+        const sliderW = 200;
+        const sliderX = CONFIG.GAME_WIDTH / 2 - sliderW / 2;
+        const sliderY = 40 + 90;
+        const normalizedSpeed = (speed - 0.1) / 9.9;
+        const fillWidth = sliderW * normalizedSpeed;
+        this.debugSpeedSliderFill.setSize(fillWidth, 20);
+        this.debugSpeedSliderHandle.setPosition(sliderX + fillWidth, sliderY);
+      }
+    }
+
     const [p1, p2] = this.viewModel.players;
 
     const barX = CONFIG.UI_GAP * 2.5;
@@ -341,6 +369,120 @@ export class UIScene extends Phaser.Scene {
         btn.statusText.setText(`${mins}:${secs.toString().padStart(2, '0')}`);
         btn.statusText.setColor('#ff6666');
       }
+    }
+  }
+
+  private createDebugMenu(): void {
+    const centerX = CONFIG.GAME_WIDTH / 2;
+    const topY = 40;
+    const menuW = 300;
+    const menuH = 200;
+    const collapsedH = 40;
+
+    this.debugMenuBg = this.add.rectangle(centerX, topY + collapsedH / 2, menuW, menuH, 0x000000, 0.85)
+      .setStrokeStyle(2, 0x00ff00, 0.8)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100);
+
+    this.debugMenuToggle = this.add.text(centerX, topY + collapsedH / 2, 'DEBUG', {
+      fontSize: `${CONFIG.UI_FONT_MED}px`,
+      color: '#00ff00',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(101);
+
+    this.debugSpeedText = this.add.text(centerX, topY + 50, 'Speed: 1.0x', {
+      fontSize: `${CONFIG.UI_FONT_SMALL}px`,
+      color: '#ffffff',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(101).setVisible(false);
+
+    const sliderW = 200;
+    const sliderH = 20;
+    const sliderX = centerX - sliderW / 2;
+    const sliderY = topY + 90;
+
+    this.debugSpeedSlider = this.add.rectangle(sliderX + sliderW / 2, sliderY, sliderW, sliderH, 0x333333, 0.9)
+      .setStrokeStyle(2, 0x00ff00, 0.8)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(101)
+      .setVisible(false);
+
+    this.debugSpeedSliderFill = this.add.rectangle(sliderX, sliderY, 0, sliderH, 0x00ff00, 0.6)
+      .setOrigin(0, 0.5)
+      .setDepth(102)
+      .setVisible(false);
+
+    const handleW = 12;
+    const handleH = 24;
+    this.debugSpeedSliderHandle = this.add.rectangle(sliderX, sliderY, handleW, handleH, 0x00ff00, 1)
+      .setStrokeStyle(2, 0xffffff, 1)
+      .setOrigin(0.5, 0.5)
+      .setDepth(103)
+      .setVisible(false);
+
+    this.debugMenuBg.on('pointerdown', () => {
+      this.debugMenuCollapsed = !this.debugMenuCollapsed;
+      this.updateDebugMenuVisibility();
+    });
+
+    const updateSpeedVisual = (speed: number) => {
+      if (!this.debugSpeedSliderFill || !this.debugSpeedSliderHandle) return;
+      const normalizedSpeed = (speed - 0.1) / 9.9;
+      const fillWidth = sliderW * normalizedSpeed;
+      this.debugSpeedSliderFill.setSize(fillWidth, sliderH);
+      this.debugSpeedSliderHandle.setPosition(sliderX + fillWidth, sliderY);
+    };
+
+    this.debugSpeedSlider.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.debugMenuCollapsed) return;
+      const updateSpeed = (x: number) => {
+        const localX = Math.max(0, Math.min(sliderW, x - sliderX));
+        const speed = Math.max(0.1, Math.min(10, (localX / sliderW) * 9.9 + 0.1));
+        if (this.viewModel.setDebugSpeedMultiplier) {
+          this.viewModel.setDebugSpeedMultiplier(speed);
+        }
+        updateSpeedVisual(speed);
+      };
+      updateSpeed(pointer.x);
+      this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+        if (p.isDown) updateSpeed(p.x);
+      });
+      this.input.once('pointerup', () => {
+        this.input.off('pointermove');
+      });
+    });
+
+    updateSpeedVisual(1);
+
+    this.updateDebugMenuVisibility();
+  }
+
+  private updateDebugMenuVisibility(): void {
+    if (!this.debugMenuBg || !this.debugMenuToggle || !this.debugSpeedText || !this.debugSpeedSlider) return;
+
+    const topY = 40;
+    const collapsedH = 40;
+    const menuH = 200;
+
+    if (this.debugMenuCollapsed) {
+      this.debugMenuBg.setSize(300, 40);
+      this.debugMenuBg.setPosition(CONFIG.GAME_WIDTH / 2, topY + collapsedH / 2);
+      this.debugMenuToggle.setPosition(CONFIG.GAME_WIDTH / 2, topY + collapsedH / 2);
+      this.debugMenuToggle.setText('DEBUG');
+      this.debugSpeedText.setVisible(false);
+      this.debugSpeedSlider.setVisible(false);
+      if (this.debugSpeedSliderFill) this.debugSpeedSliderFill.setVisible(false);
+      if (this.debugSpeedSliderHandle) this.debugSpeedSliderHandle.setVisible(false);
+    } else {
+      this.debugMenuBg.setSize(300, 200);
+      this.debugMenuBg.setPosition(CONFIG.GAME_WIDTH / 2, topY + menuH / 2);
+      this.debugMenuToggle.setPosition(CONFIG.GAME_WIDTH / 2, topY + collapsedH / 2);
+      this.debugMenuToggle.setText('DEBUG');
+      this.debugSpeedText.setVisible(true);
+      this.debugSpeedSlider.setVisible(true);
+      if (this.debugSpeedSliderFill) this.debugSpeedSliderFill.setVisible(true);
+      if (this.debugSpeedSliderHandle) this.debugSpeedSliderHandle.setVisible(true);
     }
   }
 

@@ -1,5 +1,13 @@
 const RESOLUTION_SCALE = 2;
 
+function getQueryParam(name: string): string | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  return params.get(name);
+}
+
+export const DEBUG_MODE = getQueryParam('debug') === 'true';
+
 export const CONFIG = {
   GAME_WIDTH: 1024 * RESOLUTION_SCALE,
   GAME_HEIGHT: 512 * RESOLUTION_SCALE,
