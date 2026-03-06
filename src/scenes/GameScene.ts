@@ -133,13 +133,18 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     gfx.fillStyle(CONFIG.FLOOR_COLOR, 1);
     gfx.fillRect(0, 0, CONFIG.GAME_WIDTH, CONFIG.GAME_HEIGHT);
 
+    const wallColor = CONFIG.WALL_COLOR;
+    const wallR = (wallColor >> 16) & 0xff;
+    const wallG = (wallColor >> 8) & 0xff;
+    const wallB = wallColor & 0xff;
+
     for (let y = 0; y < grid.rows; y++) {
       for (let x = 0; x < grid.cols; x++) {
         if (!grid.cells[y][x]) {
-          const brightness = 0.3 + Math.random() * 0.15;
-          const r = Math.floor(0x1a * brightness * 3);
-          const g = Math.floor(0x1a * brightness * 3);
-          const b = Math.floor(0x2e * brightness * 3);
+          const brightness = 0.5 + Math.random() * 0.2;
+          const r = Math.floor(wallR * brightness);
+          const g = Math.floor(wallG * brightness);
+          const b = Math.floor(wallB * brightness);
           const color = (r << 16) | (g << 8) | b;
           gfx.fillStyle(color, 1);
           gfx.fillRect(x * cellW, y * cellH, cellW + 0.5, cellH + 0.5);

@@ -68,7 +68,7 @@ export const CONFIG = {
   PLAYER2_COLOR: 0xff4444,
   PLAYER1_COLOR_STR: '#00ddff',
   PLAYER2_COLOR_STR: '#ff4444',
-  WALL_COLOR: 0x1a1a2e,
+  WALL_COLOR: 0x4a4a6e,
   FLOOR_COLOR: 0x0d0d1a,
   BG_COLOR: 0x0a0a0f,
 } as const;
