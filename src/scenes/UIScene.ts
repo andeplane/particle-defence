@@ -259,8 +259,8 @@ export class UIScene extends Phaser.Scene {
         next = `Next: ${Math.round(Math.min(CONFIG.OWNERSHIP_DEFENSE_MAX, player.particleDefense + CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL) * 100)}%`;
         break;
       case 'interestRate':
-        current = `${Math.round(player.goldInterestRate * 100)}%`;
-        next = `Next: ${Math.round(Math.min(CONFIG.MAX_INTEREST_RATE, player.goldInterestRate + CONFIG.INTEREST_RATE_PER_LEVEL) * 100)}%`;
+        current = `${(player.goldInterestRate * 100).toFixed(2)}%`;
+        next = `Next: ${(Math.min(CONFIG.MAX_INTEREST_RATE, player.goldInterestRate + CONFIG.INTEREST_RATE_PER_LEVEL) * 100).toFixed(2)}%`;
         break;
     }
     if (player.isUpgradeAtMax(type)) {
@@ -890,8 +890,8 @@ export class UIScene extends Phaser.Scene {
 
     const p1Count = this.viewModel.getParticleCount(0);
     const p2Count = this.viewModel.getParticleCount(1);
-    this.p1StatsText.setText(`HP:${p1.particleHealth} ATK:${p1.particleAttack} RAD:${p1.particleRadius} VEL:${p1.particleSpeed} DEF:${Math.round(p1.particleDefense * 100)}% INT:${Math.round(p1.goldInterestRate * 100)}% Units:${p1Count}/${p1.maxParticles}`);
-    this.p2StatsText.setText(`HP:${p2.particleHealth} ATK:${p2.particleAttack} RAD:${p2.particleRadius} VEL:${p2.particleSpeed} DEF:${Math.round(p2.particleDefense * 100)}% INT:${Math.round(p2.goldInterestRate * 100)}% Units:${p2Count}/${p2.maxParticles}`);
+    this.p1StatsText.setText(`HP:${p1.particleHealth} ATK:${p1.particleAttack} RAD:${p1.particleRadius} VEL:${p1.particleSpeed} DEF:${Math.round(p1.particleDefense * 100)}% INT:${(p1.goldInterestRate * 100).toFixed(2)}% Units:${p1Count}/${p1.maxParticles}`);
+    this.p2StatsText.setText(`HP:${p2.particleHealth} ATK:${p2.particleAttack} RAD:${p2.particleRadius} VEL:${p2.particleSpeed} DEF:${Math.round(p2.particleDefense * 100)}% INT:${(p2.goldInterestRate * 100).toFixed(2)}% Units:${p2Count}/${p2.maxParticles}`);
 
     for (const btn of this.buttons) {
       const player = this.viewModel.players[btn.playerId];
