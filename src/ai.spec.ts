@@ -56,6 +56,38 @@ describe(AIController.name, () => {
     ai = new AIController(1, { baseHP: 1000 });
   });
 
+  describe('opponent index', () => {
+    it('works correctly when controlling player 0', () => {
+      const ai0 = new AIController(0, { baseHP: 1000 });
+      const state = createState({
+        particles: makeParticles({ p0: 10, p1: 100 }),
+      });
+      state.players[0].baseHP = 500;
+      state.players[1].baseHP = 900;
+
+      ai0.update(300, state);
+
+      expect(state.launchNuke).toHaveBeenCalledWith(0);
+    });
+
+    it('player 0 AI considers player 1 opponent upgrades', () => {
+      const ai0 = new AIController(0, { baseHP: 1000 });
+      const state = createState({ gameTimeMs: 60_000 });
+      state.players[1].gold = 9999;
+      for (let i = 0; i < 5; i++) state.players[1].buyUpgrade('attack');
+
+      state.players[0].gold = 9999;
+      for (let i = 0; i < 10; i++) {
+        state.players[0].buyUpgrade('spawnRate');
+        state.players[0].buyUpgrade('attack');
+      }
+
+      ai0.update(300, state);
+
+      expect(state.players[0].getUpgradeLevel('health')).toBeGreaterThan(0);
+    });
+  });
+
   describe('decision throttle', () => {
     it('does nothing when delta is below decision interval', () => {
       const state = createState();

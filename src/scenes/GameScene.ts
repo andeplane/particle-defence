@@ -97,7 +97,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     };
 
     this.engine = new GameEngine(grid, callbacks, {
-      createAIController: this.mode === 'ai' ? () => new AIController() : null,
+      createAIController: this.mode === 'ai' ? (playerId: 0 | 1) => new AIController(playerId) : null,
     });
   }
 

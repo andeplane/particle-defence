@@ -51,20 +51,24 @@ export class AIController {
     this.tryUpgrade(state);
   }
 
+  private get opponentId(): 0 | 1 {
+    return this.playerId === 0 ? 1 : 0;
+  }
+
   private tryNuke(state: AIGameState): void {
     const ai = state.players[this.playerId];
-    const human = state.players[0];
+    const opponent = state.players[this.opponentId];
     if (!ai.canUseNuke(state.gameTimeMs)) return;
 
     const aiParticles = state.particles.filter(p => p.alive && p.owner === this.playerId).length;
-    const humanParticles = state.particles.filter(p => p.alive && p.owner === 0).length;
+    const opponentParticles = state.particles.filter(p => p.alive && p.owner === this.opponentId).length;
     const aiHpPct = ai.baseHP / this.config.baseHP;
-    const humanHpPct = human.baseHP / this.config.baseHP;
+    const opponentHpPct = opponent.baseHP / this.config.baseHP;
 
-    const losingBadly = aiHpPct < 0.6 && humanHpPct > 0.8;
-    const enemyFlood = humanParticles >= 2 * Math.max(1, aiParticles);
+    const losingBadly = aiHpPct < 0.6 && opponentHpPct > 0.8;
+    const enemyFlood = opponentParticles >= 2 * Math.max(1, aiParticles);
     const desperation = aiHpPct < 0.3;
-    const valueNuke = humanParticles >= 400;
+    const valueNuke = opponentParticles >= 400;
 
     if (losingBadly || enemyFlood || desperation || valueNuke) {
       state.launchNuke(this.playerId);
@@ -125,7 +129,7 @@ export class AIController {
 
   private tryUpgrade(state: AIGameState): void {
     const ai = state.players[this.playerId];
-    const human = state.players[0];
+    const opponent = state.players[this.opponentId];
 
     let bestType: UpgradeType | null = null;
     let bestScore = -1;
@@ -134,7 +138,7 @@ export class AIController {
       if (!ai.canAfford(type)) continue;
       if (ai.isUpgradeAtMax(type)) continue;
 
-      const score = this.scoreUpgrade(type, ai, human, state);
+      const score = this.scoreUpgrade(type, ai, opponent, state);
       if (score > bestScore) {
         bestScore = score;
         bestType = type;
@@ -149,7 +153,7 @@ export class AIController {
   private scoreUpgrade(
     type: UpgradeType,
     ai: IPlayer,
-    human: IPlayer,
+    opponent: IPlayer,
     state: AIGameState
   ): number {
     const level = ai.getUpgradeLevel(type);
@@ -183,8 +187,8 @@ export class AIController {
       }
       case 'health': {
         const aiHealthLevel = ai.getUpgradeLevel('health');
-        const humanAttackLevel = human.getUpgradeLevel('attack');
-        if (humanAttackLevel > aiHealthLevel) {
+        const opponentAttackLevel = opponent.getUpgradeLevel('attack');
+        if (opponentAttackLevel > aiHealthLevel) {
           score *= 2.0;
         } else {
           score *= 1.2;
@@ -201,8 +205,8 @@ export class AIController {
         break;
       }
       case 'defense': {
-        const humanAttackLevel = human.getUpgradeLevel('attack');
-        if (humanAttackLevel > ai.getUpgradeLevel('defense')) {
+        const opponentAttackLevel = opponent.getUpgradeLevel('attack');
+        if (opponentAttackLevel > ai.getUpgradeLevel('defense')) {
           score *= 1.8;
         } else {
           score *= 1.2;

@@ -69,6 +69,30 @@ npm run preview
 
 Build output goes to `dist/`.
 
+## Headless Simulation
+
+Run AI-vs-AI games without rendering for balance testing and analysis:
+
+```bash
+# Run 10 games (default)
+npm run simulate
+
+# Custom: 50 games on maze grid
+npm run simulate -- --games 50 --grid maze
+
+# All options (default is already blazing fast at 1000ms ticks)
+npm run simulate -- --games 100 --grid random --tick-ms 1000 --max-time 1800 --json
+```
+
+**Options:**
+- `--games N` - Number of games to simulate (default: 10)
+- `--grid TYPE` - Grid type: random, maze, hourglass, lanes, islands, rooms, fortress (default: random)
+- `--tick-ms N` - Simulation tick size in ms; larger = faster but less precise (default: 1000)
+- `--max-time N` - Max game duration in seconds before declaring a draw (default: 1800)
+- `--json` - Output raw JSON results for programmatic analysis
+
+The simulation runs the exact same `GameEngine.tick()` loop as the browser game, just without Phaser rendering. Outputs win rates, game duration stats, average upgrade levels, and tower counts. See `AGENTS.md` for architecture details.
+
 ## Tech stack
 
 - **Phaser 3** – Game framework

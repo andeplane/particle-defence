@@ -23,12 +23,14 @@ export interface GameEngineCallbacks {
   spawnExplosion(x: number, y: number, color: number): void;
 }
 
+export type AIMode = 'none' | 'single' | 'both';
+
 export type GameEngineDependencies = {
   createPlayer: (id: 0 | 1) => IPlayer;
   createParticle: (x: number, y: number, owner: 0 | 1, h: number, a: number, r: number, s: number) => IParticle;
   createSpatialHash: () => ISpatialHash;
   createCellEffectMap: (grid: IGrid) => ICellEffectMap;
-  createAIController: (() => AIController) | null;
+  createAIController: ((playerId: 0 | 1) => AIController) | null;
   resolveCollisions: (context: GameContext) => CollisionResult;
   killReward: number;
   nuclearKillRewardFraction: number;
@@ -67,7 +69,7 @@ export class GameEngine implements AIGameState {
 
   private readonly deps: GameEngineDependencies;
   private readonly callbacks: GameEngineCallbacks;
-  private aiController: AIController | null = null;
+  private aiControllers: AIController[] = [];
 
   constructor(
     grid: IGrid,
@@ -79,7 +81,9 @@ export class GameEngine implements AIGameState {
     this.deps = depOverrides ? { ...defaultDependencies, ...depOverrides } : defaultDependencies;
   }
 
-  init(useAI: boolean): void {
+  init(mode: AIMode | boolean): void {
+    const aiMode: AIMode = typeof mode === 'boolean' ? (mode ? 'single' : 'none') : mode;
+
     this.players = [this.deps.createPlayer(0), this.deps.createPlayer(1)];
     this.spatialHash = this.deps.createSpatialHash();
     this.cellEffects = this.deps.createCellEffectMap(this.grid);
@@ -92,12 +96,15 @@ export class GameEngine implements AIGameState {
     this.carriers = [null, null];
     this.towers = [[], []];
 
-    if (useAI && this.deps.createAIController) {
-      this.aiController = this.deps.createAIController();
-    } else if (useAI) {
-      this.aiController = new AIController();
+    this.aiControllers = [];
+    if (aiMode === 'none') return;
+
+    const factory = this.deps.createAIController;
+    if (aiMode === 'single') {
+      this.aiControllers.push(factory ? factory(1) : new AIController(1));
     } else {
-      this.aiController = null;
+      this.aiControllers.push(factory ? factory(0) : new AIController(0));
+      this.aiControllers.push(factory ? factory(1) : new AIController(1));
     }
   }
 
@@ -106,8 +113,8 @@ export class GameEngine implements AIGameState {
 
     this.gameTimeMs += delta;
 
-    if (this.aiController) {
-      this.aiController.update(delta, this);
+    for (const ai of this.aiControllers) {
+      ai.update(delta, this);
     }
 
     const dt = delta / 1000;

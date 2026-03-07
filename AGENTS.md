@@ -37,9 +37,15 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
   - **`generators/index.ts`** - GridType union, generateGrid, re-exports
 
 ### Systems
-- **`src/ai.ts`** - AIController for single-player mode. Automatically upgrades (prioritizes spawn rate, attack, health) and uses nuke when behind or when enemy has many particles
+- **`src/ai.ts`** - AIController for single-player and headless modes. Automatically upgrades (prioritizes spawn rate, attack, health), manages towers, and uses nuke when behind or when enemy has many particles. Uses dynamic `opponentId` so it can control either player
 - **`src/collision.ts`** - Collision resolution; calls `onCollide`/`onDeath` hooks, handles bouncing and kill tracking
 - **`src/spatial-hash.ts`** - Spatial partitioning for efficient collision detection
+
+### Headless Simulation
+- **`src/headless/HeadlessRunner.ts`** - Runs a single AI-vs-AI game without Phaser. Creates a `GameEngine` with no-op callbacks, two `AIController` instances, real grid/collision/spatial-hash, and a `MatchStatsRecorder`. Returns a `GameResult` with winner, duration, player summaries, and full match stats
+- **`src/headless/BatchRunner.ts`** - Runs N headless games sequentially. Aggregates win rates, draw rate, duration stats (min/max/mean/median), and returns all individual results
+- **`src/headless/cli.ts`** - CLI entry point. Parses args, runs batch, prints summary table with win rates, duration, upgrade distributions, and tower stats
+- **`src/headless/types.ts`** - Type definitions: `GameResult`, `PlayerSummary`, `HeadlessRunConfig`, `BatchReport`
 
 ### Stats & Post-Game Analytics
 - **`src/stats/types.ts`** - Type definitions: `PerSecondSample`, `MatchEvent`, `MatchStats`, `PerPlayer<T>`
@@ -340,6 +346,7 @@ The UI uses a **Warcraft-style hierarchical menu**. Each player sees top-level c
 - `npm run dev` - Start development server (Vite)
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
+- `npm run simulate` - Run headless AI-vs-AI simulation (see Headless Simulation below)
 
 ### Dependencies
 - **phaser**: ^3.90.0 - Game framework
@@ -407,18 +414,55 @@ describe(MyService.name, () => {
 
 ### Existing Test Coverage
 Tests exist for:
-- Game engine (interest application, compound steps, rounding)
-- Grid generation (random, maze, pathfinding)
+- Game engine (interest application, compound steps, rounding, tower lifecycle)
+- Grid generation (random, maze, hourglass, lanes, islands, rooms, fortress, pathfinding)
 - Cell effect map (add/remove, queries, timer expiry, HP damage, pixel conversion, ownership)
 - Collision detection
 - Spatial hash
 - Player logic
-- AI controller
+- AI controller (opponent index, nuke decisions, upgrade scoring, tower actions)
 - Particle behavior (including cell effect integration: slow, temp wall bounce, wall damage)
+- Tower particles (laser, slow, carrier)
 - Configuration helpers
 - Match stats recorder (sampling, deltas, frontline, rolling KPM, events, finalize)
+- Headless simulation (HeadlessRunner end-to-end, BatchRunner aggregation)
 
 **See `.cursor/rules/testing-patterns.mdc` for complete testing standards and examples.**
+
+## Headless Simulation
+
+Runs the exact same `GameEngine.tick()` loop as the browser game, but without Phaser rendering. Two AI controllers play each other. Useful for balance testing and AI training.
+
+### Running Simulations
+```bash
+# Quick: 10 games on random grid
+npm run simulate
+
+# Custom: 50 games on maze grid
+npm run simulate -- --games 50 --grid maze
+
+# All options
+npm run simulate -- --games 100 --grid random --tick-ms 1000 --max-time 1800 --json
+```
+
+### CLI Options
+- `--games N` - Number of games to simulate (default: 10)
+- `--grid TYPE` - Grid type: random, maze, hourglass, lanes, islands, rooms, fortress (default: random)
+- `--tick-ms N` - Simulation tick size in ms; larger = faster but less precise (default: 1000)
+- `--max-time N` - Max game duration in seconds before declaring a draw (default: 1800)
+- `--json` - Output raw JSON results for programmatic analysis
+
+### Architecture
+- `GameEngine` supports `AIMode: 'none' | 'single' | 'both'` via `init()`. The `'both'` mode creates two AI controllers (one per player)
+- `GameEngineDependencies.createAIController` is a factory `(playerId: 0 | 1) => AIController` that creates an AI for a specific player
+- `HeadlessRunner.runHeadlessGame()` orchestrates a single game: creates grid, engine with stats-recording callbacks, runs tick loop, returns `GameResult`
+- `BatchRunner.runBatch()` runs N games and aggregates statistics into a `BatchReport`
+
+### Output
+The CLI prints: win rates, game duration stats, average final upgrade levels per player, and tower counts. With `--json`, full `BatchReport` (including per-game `MatchStats` with 1Hz samples) is printed for offline analysis.
+
+### Performance
+A 30-minute simulated game takes ~2-3 seconds wall time at 1000ms ticks (default). Use smaller ticks (e.g., `--tick-ms 100` or `--tick-ms 16`) only if you need higher precision for specific balance testing.
 
 ## Particle Type Hierarchy
 
@@ -453,5 +497,5 @@ Particles use an inheritance-based hierarchy. New types extend `AbstractParticle
 - Keyboard controls are handled in UIScene
 - Game state (players, particles, grid) is managed in GameScene
 - **Flow**: MenuScene → MapSelectScene → GameScene → UIScene (launched). Game over → PostGameStatsScene → MenuScene
-- **AI mode**: AIController runs in GameScene.update() when mode is 'ai', makes decisions every ~200ms
+- **AI mode**: AIController runs in GameEngine.tick() when AI mode is enabled, makes decisions every ~200ms. Engine supports `'none'` (no AI), `'single'` (P2 only), or `'both'` (AI-vs-AI for headless simulation)
 - **Stats awareness**: When adding new gameplay features (new particle types, abilities, economy mechanics, combat changes, etc.), consider whether they should be reflected in the post-game stats. If a new feature introduces a meaningful metric players would want to see after the match, add sampling to `MatchStatsRecorder`, a new field to `PerSecondSample` or `MatchEvent`, and a corresponding graph in `PostGameStatsScene`. Keep the stats telling a compelling story about the match
