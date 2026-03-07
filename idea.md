@@ -19,3 +19,9 @@ A carrier-style particle (like tower carriers) that, when triggered, converts al
   - **Radius** – size of the wall zone
   - **HP** – hit points of each wall cell
 - **Integration**: Uses existing `tempWallHP` cell effect type; walls block enemy particles and can be destroyed by damage
+
+---
+
+## Max Towers Upgrade
+
+Add a new upgrade that increases the maximum number of towers a player can have (currently capped at 5 via `TOWER_MAX_PER_PLAYER`).

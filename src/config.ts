@@ -135,6 +135,8 @@ export const CONFIG = {
   // Towers
   TOWER_MAX_PER_PLAYER: 5,
   TOWER_CARRIER_HP: 5,
+  /** Visual and collision radius for placed towers (laser/slow) */
+  TOWER_VISUAL_RADIUS: 14,
   TOWER_UPGRADE_COST_MULTIPLIER: 1.4,
 
   TOWER_RESEARCH_COSTS: {

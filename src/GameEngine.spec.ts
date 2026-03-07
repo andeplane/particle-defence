@@ -14,6 +14,7 @@ const noopCallbacks: GameEngineCallbacks = {
   onStuckRespawn: vi.fn(),
   onInterest: vi.fn(),
   onTowerPlaced: vi.fn(),
+  onTowerDeath: vi.fn(),
   spawnExplosion: vi.fn(),
 };
 

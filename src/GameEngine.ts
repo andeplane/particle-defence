@@ -19,6 +19,7 @@ export interface GameEngineCallbacks {
   onStuckRespawn(owner: 0 | 1): void;
   onInterest(playerId: 0 | 1, amount: number): void;
   onTowerPlaced(tower: IParticle, playerId: 0 | 1): void;
+  onTowerDeath(tower: IParticle): void;
   spawnExplosion(x: number, y: number, color: number): void;
 }
 
@@ -293,7 +294,13 @@ export class GameEngine implements AIGameState {
 
   private cleanupDeadTowers(): void {
     for (let i = 0; i < 2; i++) {
-      this.towers[i] = this.towers[i].filter(t => t.alive);
+      this.towers[i] = this.towers[i].filter(t => {
+        if (!t.alive) {
+          this.callbacks.onTowerDeath(t);
+          return false;
+        }
+        return true;
+      });
     }
     for (let i = 0; i < 2; i++) {
       const carrier = this.carriers[i];

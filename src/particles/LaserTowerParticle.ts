@@ -19,7 +19,7 @@ export class LaserTowerParticle extends AbstractParticle {
     deps?: ParticleDependencies,
   ) {
     const hp = CONFIG.TOWER_LASER_BASE_HP;
-    super(x, y, owner, hp, 0, 6, 0, deps);
+    super(x, y, owner, hp, 0, CONFIG.TOWER_VISUAL_RADIUS, 0, deps);
     const stats = getLaserStats(0);
     this.range = stats.range;
     this.damage = stats.damage;
