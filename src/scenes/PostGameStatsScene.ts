@@ -38,9 +38,18 @@ const GRID_COLOR = 0x222244;
 const LABEL_HEX = '#777777';
 const TITLE_HEX = '#ffffff';
 
+const SCROLL_SPEED = 0.5;
+
 export class PostGameStatsScene extends Phaser.Scene {
   private stats!: MatchStats;
   private mode!: GameMode;
+  private wheelHandler?: (
+    pointer: Phaser.Input.Pointer,
+    _currentlyOver: Phaser.GameObjects.GameObject[],
+    _dx: number,
+    dy: number,
+    _dz: number,
+  ) => void;
 
   constructor() {
     super({ key: 'PostGameStatsScene' });
@@ -69,6 +78,8 @@ export class PostGameStatsScene extends Phaser.Scene {
 
     const charts = this.buildCharts(samples);
     const startX = (CONFIG.GAME_WIDTH - (CHART_W * COLS + GAP_X * (COLS - 1))) / 2;
+    const rows = Math.ceil(charts.length / COLS);
+    const totalContentHeight = HEADER_H + rows * (CHART_H + GAP_Y) - GAP_Y;
 
     charts.forEach((chart, idx) => {
       const col = idx % COLS;
@@ -79,6 +90,29 @@ export class PostGameStatsScene extends Phaser.Scene {
     });
 
     this.addReturnButton();
+
+    const maxScrollY = Math.max(0, totalContentHeight - CONFIG.GAME_HEIGHT);
+    if (maxScrollY > 0) {
+      this.cameras.main.setBounds(0, 0, CONFIG.GAME_WIDTH, totalContentHeight);
+      this.wheelHandler = (_pointer, _currentlyOver, _dx, dy) => {
+        const cam = this.cameras.main;
+        cam.scrollY += dy * SCROLL_SPEED;
+        cam.scrollY = Phaser.Math.Clamp(cam.scrollY, 0, maxScrollY);
+      };
+      this.input.on('wheel', this.wheelHandler);
+
+      const scrollHint = this.add.text(CONFIG.GAME_WIDTH / 2, CONFIG.GAME_HEIGHT - 60, 'Scroll to see more', {
+        fontSize: '14px', color: '#555555', fontFamily: 'monospace',
+      }).setOrigin(0.5);
+      scrollHint.setScrollFactor(0);
+    }
+  }
+
+  shutdown(): void {
+    if (this.wheelHandler) {
+      this.input.off('wheel', this.wheelHandler);
+      this.wheelHandler = undefined;
+    }
   }
 
   private drawHeader(): void {
@@ -88,13 +122,15 @@ export class PostGameStatsScene extends Phaser.Scene {
     const mins = Math.floor(durationSec / 60);
     const secs = durationSec % 60;
 
-    this.add.text(CONFIG.GAME_WIDTH / 2, 16, winnerLabel, {
+    const winnerText = this.add.text(CONFIG.GAME_WIDTH / 2, 16, winnerLabel, {
       fontSize: '36px', color: winnerColor, fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5, 0);
+    winnerText.setScrollFactor(0);
 
-    this.add.text(CONFIG.GAME_WIDTH / 2, 52, `Match Duration: ${mins}:${secs.toString().padStart(2, '0')}`, {
+    const durationText = this.add.text(CONFIG.GAME_WIDTH / 2, 52, `Match Duration: ${mins}:${secs.toString().padStart(2, '0')}`, {
       fontSize: '18px', color: '#888888', fontFamily: 'monospace',
     }).setOrigin(0.5, 0);
+    durationText.setScrollFactor(0);
   }
 
   private buildCharts(samples: PerSecondSample[]): ChartConfig[] {
@@ -413,6 +449,7 @@ export class PostGameStatsScene extends Phaser.Scene {
     const btn = this.add.text(CONFIG.GAME_WIDTH / 2, CONFIG.GAME_HEIGHT - 36, 'Click to return to menu', {
       fontSize: '22px', color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    btn.setScrollFactor(0);
 
     btn.on('pointerover', () => btn.setColor('#ffffff'));
     btn.on('pointerout', () => btn.setColor('#666666'));
