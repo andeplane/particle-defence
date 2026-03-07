@@ -10,8 +10,19 @@ export interface AblationResult {
   readonly restrictedP0WinRate: number;
   readonly delta: number;
   readonly impact: 'critical' | 'high' | 'medium' | 'low' | 'minimal';
-  readonly baseline: BatchReport;
   readonly restricted: BatchReport;
+  readonly avgDurationRestricted: number;
+  /** When symmetric mode is used: win rate when BOTH players lose the feature */
+  readonly symmetricP0WinRate?: number;
+  readonly symmetricDelta?: number;
+}
+
+export interface AblationReport {
+  readonly baseline: BatchReport;
+  readonly baselineP0WinRate: number;
+  readonly baselineAvgDuration: number;
+  readonly baselineDurationRange: { min: number; max: number };
+  readonly results: readonly AblationResult[];
 }
 
 export interface AblationConfig {
@@ -19,14 +30,17 @@ export interface AblationConfig {
   readonly gridType: GridType;
   readonly tickMs: number;
   readonly maxGameTimeSec: number;
-  readonly onProgress?: (feature: string, phase: 'baseline' | 'restricted', gameIndex: number) => void;
+  /** Also run symmetric tests (both players restricted) to separate AI gold-waste from balance issues */
+  readonly symmetric: boolean;
+  readonly onProgress?: (feature: string, phase: 'baseline' | 'restricted' | 'symmetric', gameIndex: number) => void;
 }
 
 const defaultAblationConfig: AblationConfig = {
   gamesPerTest: 50,
   gridType: 'random',
-  tickMs: 1000,
-  maxGameTimeSec: 30 * 60,
+  tickMs: 500,
+  maxGameTimeSec: 20 * 60,
+  symmetric: true,
 };
 
 function winRate(report: BatchReport, player: 0 | 1): number {
@@ -43,11 +57,64 @@ function classifyImpact(delta: number): AblationResult['impact'] {
   return 'minimal';
 }
 
-function runPair(
+const UPGRADE_FEATURES: UpgradeType[] = [
+  'attack', 'health', 'spawnRate', 'speed', 'radius',
+  'maxParticles', 'defense', 'interestRate',
+];
+
+function runRestricted(
   feature: string,
-  restrictedProfile: AIProfile,
+  profile: AIProfile,
+  batchBase: Partial<BatchConfig>,
+  baseP0: number,
   cfg: AblationConfig,
 ): AblationResult {
+  const restricted = runBatch({
+    ...batchBase,
+    p0Profile: profile,
+    onGameComplete: cfg.onProgress
+      ? (i) => cfg.onProgress!(feature, 'restricted', i)
+      : undefined,
+  });
+  const restP0 = winRate(restricted, 0);
+  const delta = restP0 - baseP0;
+
+  let symmetricP0WinRate: number | undefined;
+  let symmetricDelta: number | undefined;
+
+  if (cfg.symmetric) {
+    const symmetricReport = runBatch({
+      ...batchBase,
+      p0Profile: profile,
+      p1Profile: profile,
+      onGameComplete: cfg.onProgress
+        ? (i) => cfg.onProgress!(feature, 'symmetric', i)
+        : undefined,
+    });
+    symmetricP0WinRate = winRate(symmetricReport, 0);
+    symmetricDelta = symmetricP0WinRate - baseP0;
+  }
+
+  return {
+    feature,
+    baselineP0WinRate: baseP0,
+    restrictedP0WinRate: restP0,
+    delta,
+    impact: classifyImpact(delta),
+    restricted,
+    avgDurationRestricted: restricted.durationStats.mean,
+    symmetricP0WinRate,
+    symmetricDelta,
+  };
+}
+
+/**
+ * Run ablation tests with a single shared baseline.
+ * Negative delta = feature is important (P0 loses more without it).
+ */
+export function runAblation(configOverrides?: Partial<AblationConfig>): AblationReport {
+  const cfg = configOverrides ? { ...defaultAblationConfig, ...configOverrides } : defaultAblationConfig;
+
   const batchBase: Partial<BatchConfig> = {
     games: cfg.gamesPerTest,
     gridType: cfg.gridType,
@@ -58,44 +125,11 @@ function runPair(
   const baseline = runBatch({
     ...batchBase,
     onGameComplete: cfg.onProgress
-      ? (i) => cfg.onProgress!(feature, 'baseline', i)
+      ? (i) => cfg.onProgress!('baseline', 'baseline', i)
       : undefined,
   });
-
-  const restricted = runBatch({
-    ...batchBase,
-    p0Profile: restrictedProfile,
-    onGameComplete: cfg.onProgress
-      ? (i) => cfg.onProgress!(feature, 'restricted', i)
-      : undefined,
-  });
-
   const baseP0 = winRate(baseline, 0);
-  const restP0 = winRate(restricted, 0);
-  const delta = restP0 - baseP0;
 
-  return {
-    feature,
-    baselineP0WinRate: baseP0,
-    restrictedP0WinRate: restP0,
-    delta,
-    impact: classifyImpact(delta),
-    baseline,
-    restricted,
-  };
-}
-
-const UPGRADE_FEATURES: UpgradeType[] = [
-  'attack', 'health', 'spawnRate', 'speed', 'radius',
-  'maxParticles', 'defense', 'interestRate',
-];
-
-/**
- * Run ablation tests: for each feature, disable it for P0 and measure win rate change.
- * Negative delta = feature is important (P0 loses more without it).
- */
-export function runAblation(configOverrides?: Partial<AblationConfig>): AblationResult[] {
-  const cfg = configOverrides ? { ...defaultAblationConfig, ...configOverrides } : defaultAblationConfig;
   const results: AblationResult[] = [];
 
   for (const upgrade of UPGRADE_FEATURES) {
@@ -103,15 +137,31 @@ export function runAblation(configOverrides?: Partial<AblationConfig>): Ablation
       name: `No${upgrade}`,
       disabledUpgrades: new Set([upgrade]),
     };
-    results.push(runPair(upgrade, profile, cfg));
+    results.push(runRestricted(upgrade, profile, batchBase, baseP0, cfg));
   }
 
-  const noTowersProfile: AIProfile = { name: 'NoTowers', towersEnabled: false };
-  results.push(runPair('towers', noTowersProfile, cfg));
+  results.push(runRestricted(
+    'towers',
+    { name: 'NoTowers', towersEnabled: false },
+    batchBase, baseP0, cfg,
+  ));
 
-  const noNukeProfile: AIProfile = { name: 'NoNuke', nukeEnabled: false };
-  results.push(runPair('nuke', noNukeProfile, cfg));
+  results.push(runRestricted(
+    'nuke',
+    { name: 'NoNuke', nukeEnabled: false },
+    batchBase, baseP0, cfg,
+  ));
 
   results.sort((a, b) => a.delta - b.delta);
-  return results;
+
+  return {
+    baseline,
+    baselineP0WinRate: baseP0,
+    baselineAvgDuration: baseline.durationStats.mean,
+    baselineDurationRange: {
+      min: baseline.durationStats.min,
+      max: baseline.durationStats.max,
+    },
+    results,
+  };
 }

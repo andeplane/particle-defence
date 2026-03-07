@@ -123,8 +123,9 @@ export class GameEngine implements AIGameState {
 
     for (let i = 0; i < 2; i++) {
       this.spawnTimers[i] += delta;
-      if (this.spawnTimers[i] >= this.players[i].spawnInterval) {
-        this.spawnTimers[i] = 0;
+      const interval = this.players[i].spawnInterval;
+      while (this.spawnTimers[i] >= interval) {
+        this.spawnTimers[i] -= interval;
         this.spawnParticle(i as 0 | 1);
       }
     }

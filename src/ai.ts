@@ -62,12 +62,13 @@ export class AIController {
     if (state.gameOver) return;
 
     this.timeSinceLastDecision += delta;
-    if (this.timeSinceLastDecision < this.decisionIntervalMs) return;
-    this.timeSinceLastDecision = 0;
+    while (this.timeSinceLastDecision >= this.decisionIntervalMs) {
+      this.timeSinceLastDecision -= this.decisionIntervalMs;
 
-    this.tryNuke(state);
-    this.tryTowerActions(state);
-    this.tryUpgrade(state);
+      this.tryNuke(state);
+      this.tryTowerActions(state);
+      this.tryUpgrade(state);
+    }
   }
 
   private get opponentId(): 0 | 1 {

@@ -33,8 +33,8 @@ export interface TournamentConfig {
 const defaultTournamentConfig: TournamentConfig = {
   gamesPerMatchup: 30,
   gridType: 'random',
-  tickMs: 1000,
-  maxGameTimeSec: 30 * 60,
+  tickMs: 500,
+  maxGameTimeSec: 20 * 60,
 };
 
 export function runTournament(
