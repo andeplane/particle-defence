@@ -134,7 +134,7 @@ describe(Player.name, () => {
       { type: 'interestRate' as UpgradeType, levelsBelowMax: 19, levelsAtMax: 20, statCheck: (p: Player) => expect(p.goldInterestRate).toBeCloseTo(0.05) },
       { type: 'defense' as UpgradeType, levelsBelowMax: 7, levelsAtMax: 8, statCheck: (p: Player) => expect(p.particleDefense).toBeCloseTo(0.25) },
       { type: 'spawnRate' as UpgradeType, levelsBelowMax: 7, levelsAtMax: 8, statCheck: (p: Player) => expect(p.spawnInterval).toBe(testConfig.minSpawnInterval) },
-    ])('isUpgradeAtMax returns false when $type below max, true when at max', ({ type, levelsBelowMax, levelsAtMax, statCheck }) => {
+    ])('isUpgradeAtMax returns false when $type below max, true when at max', ({ type, levelsBelowMax, statCheck }) => {
       player.gold = 99999;
       expect(player.isUpgradeAtMax(type)).toBe(false);
       for (let i = 0; i < levelsBelowMax; i++) player.buyUpgrade(type);
