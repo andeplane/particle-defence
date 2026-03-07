@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { AIController } from '../ai';
-import { CONFIG, type UpgradeType, type TowerType } from '../config';
+import { CONFIG, setDebugEverythingCheap, type UpgradeType, type TowerType } from '../config';
 import { generateGrid, type GridType } from '../grid';
 import type { CellEffect } from '../grid/CellEffect';
 import type { IParticle } from '../particles';
@@ -9,16 +9,22 @@ import type { SlowTowerParticle } from '../particles/SlowTowerParticle';
 import { GameEngine, type GameEngineCallbacks } from '../GameEngine';
 import { MatchStatsRecorder } from '../stats';
 import type { GameMode } from './MenuScene';
-import type { IGameViewModel } from './UIScene';
+import type { IGameViewModel, TowerSelectionForRender } from './UIScene';
 
 export class GameScene extends Phaser.Scene implements IGameViewModel {
   engine!: GameEngine;
   mode: GameMode = 'pvp';
   debugSpeedMultiplier: number = 1;
+  debugEverythingCheap: boolean = false;
   private statsRecorder!: MatchStatsRecorder;
 
   setDebugSpeedMultiplier(speed: number): void {
     this.debugSpeedMultiplier = speed;
+  }
+
+  setDebugEverythingCheap(enabled: boolean): void {
+    this.debugEverythingCheap = enabled;
+    setDebugEverythingCheap(enabled);
   }
 
   private glowTextureP1Created = false;
@@ -29,6 +35,11 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   get particles() { return this.engine.particles; }
   get gameOver() { return this.engine.gameOver; }
   get gameTimeMs() { return this.engine.gameTimeMs; }
+
+  towerSelectionForRender: [TowerSelectionForRender, TowerSelectionForRender] = [
+    { active: false, selectedIndex: -1 },
+    { active: false, selectedIndex: -1 },
+  ];
 
   constructor() {
     super({ key: 'GameScene' });
@@ -67,6 +78,15 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
       onTowerPlaced: (tower, _playerId) => {
         this.attachTowerVisuals(tower);
         this.statsRecorder.recordTowerPlaced(_playerId, (tower as { towerType?: string }).towerType ?? 'unknown');
+      },
+      onTowerDeath: (tower) => {
+        const towerAny = tower as unknown as { _rangeGfx?: Phaser.GameObjects.Graphics };
+        if (towerAny._rangeGfx) {
+          const gfx = towerAny._rangeGfx;
+          towerAny._rangeGfx = undefined;
+          gfx.destroy();
+          this.towerRangeGfx = this.towerRangeGfx.filter((g) => g !== gfx);
+        }
       },
       onStuckRespawn: () => {},
       onInterest: (playerId, amount) => {
@@ -155,12 +175,18 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   }
 
   private attachVisuals(p: IParticle): void {
-    const isTower = p.typeName === 'laserTower' || p.typeName === 'slowTower';
+    const isLaserTower = p.typeName === 'laserTower';
+    const isSlowTower = p.typeName === 'slowTower';
+    const isTower = isLaserTower || isSlowTower;
     const isCarrier = p.typeName === 'towerCarrier';
 
     let textureKey: string;
     if (isTower || isCarrier) {
-      textureKey = p.owner === 0 ? 'tower_p1' : 'tower_p2';
+      const towerType = isTower
+        ? (isLaserTower ? 'laser' : 'slow')
+        : (p as unknown as { towerType: TowerType }).towerType;
+      const suffix = p.owner === 0 ? '_p1' : '_p2';
+      textureKey = towerType === 'laser' ? `laser${suffix}` : `slow${suffix}`;
     } else {
       textureKey = p.owner === 0 ? 'particle_p1' : 'particle_p2';
     }
@@ -197,15 +223,24 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   }
 
   private createTowerTextures(): void {
-    if (!this.textures.exists('tower_p1')) {
-      this.createDiamondTexture('tower_p1', CONFIG.PLAYER1_COLOR);
-    }
-    if (!this.textures.exists('tower_p2')) {
-      this.createDiamondTexture('tower_p2', CONFIG.PLAYER2_COLOR);
+    const keys = [
+      ['laser_p1', CONFIG.PLAYER1_COLOR],
+      ['laser_p2', CONFIG.PLAYER2_COLOR],
+      ['slow_p1', CONFIG.PLAYER1_COLOR],
+      ['slow_p2', CONFIG.PLAYER2_COLOR],
+    ] as const;
+    for (const [key, color] of keys) {
+      if (!this.textures.exists(key)) {
+        if (key.startsWith('laser')) {
+          this.createLaserTexture(key, color);
+        } else {
+          this.createSlowTexture(key, color);
+        }
+      }
     }
   }
 
-  private createDiamondTexture(key: string, color: number): void {
+  private createLaserTexture(key: string, color: number): void {
     const size = 64;
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -228,6 +263,34 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     ctx.fillStyle = gradient;
     ctx.fillRect(-size / 2, -size / 2, size, size);
     ctx.restore();
+
+    if (this.textures.exists(key)) {
+      this.textures.remove(key);
+    }
+    this.textures.addCanvas(key, canvas);
+  }
+
+  private createSlowTexture(key: string, color: number): void {
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+
+    const r = (color >> 16) & 0xff;
+    const g = (color >> 8) & 0xff;
+    const b = color & 0xff;
+
+    const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    gradient.addColorStop(0, `rgba(255, 255, 255, 1)`);
+    gradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, 0.9)`);
+    gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.5)`);
+    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    ctx.fill();
 
     if (this.textures.exists(key)) {
       this.textures.remove(key);
@@ -262,20 +325,32 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     }
     this.laserGfx.clear();
 
+    const sel = this.towerSelectionForRender;
+    const pulse = 0.6 + 0.4 * Math.sin(this.engine.gameTimeMs * 0.005);
+
     for (let pid = 0; pid < 2; pid++) {
       const towers = this.engine.towers[pid as 0 | 1];
       const color = pid === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+      const isSelected = sel[pid].active && sel[pid].selectedIndex >= 0 && sel[pid].selectedIndex < towers.length;
 
-      for (const tower of towers) {
+      for (let ti = 0; ti < towers.length; ti++) {
+        const tower = towers[ti];
         if (!tower.alive) continue;
 
         const towerAny = tower as unknown as { _rangeGfx?: Phaser.GameObjects.Graphics };
         if (towerAny._rangeGfx) {
           towerAny._rangeGfx.clear();
-          towerAny._rangeGfx.fillStyle(color, 0.06);
-          towerAny._rangeGfx.fillCircle(tower.x, tower.y, tower.range);
-          towerAny._rangeGfx.lineStyle(1, color, 0.25);
-          towerAny._rangeGfx.strokeCircle(tower.x, tower.y, tower.range);
+          if (tower.towerType === 'laser') {
+            towerAny._rangeGfx.fillStyle(color, 0.04);
+            towerAny._rangeGfx.fillCircle(tower.x, tower.y, tower.range);
+            towerAny._rangeGfx.lineStyle(1, color, 0.2);
+            towerAny._rangeGfx.strokeCircle(tower.x, tower.y, tower.range);
+          } else {
+            towerAny._rangeGfx.fillStyle(color, 0.1);
+            towerAny._rangeGfx.fillCircle(tower.x, tower.y, tower.range);
+            towerAny._rangeGfx.lineStyle(2, color, 0.35);
+            towerAny._rangeGfx.strokeCircle(tower.x, tower.y, tower.range);
+          }
         }
 
         if (tower.towerType === 'laser') {
@@ -301,6 +376,11 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
           this.laserGfx.fillRect(bx, by, barW, barH);
           this.laserGfx.fillStyle(color, 0.9);
           this.laserGfx.fillRect(bx, by, barW * hpFrac, barH);
+        }
+
+        if (isSelected && ti === sel[pid].selectedIndex) {
+          this.laserGfx.lineStyle(4, color, pulse);
+          this.laserGfx.strokeCircle(tower.x, tower.y, tower.radius + 8);
         }
       }
     }

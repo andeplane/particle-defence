@@ -1,4 +1,4 @@
-import { CONFIG, getUpgradeCost, type UpgradeType, type TowerType } from './config';
+import { CONFIG, getUpgradeCost, getTowerResearchCost, getTowerConstructionCost, type UpgradeType, type TowerType } from './config';
 
 export interface IPlayer {
   readonly id: 0 | 1;
@@ -215,11 +215,11 @@ export class Player implements IPlayer {
   }
 
   getResearchCost(towerType: TowerType): number {
-    return CONFIG.TOWER_RESEARCH_COSTS[towerType];
+    return getTowerResearchCost(towerType);
   }
 
   getConstructionCost(towerType: TowerType): number {
-    return CONFIG.TOWER_CONSTRUCTION_COSTS[towerType];
+    return getTowerConstructionCost(towerType);
   }
 
   canAffordConstruction(towerType: TowerType): boolean {

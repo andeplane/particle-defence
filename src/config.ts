@@ -8,6 +8,17 @@ function getQueryParam(name: string): string | null {
 
 export const DEBUG_MODE = getQueryParam('debug') === 'true';
 
+// Debug flag for making everything cost $1
+let DEBUG_EVERYTHING_CHEAP = false;
+
+export function setDebugEverythingCheap(enabled: boolean): void {
+  DEBUG_EVERYTHING_CHEAP = enabled;
+}
+
+export function getDebugEverythingCheap(): boolean {
+  return DEBUG_EVERYTHING_CHEAP;
+}
+
 export const CONFIG = {
   GAME_WIDTH: 1024 * RESOLUTION_SCALE,
   GAME_HEIGHT: 512 * RESOLUTION_SCALE,
@@ -159,11 +170,23 @@ export const TOWER_TYPES: readonly TowerType[] = ['laser', 'slow'] as const;
 export type UpgradeType = keyof typeof CONFIG.UPGRADE_COSTS;
 
 export function getUpgradeCost(type: UpgradeType, level: number): number {
+  if (DEBUG_EVERYTHING_CHEAP) return 1;
   const base = CONFIG.UPGRADE_COSTS[type];
   return Math.floor(base * Math.pow(CONFIG.UPGRADE_COST_MULTIPLIER, level));
 }
 
 export function getTowerUpgradeCost(towerType: TowerType, level: number): number {
+  if (DEBUG_EVERYTHING_CHEAP) return 1;
   const base = towerType === 'laser' ? CONFIG.TOWER_LASER_UPGRADE_COST : CONFIG.TOWER_SLOW_UPGRADE_COST;
   return Math.floor(base * Math.pow(CONFIG.TOWER_UPGRADE_COST_MULTIPLIER, level));
+}
+
+export function getTowerResearchCost(towerType: TowerType): number {
+  if (DEBUG_EVERYTHING_CHEAP) return 1;
+  return CONFIG.TOWER_RESEARCH_COSTS[towerType];
+}
+
+export function getTowerConstructionCost(towerType: TowerType): number {
+  if (DEBUG_EVERYTHING_CHEAP) return 1;
+  return CONFIG.TOWER_CONSTRUCTION_COSTS[towerType];
 }

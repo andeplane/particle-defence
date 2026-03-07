@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CONFIG, DEBUG_MODE, getTowerUpgradeCost, type UpgradeType, type TowerType } from '../config';
+import { CONFIG, DEBUG_MODE, getTowerUpgradeCost, setDebugEverythingCheap, type UpgradeType, type TowerType } from '../config';
 import type { IPlayer } from '../player';
 import type { GameMode } from './MenuScene';
 import { MENU_CATEGORIES, type MenuCategory, resolveKeyPress } from './menuConfig';
@@ -7,6 +7,11 @@ import { getClearedUIState } from './UISceneState';
 import { getLaserStats, getSlowStats } from '../particles/towers';
 import type { LaserTowerParticle } from '../particles/LaserTowerParticle';
 import type { SlowTowerParticle } from '../particles/SlowTowerParticle';
+
+export interface TowerSelectionForRender {
+  active: boolean;
+  selectedIndex: number;
+}
 
 export interface IGameViewModel {
   readonly players: readonly [IPlayer, IPlayer];
@@ -22,8 +27,12 @@ export interface IGameViewModel {
   upgradeTower(playerId: 0 | 1, towerIndex: number): boolean;
   hasActiveCarrier(playerId: 0 | 1): boolean;
   getTowers(playerId: 0 | 1): ReadonlyArray<LaserTowerParticle | SlowTowerParticle>;
+  /** Mutable; UIScene updates each frame for in-world selection ring rendering */
+  towerSelectionForRender?: [TowerSelectionForRender, TowerSelectionForRender];
   debugSpeedMultiplier?: number;
   setDebugSpeedMultiplier?: (speed: number) => void;
+  debugEverythingCheap?: boolean;
+  setDebugEverythingCheap?: (enabled: boolean) => void;
 }
 
 
@@ -92,6 +101,8 @@ export class UIScene extends Phaser.Scene {
   private debugSpeedSlider?: Phaser.GameObjects.Rectangle;
   private debugSpeedSliderFill?: Phaser.GameObjects.Rectangle;
   private debugSpeedSliderHandle?: Phaser.GameObjects.Rectangle;
+  private debugEverythingCheapToggle?: Phaser.GameObjects.Rectangle;
+  private debugEverythingCheapText?: Phaser.GameObjects.Text;
   private speedButtons: { bg: Phaser.GameObjects.Rectangle; label: Phaser.GameObjects.Text; speed: number }[] = [];
 
   constructor() {
@@ -128,6 +139,8 @@ export class UIScene extends Phaser.Scene {
     this.debugSpeedSlider = undefined;
     this.debugSpeedSliderFill = undefined;
     this.debugSpeedSliderHandle = undefined;
+    this.debugEverythingCheapToggle = undefined;
+    this.debugEverythingCheapText = undefined;
   }
 
   create(): void {
@@ -903,6 +916,10 @@ export class UIScene extends Phaser.Scene {
       }
     }
 
+    if (DEBUG_MODE && !this.debugMenuCollapsed) {
+      this.updateEverythingCheapToggle();
+    }
+
     const [p1, p2] = this.viewModel.players;
 
     const barX = CONFIG.UI_GAP * 2.5;
@@ -981,6 +998,17 @@ export class UIScene extends Phaser.Scene {
 
     this.updateTowerInfoText(0);
     this.updateTowerInfoText(1);
+
+    if (this.viewModel.towerSelectionForRender) {
+      this.viewModel.towerSelectionForRender[0] = {
+        active: this.activeCategory[0] === 'towers',
+        selectedIndex: this.selectedTowerIndex[0],
+      };
+      this.viewModel.towerSelectionForRender[1] = {
+        active: this.activeCategory[1] === 'towers',
+        selectedIndex: this.selectedTowerIndex[1],
+      };
+    }
   }
 
   private updateTowerInfoText(playerId: 0 | 1): void {
@@ -1025,7 +1053,7 @@ export class UIScene extends Phaser.Scene {
     const centerX = CONFIG.GAME_WIDTH / 2;
     const topY = 40;
     const menuW = 300;
-    const menuH = 200;
+    const menuH = 250;
     const collapsedH = 40;
 
     this.debugMenuBg = this.add.rectangle(centerX, topY + collapsedH / 2, menuW, menuH, 0x000000, 0.85)
@@ -1070,6 +1098,35 @@ export class UIScene extends Phaser.Scene {
       .setDepth(103)
       .setVisible(false);
 
+    // Everything cheap toggle
+    const toggleW = 180;
+    const toggleH = 30;
+    const toggleX = centerX;
+    const toggleY = topY + 140;
+
+    this.debugEverythingCheapToggle = this.add.rectangle(toggleX, toggleY, toggleW, toggleH, 0x333333, 0.9)
+      .setStrokeStyle(2, 0x00ff00, 0.8)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(101)
+      .setVisible(false);
+
+    this.debugEverythingCheapText = this.add.text(toggleX, toggleY, 'Everything cheap? OFF', {
+      fontSize: `${CONFIG.UI_FONT_SMALL}px`,
+      color: '#ffffff',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(102).setVisible(false);
+
+    this.debugEverythingCheapToggle.on('pointerdown', () => {
+      if (this.debugMenuCollapsed) return;
+      const current = this.viewModel.debugEverythingCheap ?? false;
+      const newValue = !current;
+      if (this.viewModel.setDebugEverythingCheap) {
+        this.viewModel.setDebugEverythingCheap(newValue);
+      }
+      setDebugEverythingCheap(newValue);
+      this.updateEverythingCheapToggle();
+    });
+
     this.debugMenuBg.on('pointerdown', () => {
       this.debugMenuCollapsed = !this.debugMenuCollapsed;
       this.updateDebugMenuVisibility();
@@ -1103,7 +1160,15 @@ export class UIScene extends Phaser.Scene {
     });
 
     updateSpeedVisual(1);
+    this.updateEverythingCheapToggle();
     this.updateDebugMenuVisibility();
+  }
+
+  private updateEverythingCheapToggle(): void {
+    if (!this.debugEverythingCheapToggle || !this.debugEverythingCheapText) return;
+    const enabled = this.viewModel.debugEverythingCheap ?? false;
+    this.debugEverythingCheapToggle.setFillStyle(enabled ? 0x00ff00 : 0x333333, enabled ? 0.6 : 0.9);
+    this.debugEverythingCheapText.setText(`Everything cheap? ${enabled ? 'ON' : 'OFF'}`);
   }
 
   private updateDebugMenuVisibility(): void {
@@ -1111,7 +1176,7 @@ export class UIScene extends Phaser.Scene {
 
     const topY = 40;
     const collapsedH = 40;
-    const menuH = 200;
+    const menuH = 250;
 
     if (this.debugMenuCollapsed) {
       this.debugMenuBg.setSize(300, 40);
@@ -1122,8 +1187,10 @@ export class UIScene extends Phaser.Scene {
       this.debugSpeedSlider.setVisible(false);
       if (this.debugSpeedSliderFill) this.debugSpeedSliderFill.setVisible(false);
       if (this.debugSpeedSliderHandle) this.debugSpeedSliderHandle.setVisible(false);
+      if (this.debugEverythingCheapToggle) this.debugEverythingCheapToggle.setVisible(false);
+      if (this.debugEverythingCheapText) this.debugEverythingCheapText.setVisible(false);
     } else {
-      this.debugMenuBg.setSize(300, 200);
+      this.debugMenuBg.setSize(300, menuH);
       this.debugMenuBg.setPosition(CONFIG.GAME_WIDTH / 2, topY + menuH / 2);
       this.debugMenuToggle.setPosition(CONFIG.GAME_WIDTH / 2, topY + collapsedH / 2);
       this.debugMenuToggle.setText('DEBUG');
@@ -1131,6 +1198,8 @@ export class UIScene extends Phaser.Scene {
       this.debugSpeedSlider.setVisible(true);
       if (this.debugSpeedSliderFill) this.debugSpeedSliderFill.setVisible(true);
       if (this.debugSpeedSliderHandle) this.debugSpeedSliderHandle.setVisible(true);
+      if (this.debugEverythingCheapToggle) this.debugEverythingCheapToggle.setVisible(true);
+      if (this.debugEverythingCheapText) this.debugEverythingCheapText.setVisible(true);
     }
   }
 

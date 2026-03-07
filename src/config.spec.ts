@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { CONFIG, getUpgradeCost, type UpgradeType } from './config';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { CONFIG, getUpgradeCost, getTowerUpgradeCost, getTowerResearchCost, getTowerConstructionCost, setDebugEverythingCheap, type UpgradeType } from './config';
 
 describe(getUpgradeCost.name, () => {
   const upgradeTypes: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles', 'defense', 'interestRate'];
@@ -65,5 +65,48 @@ describe('CONFIG', () => {
   it('has positive game dimensions', () => {
     expect(CONFIG.GAME_WIDTH).toBeGreaterThan(0);
     expect(CONFIG.GAME_HEIGHT).toBeGreaterThan(0);
+  });
+});
+
+describe('Debug Everything Cheap', () => {
+  beforeEach(() => {
+    setDebugEverythingCheap(false);
+  });
+
+  afterEach(() => {
+    setDebugEverythingCheap(false);
+  });
+
+  it('getUpgradeCost returns 1 when enabled', () => {
+    setDebugEverythingCheap(true);
+    expect(getUpgradeCost('health', 0)).toBe(1);
+    expect(getUpgradeCost('health', 10)).toBe(1);
+    expect(getUpgradeCost('attack', 5)).toBe(1);
+  });
+
+  it('getTowerUpgradeCost returns 1 when enabled', () => {
+    setDebugEverythingCheap(true);
+    expect(getTowerUpgradeCost('laser', 0)).toBe(1);
+    expect(getTowerUpgradeCost('laser', 5)).toBe(1);
+    expect(getTowerUpgradeCost('slow', 3)).toBe(1);
+  });
+
+  it('getTowerResearchCost returns 1 when enabled', () => {
+    setDebugEverythingCheap(true);
+    expect(getTowerResearchCost('laser')).toBe(1);
+    expect(getTowerResearchCost('slow')).toBe(1);
+  });
+
+  it('getTowerConstructionCost returns 1 when enabled', () => {
+    setDebugEverythingCheap(true);
+    expect(getTowerConstructionCost('laser')).toBe(1);
+    expect(getTowerConstructionCost('slow')).toBe(1);
+  });
+
+  it('costs return to normal when disabled', () => {
+    setDebugEverythingCheap(true);
+    expect(getUpgradeCost('health', 0)).toBe(1);
+    setDebugEverythingCheap(false);
+    expect(getUpgradeCost('health', 0)).toBe(CONFIG.UPGRADE_COSTS.health);
   });
 });
