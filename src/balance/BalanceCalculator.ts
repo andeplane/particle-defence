@@ -7,6 +7,8 @@ import { CONFIG, type UpgradeType, type TowerType } from '../config';
 export interface BalanceConfig {
   readonly particleBaseHealth: number;
   readonly particleBaseAttack: number;
+  readonly healthPerLevel: number;
+  readonly attackPerLevel: number;
   readonly particleBaseRadius: number;
   readonly particleBaseSpeed: number;
   readonly spawnIntervalMs: number;
@@ -47,6 +49,8 @@ export function defaultBalanceConfig(): BalanceConfig {
   return {
     particleBaseHealth: CONFIG.PARTICLE_BASE_HEALTH,
     particleBaseAttack: CONFIG.PARTICLE_BASE_ATTACK,
+    healthPerLevel: CONFIG.HEALTH_PER_LEVEL,
+    attackPerLevel: CONFIG.ATTACK_PER_LEVEL,
     particleBaseRadius: CONFIG.PARTICLE_BASE_RADIUS,
     particleBaseSpeed: CONFIG.PARTICLE_SPEED,
     spawnIntervalMs: CONFIG.SPAWN_INTERVAL_MS,
@@ -138,8 +142,8 @@ export function maxUpgradeLevel(type: UpgradeType, cfg: BalanceConfig): number {
 
 export function statAtLevel(type: UpgradeType, level: number, cfg: BalanceConfig): number {
   switch (type) {
-    case 'health': return cfg.particleBaseHealth + level;
-    case 'attack': return cfg.particleBaseAttack + level;
+    case 'health': return cfg.particleBaseHealth + level * cfg.healthPerLevel;
+    case 'attack': return cfg.particleBaseAttack + level * cfg.attackPerLevel;
     case 'radius': return cfg.particleBaseRadius + level;
     case 'spawnRate': {
       const interval = Math.max(cfg.minSpawnInterval, cfg.spawnIntervalMs - level * cfg.spawnRateReductionPerLevel);
@@ -299,10 +303,10 @@ export function lanchesterROIPerGold(
 
   switch (type) {
     case 'attack':
-      newPower = lanchesterPower(N, A + 1, H, D);
+      newPower = lanchesterPower(N, A + cfg.attackPerLevel, H, D);
       break;
     case 'health':
-      newPower = lanchesterPower(N, A, H + 1, D);
+      newPower = lanchesterPower(N, A, H + cfg.healthPerLevel, D);
       break;
     case 'defense': {
       const newD = Math.min(cfg.ownershipDefenseMax, D + cfg.ownershipDefensePerLevel);
@@ -512,7 +516,7 @@ export function detectRedFlags(cfg: BalanceConfig): BalanceRedFlag[] {
 
 function findOneShotLevel(cfg: BalanceConfig): number | null {
   for (let level = 0; level <= 20; level++) {
-    const attack = cfg.particleBaseAttack + level;
+    const attack = cfg.particleBaseAttack + level * cfg.attackPerLevel;
     if (attack >= cfg.particleBaseHealth) return level;
   }
   return null;

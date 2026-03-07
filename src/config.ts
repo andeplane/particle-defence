@@ -30,15 +30,19 @@ export const CONFIG = {
   BASE_WIDTH_CELLS: 4,
 
   // Particles
-  PARTICLE_BASE_HEALTH: 3,
-  PARTICLE_BASE_ATTACK: 1,
+  PARTICLE_BASE_HEALTH: 5,
+  PARTICLE_BASE_ATTACK: 2,
+  /** HP gained per health upgrade level (< 1.0 gives diminishing returns vs attack) */
+  HEALTH_PER_LEVEL: 0.8,
+  /** Damage gained per attack upgrade level (> 1.0 makes attack scale faster than health) */
+  ATTACK_PER_LEVEL: 1.2,
   PARTICLE_BASE_RADIUS: 3,
   PARTICLE_SPEED: 180,
-  SPAWN_INTERVAL_MS: 60,
+  SPAWN_INTERVAL_MS: 200,
   /** Minimum spawn interval (ms) - spawn rate upgrade cannot go below this */
-  MIN_SPAWN_INTERVAL: 50,
+  MIN_SPAWN_INTERVAL: 40,
   /** Spawn interval reduction (ms) per spawn rate upgrade level */
-  SPAWN_RATE_REDUCTION_PER_LEVEL: 20,
+  SPAWN_RATE_REDUCTION_PER_LEVEL: 10,
   /** Speed increase per speed upgrade level */
   SPEED_PER_LEVEL: 20,
   MAX_PARTICLES_PER_PLAYER: 1000,
@@ -58,12 +62,12 @@ export const CONFIG = {
   BASE_DAMAGE_ON_REACH: 1,
 
   // Economy
-  STARTING_GOLD: 10,
+  STARTING_GOLD: 25,
   KILL_REWARD: 1,
   /** Fraction of KILL_REWARD awarded per nuke kill (1/4) */
   NUCLEAR_KILL_REWARD_FRACTION: 0.25,
-  NUCLEAR_FIRST_AVAILABLE_MS: 180_000,  // 3 minutes
-  NUCLEAR_COOLDOWN_MS: 600_000,        // 10 minutes
+  NUCLEAR_FIRST_AVAILABLE_MS: 300_000,  // 5 minutes
+  NUCLEAR_COOLDOWN_MS: 300_000,        // 5 minutes
   /** Interval (ms) between gold interest payouts */
   INTEREST_INTERVAL_MS: 30_000,
   /** Interest rate per upgrade level (e.g. 0.0025 = +0.25%) */
@@ -74,10 +78,10 @@ export const CONFIG = {
     health: 5,
     attack: 5,
     radius: 3,
-    spawnRate: 10,
+    spawnRate: 8,
     speed: 7,
     maxParticles: 10,
-    defense: 200,
+    defense: 15,
     interestRate: 10,
   },
   /** Cost multiplier per upgrade level: cost = baseCost * UPGRADE_COST_MULTIPLIER^level */
@@ -123,9 +127,9 @@ export const CONFIG = {
   /** Base defense bonus (0-1) when standing in owned cell, before upgrade */
   OWNERSHIP_DEFENSE_BASE: 0.05,
   /** Per-level defense bonus increase from upgrade */
-  OWNERSHIP_DEFENSE_PER_LEVEL: 0.025,
+  OWNERSHIP_DEFENSE_PER_LEVEL: 0.02,
   /** Max total defense bonus (base + upgrade) */
-  OWNERSHIP_DEFENSE_MAX: 0.25,
+  OWNERSHIP_DEFENSE_MAX: 0.30,
   /** Duration (ms) of capture flash overlay */
   OWNERSHIP_CAPTURE_FLASH_MS: 300,
   /** Alpha for subtle owned-cell tint */
@@ -134,7 +138,9 @@ export const CONFIG = {
   OWNERSHIP_CAPTURE_FLASH_ALPHA: 0.15,
   // Towers
   TOWER_MAX_PER_PLAYER: 5,
-  TOWER_CARRIER_HP: 5,
+  TOWER_CARRIER_HP: 10,
+  /** Damage reduction factor for placed towers (0.5 = towers take 50% less damage) */
+  TOWER_DAMAGE_REDUCTION: 0.5,
   /** Visual and collision radius for placed towers (laser/slow) */
   TOWER_VISUAL_RADIUS: 14,
   TOWER_UPGRADE_COST_MULTIPLIER: 1.4,
@@ -149,21 +155,23 @@ export const CONFIG = {
     slow: 500,
   } as Record<string, number>,
 
-  TOWER_LASER_BASE_HP: 15,
-  TOWER_LASER_BASE_DAMAGE: 2,
-  TOWER_LASER_BASE_RANGE: 120,
-  TOWER_LASER_BASE_ATTACK_SPEED: 2,
+  TOWER_LASER_BASE_HP: 50,
+  TOWER_LASER_BASE_DAMAGE: 5,
+  TOWER_LASER_BASE_RANGE: 150,
+  TOWER_LASER_BASE_ATTACK_SPEED: 2.5,
   TOWER_LASER_UPGRADE_COST: 200,
-  TOWER_LASER_DAMAGE_PER_LEVEL: 1,
-  TOWER_LASER_RANGE_PER_LEVEL: 10,
-  TOWER_LASER_ATTACK_SPEED_PER_LEVEL: 0.3,
+  TOWER_LASER_DAMAGE_PER_LEVEL: 2,
+  TOWER_LASER_RANGE_PER_LEVEL: 15,
+  TOWER_LASER_ATTACK_SPEED_PER_LEVEL: 0.4,
+  TOWER_LASER_HP_PER_LEVEL: 10,
 
-  TOWER_SLOW_BASE_HP: 10,
-  TOWER_SLOW_BASE_FACTOR: 0.3,
-  TOWER_SLOW_BASE_RANGE: 100,
+  TOWER_SLOW_BASE_HP: 40,
+  TOWER_SLOW_BASE_FACTOR: 0.4,
+  TOWER_SLOW_BASE_RANGE: 140,
   TOWER_SLOW_UPGRADE_COST: 200,
-  TOWER_SLOW_FACTOR_PER_LEVEL: 0.05,
-  TOWER_SLOW_RANGE_PER_LEVEL: 15,
+  TOWER_SLOW_FACTOR_PER_LEVEL: 0.07,
+  TOWER_SLOW_RANGE_PER_LEVEL: 20,
+  TOWER_SLOW_HP_PER_LEVEL: 8,
 } as const;
 
 export type TowerType = 'laser' | 'slow';

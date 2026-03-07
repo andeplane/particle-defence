@@ -28,6 +28,8 @@ export interface AIProfile {
   readonly towersEnabled?: boolean;
   /** Whether nuke is allowed (default true) */
   readonly nukeEnabled?: boolean;
+  /** Tower investment priority: 'high' researches/builds earlier and more aggressively */
+  readonly towerPriority?: 'normal' | 'high';
 }
 
 export type AIConfig = {
@@ -99,11 +101,16 @@ export class AIController {
   private tryTowerActions(state: AIGameState): void {
     if (this.profile.towersEnabled === false) return;
     const ai = state.players[this.playerId];
+    const gameTimeSec = state.gameTimeMs / 1000;
+    const highPriority = this.profile.towerPriority === 'high';
+    const minResearchTime = highPriority ? 60 : 120;
 
-    for (const towerType of TOWER_TYPES) {
-      if (!ai.hasResearched(towerType) && ai.canResearchTower(towerType)) {
-        state.buyResearch(this.playerId, towerType);
-        return;
+    if (gameTimeSec >= minResearchTime) {
+      for (const towerType of TOWER_TYPES) {
+        if (!ai.hasResearched(towerType) && ai.canResearchTower(towerType)) {
+          state.buyResearch(this.playerId, towerType);
+          return;
+        }
       }
     }
 
@@ -114,24 +121,36 @@ export class AIController {
       const distFromBase = this.playerId === 0
         ? p.x - baseW
         : CONFIG.GAME_WIDTH - baseW - p.x;
-      if (distFromBase > CONFIG.GAME_WIDTH * 0.15) {
-        state.placeTower(this.playerId);
-        return;
+
+      const minPlaceDist = CONFIG.GAME_WIDTH * 0.30;
+      if (distFromBase > minPlaceDist) {
+        const nearbyEnemies = this.countNearbyEnemies(state, p.x, p.y, 200);
+        if (nearbyEnemies >= 3 || distFromBase > CONFIG.GAME_WIDTH * 0.45) {
+          state.placeTower(this.playerId);
+          return;
+        }
       }
       return;
     }
 
     const towers = state.towers[this.playerId];
     if (towers.length < CONFIG.TOWER_MAX_PER_PLAYER) {
+      const constructionReserve = highPriority ? 1.2 : 1.5;
       const preferredType: TowerType = towers.length % 2 === 0 ? 'laser' : 'slow';
       if (ai.hasResearched(preferredType) && ai.canAffordConstruction(preferredType)) {
-        state.constructTower(this.playerId, preferredType);
-        return;
+        const cost = ai.getConstructionCost(preferredType);
+        if (ai.gold >= cost * constructionReserve) {
+          state.constructTower(this.playerId, preferredType);
+          return;
+        }
       }
       for (const t of TOWER_TYPES) {
         if (ai.hasResearched(t) && ai.canAffordConstruction(t)) {
-          state.constructTower(this.playerId, t);
-          return;
+          const cost = ai.getConstructionCost(t);
+          if (ai.gold >= cost * constructionReserve) {
+            state.constructTower(this.playerId, t);
+            return;
+          }
         }
       }
     }
@@ -147,6 +166,18 @@ export class AIController {
       }
       state.upgradeTower(this.playerId, lowestIdx);
     }
+  }
+
+  private countNearbyEnemies(state: AIGameState, x: number, y: number, range: number): number {
+    const rangeSq = range * range;
+    let count = 0;
+    for (const p of state.particles) {
+      if (!p.alive || p.owner === this.playerId) continue;
+      const dx = p.x - x;
+      const dy = p.y - y;
+      if (dx * dx + dy * dy <= rangeSq) count++;
+    }
+    return count;
   }
 
   private tryUpgrade(state: AIGameState): void {

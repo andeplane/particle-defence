@@ -26,6 +26,8 @@ export interface TournamentConfig {
   readonly gridType: GridType;
   readonly tickMs: number;
   readonly maxGameTimeSec: number;
+  /** Run each matchup with sides swapped to eliminate positional bias (default: true) */
+  readonly sideSwap: boolean;
   readonly onMatchupStart?: (p0Name: string, p1Name: string) => void;
   readonly onGameComplete?: (p0Name: string, p1Name: string, gameIndex: number) => void;
 }
@@ -35,6 +37,7 @@ const defaultTournamentConfig: TournamentConfig = {
   gridType: 'random',
   tickMs: 500,
   maxGameTimeSec: 20 * 60,
+  sideSwap: true,
 };
 
 export function runTournament(
@@ -53,8 +56,15 @@ export function runTournament(
     for (let j = i + 1; j < profiles.length; j++) {
       cfg.onMatchupStart?.(names[i], names[j]);
 
-      const batchCfg: Partial<BatchConfig> = {
-        games: cfg.gamesPerMatchup,
+      const gamesNormal = cfg.sideSwap
+        ? Math.ceil(cfg.gamesPerMatchup / 2)
+        : cfg.gamesPerMatchup;
+      const gamesSwapped = cfg.sideSwap
+        ? cfg.gamesPerMatchup - gamesNormal
+        : 0;
+
+      const normalReport = runBatch({
+        games: gamesNormal,
         gridType: cfg.gridType,
         tickMs: cfg.tickMs,
         maxGameTimeSec: cfg.maxGameTimeSec,
@@ -63,19 +73,41 @@ export function runTournament(
         onGameComplete: cfg.onGameComplete
           ? (idx) => cfg.onGameComplete!(names[i], names[j], idx)
           : undefined,
-      };
+      });
 
-      const report = runBatch(batchCfg);
-      const g = report.gamesPlayed;
+      let iWins = normalReport.p0Wins;
+      let jWins = normalReport.p1Wins;
+      let draws = normalReport.draws;
+      let totalDuration = normalReport.durationStats.mean * normalReport.gamesPlayed;
+      let totalGames = normalReport.gamesPlayed;
+
+      if (gamesSwapped > 0) {
+        const swappedReport = runBatch({
+          games: gamesSwapped,
+          gridType: cfg.gridType,
+          tickMs: cfg.tickMs,
+          maxGameTimeSec: cfg.maxGameTimeSec,
+          p0Profile: profiles[j],
+          p1Profile: profiles[i],
+          onGameComplete: cfg.onGameComplete
+            ? (idx) => cfg.onGameComplete!(names[i], names[j], gamesNormal + idx)
+            : undefined,
+        });
+        iWins += swappedReport.p1Wins;
+        jWins += swappedReport.p0Wins;
+        draws += swappedReport.draws;
+        totalDuration += swappedReport.durationStats.mean * swappedReport.gamesPlayed;
+        totalGames += swappedReport.gamesPlayed;
+      }
 
       const result: MatchupResult = {
         p0Profile: names[i],
         p1Profile: names[j],
-        p0WinRate: g > 0 ? report.p0Wins / g : 0,
-        p1WinRate: g > 0 ? report.p1Wins / g : 0,
-        drawRate: g > 0 ? report.draws / g : 0,
-        avgDurationSec: report.durationStats.mean,
-        gamesPlayed: g,
+        p0WinRate: totalGames > 0 ? iWins / totalGames : 0,
+        p1WinRate: totalGames > 0 ? jWins / totalGames : 0,
+        drawRate: totalGames > 0 ? draws / totalGames : 0,
+        avgDurationSec: totalGames > 0 ? Math.round(totalDuration / totalGames) : 0,
+        gamesPlayed: totalGames,
       };
 
       matchups.push(result);

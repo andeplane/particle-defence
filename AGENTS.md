@@ -75,110 +75,34 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 
 ## Configuration (`src/config.ts`)
 
-**ALL GAME PARAMETERS ARE DEFINED HERE** - This is the single source of truth for game balance and settings.
+**`src/config.ts` is the single source of truth for ALL game parameters.** Never duplicate concrete values elsewhere; always refer to the config file for current numbers.
 
-### Resolution & Display
-- `RESOLUTION_SCALE: 2` - Scales all game dimensions
-- `GAME_WIDTH: 2048` (1024 * scale)
-- `GAME_HEIGHT: 1024` (512 * scale)
-- `BG_COLOR: 0x0a0a0f` - Background color
-- `FLOOR_COLOR: 0x0d0d1a` - Floor/walkable area color
-- `WALL_COLOR: 0x1a1a2e` - Wall color
+Config values are organized into these categories:
 
-### Maze Configuration
-- `MAZE_COLS: 64` (32 * scale)
-- `MAZE_ROWS: 32` (16 * scale)
-- `PERCOLATION_THRESHOLD: 0.8` - Probability threshold for open cells (higher = more open)
-- `BASE_WIDTH_CELLS: 4` - Width of each player's base in cells
+- **Resolution & Display** - Game dimensions (scaled by `RESOLUTION_SCALE`), background/floor/wall colors
+- **Maze** - Grid dimensions, percolation threshold, base width
+- **Particles** - Base health/attack/radius/speed, spawn interval, population caps, drift and stuck detection
+- **Bases** - Starting HP, damage dealt on reach
+- **Economy & Upgrades** - Starting gold, kill reward, nuke reward fraction/timing/cooldown, interest rate settings, per-type base costs (`UPGRADE_COSTS`), cost multiplier
+- **Cell Effects** - Default slow factor, damage DPS, temp wall duration/HP, rendering alphas
+- **Cell Ownership** - Enemy slow factor, defense base/per-level/max, capture flash settings
+- **Towers** - Max per player, carrier HP, research/construction/upgrade costs, laser and slow tower base stats and per-level scaling (including HP per level)
+- **Spatial Hash** - Cell size for collision optimization
+- **UI** - Font sizes, bar/button dimensions, gap spacing (all resolution-scaled)
+- **Visual** - Player colors (hex and string forms)
 
-### Particle (Unit) Configuration
-- `PARTICLE_BASE_HEALTH: 3` - Starting health
-- `PARTICLE_BASE_ATTACK: 1` - Starting attack damage
-- `PARTICLE_BASE_RADIUS: 3` - Starting collision radius
-- `PARTICLE_SPEED: 180` - Base movement speed (pixels/second)
-- `SPAWN_INTERVAL_MS: 60` - Base spawn interval (reduced by spawnRate upgrades)
-- `MAX_PARTICLES_PER_PLAYER: 1000` - Base max units per player (increased by maxParticles upgrade)
-- `MAX_PARTICLES_PER_LEVEL: 50` - Per-level increase for maxParticles upgrade
-- `MAX_PARTICLES_TOTAL: 2000` - Global unit cap
-- `PARTICLE_DRIFT_STRENGTH: 0.15` - Random drift per second (fraction of speed) to prevent stuck particles
-- `PARTICLE_ENEMY_BIAS: 0.65` - Chance that random drift pushes towards enemy base
-- `STUCK_THRESHOLD_BLOCKS: 10` - Respawn if particle moves less than this many blocks
-- `STUCK_THRESHOLD_SECONDS: 10` - ...in this many seconds
-
-### Base Configuration
-- `BASE_HP: 1000` - Starting base health
-- `BASE_DAMAGE_ON_REACH: 1` - Damage dealt when particle reaches enemy base
-
-### Economy & Upgrades
-- `KILL_REWARD: 1` - Gold awarded per kill
-- `NUCLEAR_KILL_REWARD_FRACTION: 0.25` - Fraction of kill reward for nuke kills (1/4)
-- `NUCLEAR_FIRST_AVAILABLE_MS: 180_000` - When nukes become available (3 minutes)
-- `NUCLEAR_COOLDOWN_MS: 600_000` - Nuke cooldown (10 minutes)
-- `INTEREST_INTERVAL_MS: 30_000` - Interval (ms) between gold interest payouts
-- `INTEREST_RATE_PER_LEVEL: 0.0025` - Interest rate per upgrade level (+0.25%)
-- `MAX_INTEREST_RATE: 0.05` - Max interest rate cap (5%)
-- `UPGRADE_COSTS` - Base costs for each upgrade type:
-  - `health: 5`
-  - `attack: 5`
-  - `radius: 3`
-  - `spawnRate: 10`
-  - `speed: 7`
-  - `maxParticles: 10`
-  - `defense: 5`
-  - `interestRate: 10`
-- `UPGRADE_COST_MULTIPLIER: 1.3` - Cost multiplier per level (cost = baseCost * multiplier^level)
-
-### Cell Effect Defaults
-- `SLOW_EFFECT_FACTOR: 0.4` - Default slow multiplier for enemies in slow cells
-- `DAMAGE_CELL_DPS: 2` - Default damage per second for damage cells
-- `TEMP_WALL_DEFAULT_TIME_MS: 10_000` - Default temp wall duration (10 seconds)
-- `TEMP_WALL_DEFAULT_HP: 20` - Default temp wall hit points
-- `SLOW_EFFECT_ALPHA: 0.18` - Rendering alpha for slow cell overlay
-- `DAMAGE_EFFECT_ALPHA: 0.22` - Rendering alpha for damage cell overlay
-- `TEMP_WALL_ALPHA: 0.55` - Rendering alpha for temp wall overlay
-- `TEMP_WALL_HP_BAR_HEIGHT: 4` - Height of the HP bar rendered on temp walls
-
-### Cell Ownership
-- `OWNERSHIP_SLOW_FACTOR: 0.8` - Speed multiplier when moving through enemy-owned cells (20% slower)
-- `OWNERSHIP_DEFENSE_BASE: 0.05` - Base defense bonus (5%) when standing in owned cell
-- `OWNERSHIP_DEFENSE_PER_LEVEL: 0.025` - Per-level increase from defense upgrade (+2.5%)
-- `OWNERSHIP_DEFENSE_MAX: 0.25` - Max total defense bonus (25%)
-- `OWNERSHIP_CAPTURE_FLASH_MS: 300` - Duration of capture flash overlay
-- `OWNERSHIP_EFFECT_ALPHA: 0.08` - Alpha for subtle owned-cell tint
-- `OWNERSHIP_CAPTURE_FLASH_ALPHA: 0.15` - Alpha for brief capture flash
-
-### Towers
-- `TOWER_MAX_PER_PLAYER: 5` - Max towers per player
-- `TOWER_CARRIER_HP: 5` - Carrier particle health
-- `TOWER_UPGRADE_COST_MULTIPLIER: 1.4` - Tower upgrade cost scaling
-- **Research costs**: Laser 50g, Slow 40g
-- **Construction costs**: Laser 30g, Slow 25g
-- **Laser tower base**: HP 15, damage 2, range 120px, attack speed 2/sec
-- **Slow tower base**: HP 10, slow 30%, range 100px
-- **Per-level improvements**: Laser +1 damage, +10 range, +0.3 atk/s. Slow +5% slow, +15 range
-
-### Spatial Hash
-- `SPATIAL_CELL_SIZE: 32` (16 * scale) - Grid cell size for collision optimization
-
-### UI Configuration (scaled with resolution)
-- `UI_FONT_SMALL: 20` (10 * scale)
-- `UI_FONT_MED: 26` (13 * scale)
-- `UI_FONT_LARGE: 28` (14 * scale)
-- `UI_BAR_WIDTH: 400` (200 * scale)
-- `UI_BAR_HEIGHT: 28` (14 * scale)
-- `UI_BTN_WIDTH: 104` (52 * scale)
-- `UI_BTN_HEIGHT: 80` (40 * scale)
-- `UI_GAP: 8` (4 * scale)
-
-### Visual Colors
-- `PLAYER1_COLOR: 0x00ddff` (cyan)
-- `PLAYER2_COLOR: 0xff4444` (red)
-- `PLAYER1_COLOR_STR: '#00ddff'`
-- `PLAYER2_COLOR_STR: '#ff4444'`
+### Key Formulas and Relationships
+- Upgrade cost scales exponentially: `baseCost * UPGRADE_COST_MULTIPLIER ^ level` (via `getUpgradeCost()`)
+- Spawn interval decreases linearly with spawnRate upgrades, clamped to `MIN_SPAWN_INTERVAL`
+- Defense bonus = `OWNERSHIP_DEFENSE_BASE + level * OWNERSHIP_DEFENSE_PER_LEVEL`, capped at `OWNERSHIP_DEFENSE_MAX`
+- Interest rate = `level * INTEREST_RATE_PER_LEVEL`, capped at `MAX_INTEREST_RATE`, applied every `INTEREST_INTERVAL_MS`
+- Tower stats scale with level: `getLaserStats(level)` and `getSlowStats(level)` in `towers.ts` compute damage, range, attack speed, and HP at each level
 
 ### Helper Functions
-- `getUpgradeCost(type: UpgradeType, level: number): number` - Calculates upgrade cost based on level
-- `UpgradeType` - Type union: `'health' | 'attack' | 'radius' | 'spawnRate' | 'speed' | 'defense' | 'maxParticles' | 'interestRate'`
+- `getUpgradeCost(type, level)` - Particle upgrade cost at given level
+- `getTowerUpgradeCost(towerType, level)` - Tower upgrade cost at given level
+- `getTowerResearchCost(towerType)` / `getTowerConstructionCost(towerType)` - One-time tower costs
+- `UpgradeType` - Type union of all upgrade keys
 
 ## Game Mechanics
 
@@ -201,22 +125,21 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - Dead particles are cleaned up and removed
 
 ### Upgrade System
-- 8 upgrade types: health, attack, radius, spawnRate, speed, defense, maxParticles (increases particle cap by 50 per level), interestRate (gold interest)
-- Costs increase exponentially: `baseCost * 1.3^level`
+- 8 upgrade types: health, attack, radius, spawnRate, speed, defense, maxParticles (increases particle cap per level), interestRate (gold interest)
+- Costs increase exponentially: `baseCost * UPGRADE_COST_MULTIPLIER ^ level` (see `config.ts`)
 - Upgrades affect all future spawned particles
 - Upgrade levels tracked per player
 
 ### Gold Interest
 - Gold earns periodic interest when the interest upgrade is purchased (starts at 0%)
-- +0.25% per upgrade level, capped at 5% (requires 20 levels to reach max)
-- Applied every 30 seconds: `gold += floor(gold * rate)` per interval
+- Rate increases per upgrade level, capped at `MAX_INTEREST_RATE` (see `config.ts`)
+- Applied every `INTEREST_INTERVAL_MS`: `gold += floor(gold * rate)` per interval
 - Rewards saving gold; interest is discrete (floor rounding)
 
 ### Nuclear Weapon
 - Instantly kills all enemy particles
-- Awards reduced gold (25% of normal kill reward)
-- Has cooldown period (10 minutes)
-- Available immediately (can be changed via config)
+- Awards reduced gold (fraction of normal kill reward, see `NUCLEAR_KILL_REWARD_FRACTION`)
+- Available after `NUCLEAR_FIRST_AVAILABLE_MS` game time, then subject to `NUCLEAR_COOLDOWN_MS` cooldown
 
 ### Cell Effects System
 Grid cells can have composable effects layered on top of the base boolean grid. Each cell supports multiple effects from different players simultaneously. Effects are managed by `CellEffectMap` and accessible via `GameContext.cellEffects`.
@@ -245,24 +168,25 @@ Each grid cell can be "owned" by a player. Ownership is tracked per cell and aff
 - If player A leaves the cell (no A particles in it) and player B enters, B captures the cell.
 - If B enters while A still has particles in the cell, A keeps ownership.
 
-**Defense bonus**: Particles of the owning player receive a damage reduction while standing in that owned cell. Base bonus is 5% (configurable). The defense upgrade increases this bonus by +2.5% per level, capped at 25% total.
+**Defense bonus**: Particles of the owning player receive a damage reduction while standing in that owned cell. Base bonus is `OWNERSHIP_DEFENSE_BASE`. The defense upgrade increases this by `OWNERSHIP_DEFENSE_PER_LEVEL` per level, capped at `OWNERSHIP_DEFENSE_MAX`.
 
-**Ownership slow**: Particles moving through enemy-owned cells are slowed by 20% (configurable via `OWNERSHIP_SLOW_FACTOR`). This stacks multiplicatively with other slow effects. Own-owned and unowned cells do not slow movement.
+**Ownership slow**: Particles moving through enemy-owned cells are slowed by `OWNERSHIP_SLOW_FACTOR`. This stacks multiplicatively with other slow effects. Own-owned and unowned cells do not slow movement.
 
 **Visual feedback**: Owned cells show a subtle team-color tint (low alpha). A brief capture flash (slightly stronger tint) appears when a cell is captured.
 
 **Integration**: `AbstractParticle.update()` calls `cellEffects.enterCell()` and `leaveCell()` on cell transitions. `GameEngine.updateParticleDefenseFactors()` sets each particle's `defenseFactor` based on ownership before collision and cell damage.
 
 ### Tower System
-- **Research**: Players must first research a tower type (one-time gold cost) before they can build it
-- **Construction**: Buying a tower spawns a `TowerCarrierParticle` from the player's base that moves through the maze
+- **Research**: Players must first research a tower type (one-time gold cost, see `TOWER_RESEARCH_COSTS`) before they can build it
+- **Construction**: Buying a tower (cost in `TOWER_CONSTRUCTION_COSTS`) spawns a `TowerCarrierParticle` from the player's base that moves through the maze
+- **Carrier vulnerability**: Carriers have elevated HP (see `TOWER_CARRIER_HP`) and can be attacked and killed before placement (attack=0, doesn't fight back). The PLACE button shows a health bar so players can monitor carrier HP and decide when to deploy
 - **Placement**: When the player presses PLACE, the carrier converts to a stationary tower at its current position
-- **Carrier vulnerability**: Carriers can be attacked and killed before placement (attack=0, doesn't fight back)
 - **Tower types**: Laser (fires at nearest enemy in range) and Slow (reduces enemy speed in range)
-- **Tower upgrades**: Each placed tower has its own level; upgrading costs gold and improves stats
+- **Tower upgrades**: Each placed tower has its own level; upgrading costs gold (scaling with `TOWER_UPGRADE_COST_MULTIPLIER`) and improves damage, range, attack speed, and HP. Stats computed by `getLaserStats(level)` / `getSlowStats(level)` in `towers.ts`
+- **HP scaling**: Tower HP increases with each upgrade level (`TOWER_LASER_HP_PER_LEVEL`, `TOWER_SLOW_HP_PER_LEVEL`), making upgraded towers significantly more durable
 - **Destructibility**: Towers have HP and can be destroyed by enemy particles colliding with them
 - **Nuke interaction**: Nukes kill enemy towers (they're still particles)
-- **Max towers**: 5 per player (configurable via `CONFIG.TOWER_MAX_PER_PLAYER`)
+- **Max towers**: Configurable via `CONFIG.TOWER_MAX_PER_PLAYER`
 - **Visual**: Tower body is a diamond-shaped glow; range shown as translucent circle; laser draws a beam to target; HP bar shown when damaged
 
 ### Win Condition
@@ -299,13 +223,13 @@ The UI uses a **Warcraft-style hierarchical menu**. Each player sees top-level c
 - **P2**: Backspace or click BACK button
 
 ### Research Submenu (P1 keys / P2 keys)
-- **Q/I** - Research Laser Tower ($50, one-time)
-- **W/O** - Research Slow Tower ($40, one-time)
+- **Q/I** - Research Laser Tower (one-time cost, see `config.ts`)
+- **W/O** - Research Slow Tower (one-time cost, see `config.ts`)
 
 ### Construction Submenu (P1 keys / P2 keys)
-- **Q/I** - Build Laser Tower ($30, spawns carrier) -- greyed if not researched
-- **W/O** - Build Slow Tower ($25, spawns carrier) -- greyed if not researched
-- **E/P** - PLACE (converts active carrier to tower at its position)
+- **Q/I** - Build Laser Tower (spawns carrier) -- greyed if not researched
+- **W/O** - Build Slow Tower (spawns carrier) -- greyed if not researched
+- **E/P** - PLACE (converts active carrier to tower at its position; shows carrier HP bar)
 
 ### Upgrades Submenu (P1 keys / P2 keys)
 - **Q/I** - Upgrade Health
@@ -313,9 +237,9 @@ The UI uses a **Warcraft-style hierarchical menu**. Each player sees top-level c
 - **E/P** - Upgrade Radius
 - **R/U** - Upgrade Spawn Rate
 - **A/K** - Upgrade Speed
-- **S/L** - Upgrade Max Particles (+50 cap per level)
-- **D/J** - Upgrade Defense (ownership defense bonus, up to 25%)
-- **F/H** - Upgrade Interest Rate (+0.25% gold interest per 30s, max 5%)
+- **S/L** - Upgrade Max Particles (increases population cap per level)
+- **D/J** - Upgrade Defense (ownership defense bonus, capped at `OWNERSHIP_DEFENSE_MAX`)
+- **F/H** - Upgrade Interest Rate (periodic gold interest, capped at `MAX_INTEREST_RATE`)
 
 ### Abilities Submenu (P1 keys / P2 keys)
 - **Q/I** - Launch Nuke
@@ -355,6 +279,8 @@ The UI uses a **Warcraft-style hierarchical menu**. Each player sees top-level c
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run simulate` - Run headless AI-vs-AI simulation (see Headless Simulation below)
+- `npm run balance` - Run mathematical balance analysis
+- `npm run balance-test` - Run balance test CLI (ablation, tournament, full)
 
 ### Dependencies
 - **phaser**: ^3.90.0 - Game framework

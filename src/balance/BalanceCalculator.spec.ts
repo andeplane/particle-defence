@@ -23,6 +23,8 @@ function createTestConfig(overrides?: Partial<BalanceConfig>): BalanceConfig {
   return {
     particleBaseHealth: 3,
     particleBaseAttack: 1,
+    healthPerLevel: 1,
+    attackPerLevel: 1,
     particleBaseRadius: 3,
     particleBaseSpeed: 180,
     spawnIntervalMs: 60,

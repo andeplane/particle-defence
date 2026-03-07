@@ -39,6 +39,8 @@ export type PlayerConfig = {
   startingGold: number;
   particleBaseHealth: number;
   particleBaseAttack: number;
+  healthPerLevel: number;
+  attackPerLevel: number;
   particleBaseRadius: number;
   particleBaseSpeed: number;
   spawnIntervalMs: number;
@@ -56,6 +58,8 @@ const defaultPlayerConfig: PlayerConfig = {
   startingGold: CONFIG.STARTING_GOLD,
   particleBaseHealth: CONFIG.PARTICLE_BASE_HEALTH,
   particleBaseAttack: CONFIG.PARTICLE_BASE_ATTACK,
+  healthPerLevel: CONFIG.HEALTH_PER_LEVEL,
+  attackPerLevel: CONFIG.ATTACK_PER_LEVEL,
   particleBaseRadius: CONFIG.PARTICLE_BASE_RADIUS,
   particleBaseSpeed: CONFIG.PARTICLE_SPEED,
   spawnIntervalMs: CONFIG.SPAWN_INTERVAL_MS,
@@ -112,11 +116,11 @@ export class Player implements IPlayer {
   }
 
   get particleHealth(): number {
-    return this.config.particleBaseHealth + this.upgradeLevels.health;
+    return this.config.particleBaseHealth + this.upgradeLevels.health * this.config.healthPerLevel;
   }
 
   get particleAttack(): number {
-    return this.config.particleBaseAttack + this.upgradeLevels.attack;
+    return this.config.particleBaseAttack + this.upgradeLevels.attack * this.config.attackPerLevel;
   }
 
   get particleRadius(): number {

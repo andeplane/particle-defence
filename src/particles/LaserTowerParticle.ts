@@ -44,6 +44,13 @@ export class LaserTowerParticle extends AbstractParticle {
     this.range = stats.range;
     this.damage = stats.damage;
     this.attackSpeed = stats.attackSpeed;
+    const hpGain = stats.hp - this.maxHealth;
+    this.maxHealth = stats.hp;
+    this.health += hpGain;
+  }
+
+  override onCollide(other: IParticle, _context: GameContext): void {
+    this.takeDamage(other.attack * (1 - CONFIG.TOWER_DAMAGE_REDUCTION));
   }
 
   override onUpdate(dt: number, context: GameContext): void {

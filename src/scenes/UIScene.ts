@@ -26,6 +26,7 @@ export interface IGameViewModel {
   placeTower(playerId: 0 | 1): boolean;
   upgradeTower(playerId: 0 | 1, towerIndex: number): boolean;
   hasActiveCarrier(playerId: 0 | 1): boolean;
+  getCarrierHealth(playerId: 0 | 1): { health: number; maxHealth: number } | null;
   getTowers(playerId: 0 | 1): ReadonlyArray<LaserTowerParticle | SlowTowerParticle>;
   /** Mutable; UIScene updates each frame for in-world selection ring rendering */
   towerSelectionForRender?: [TowerSelectionForRender, TowerSelectionForRender];
@@ -52,6 +53,11 @@ interface NukeButton {
   statusText: Phaser.GameObjects.Text;
   keyText: Phaser.GameObjects.Text;
   playerId: 0 | 1;
+}
+
+interface PlaceButton extends NukeButton {
+  hpBarBg: Phaser.GameObjects.Rectangle;
+  hpBarFill: Phaser.GameObjects.Rectangle;
 }
 
 interface CategoryButton {
@@ -91,7 +97,7 @@ export class UIScene extends Phaser.Scene {
   private selectedTowerIndex: [number, number] = [0, 0];
   private researchButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; towerType: TowerType; playerId: 0 | 1 }[] = [];
   private constructButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; towerType: TowerType; playerId: 0 | 1 }[] = [];
-  private placeButtons: NukeButton[] = [];
+  private placeButtons: PlaceButton[] = [];
   private towerInfoText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
   private popups: Phaser.GameObjects.Text[] = [];
   private debugMenuCollapsed: boolean = true;
@@ -344,6 +350,7 @@ export class UIScene extends Phaser.Scene {
     this.placeButtons = this.placeButtons.filter(btn => {
       if (btn.playerId !== playerId) return true;
       btn.bg.destroy(); btn.labelText.destroy(); btn.statusText.destroy(); btn.keyText.destroy();
+      btn.hpBarBg.destroy(); btn.hpBarFill.destroy();
       return false;
     });
     const title = this.categoryTitle[playerId];
@@ -643,7 +650,16 @@ export class UIScene extends Phaser.Scene {
     const labelText = this.add.text(x, y + h * 0.22, 'PLACE', {
       fontSize: `${CONFIG.UI_FONT_SMALL + 2}px`, color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5);
-    const statusText = this.add.text(x, y + h * 0.52, '--', {
+
+    const barWidth = w * 0.7;
+    const barHeight = 6;
+    const barY = y + h * 0.46;
+    const hpBarBg = this.add.rectangle(x, barY, barWidth, barHeight, 0x333333, 0.8)
+      .setOrigin(0.5).setVisible(false);
+    const hpBarFill = this.add.rectangle(x - barWidth / 2, barY, barWidth, barHeight, color, 0.9)
+      .setOrigin(0, 0.5).setVisible(false);
+
+    const statusText = this.add.text(x, y + h * 0.64, '--', {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5);
     const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
@@ -653,7 +669,7 @@ export class UIScene extends Phaser.Scene {
     bg.on('pointerdown', () => this.handlePlace(playerId, bg));
     bg.on('pointerover', () => { bg.setFillStyle(0x333322, 0.9); this.showTooltip('Place tower at carrier position', x, y, playerId); });
     bg.on('pointerout', () => { bg.setFillStyle(0x222211, 0.85); this.hideTooltip(playerId); });
-    this.placeButtons.push({ bg, labelText, statusText, keyText, playerId });
+    this.placeButtons.push({ bg, labelText, statusText, keyText, hpBarBg, hpBarFill, playerId });
   }
 
   private createTowerMgmtButton(
@@ -985,12 +1001,20 @@ export class UIScene extends Phaser.Scene {
     }
 
     for (const btn of this.placeButtons) {
-      const hasCarrier = this.viewModel.hasActiveCarrier(btn.playerId);
+      const carrierHP = this.viewModel.getCarrierHealth(btn.playerId);
+      const hasCarrier = carrierHP !== null;
       btn.bg.setAlpha(hasCarrier ? 1 : 0.4);
       if (hasCarrier) {
-        btn.statusText.setText('READY');
-        btn.statusText.setColor('#66ff66');
+        const ratio = carrierHP.health / carrierHP.maxHealth;
+        const barWidth = btn.hpBarBg.width;
+        btn.hpBarFill.setDisplaySize(Math.max(1, barWidth * ratio), btn.hpBarFill.height);
+        btn.hpBarBg.setVisible(true);
+        btn.hpBarFill.setVisible(true);
+        btn.statusText.setText(`HP ${Math.ceil(carrierHP.health)}/${Math.ceil(carrierHP.maxHealth)}`);
+        btn.statusText.setColor(ratio > 0.5 ? '#66ff66' : ratio > 0.25 ? '#ffaa33' : '#ff4444');
       } else {
+        btn.hpBarBg.setVisible(false);
+        btn.hpBarFill.setVisible(false);
         btn.statusText.setText('NO CARRIER');
         btn.statusText.setColor('#666666');
       }

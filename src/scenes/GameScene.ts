@@ -162,6 +162,12 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     return carrier !== null && carrier.alive;
   }
 
+  getCarrierHealth(playerId: 0 | 1): { health: number; maxHealth: number } | null {
+    const carrier = this.engine.carriers[playerId];
+    if (!carrier || !carrier.alive) return null;
+    return { health: carrier.health, maxHealth: carrier.maxHealth };
+  }
+
   getTowers(playerId: 0 | 1): ReadonlyArray<LaserTowerParticle | SlowTowerParticle> {
     return this.engine.towers[playerId];
   }

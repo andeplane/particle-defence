@@ -61,6 +61,7 @@ export class GameEngine implements AIGameState {
   gameOver: boolean = false;
   winner: number = -1;
   gameTimeMs: number = 0;
+  private tickCount: number = 0;
 
   /** Active carrier per player (null if none). */
   carriers: [TowerCarrierParticle | null, TowerCarrierParticle | null] = [null, null];
@@ -112,21 +113,31 @@ export class GameEngine implements AIGameState {
     if (this.gameOver) return;
 
     this.gameTimeMs += delta;
+    this.tickCount++;
 
-    for (const ai of this.aiControllers) {
-      ai.update(delta, this);
+    const first = (this.tickCount % 2) as 0 | 1;
+    const second = (1 - first) as 0 | 1;
+
+    if (this.aiControllers.length === 2) {
+      this.aiControllers[first].update(delta, this);
+      this.aiControllers[second].update(delta, this);
+    } else {
+      for (const ai of this.aiControllers) {
+        ai.update(delta, this);
+      }
     }
 
     const dt = delta / 1000;
 
     this.cellEffects.update(delta);
 
-    for (let i = 0; i < 2; i++) {
+    const spawnOrder: (0 | 1)[] = [first, second];
+    for (const i of spawnOrder) {
       this.spawnTimers[i] += delta;
       const interval = this.players[i].spawnInterval;
       while (this.spawnTimers[i] >= interval) {
         this.spawnTimers[i] -= interval;
-        this.spawnParticle(i as 0 | 1);
+        this.spawnParticle(i);
       }
     }
 

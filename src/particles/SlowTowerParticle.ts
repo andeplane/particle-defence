@@ -1,5 +1,5 @@
 import { CONFIG } from '../config';
-import { AbstractParticle, type ParticleDependencies } from './AbstractParticle';
+import { AbstractParticle, type IParticle, type ParticleDependencies } from './AbstractParticle';
 import type { GameContext } from './GameContext';
 import { getSlowStats } from './towers';
 
@@ -39,6 +39,13 @@ export class SlowTowerParticle extends AbstractParticle {
     const stats = getSlowStats(this.level);
     this.range = stats.range;
     this.slowFactor = stats.slowFactor;
+    const hpGain = stats.hp - this.maxHealth;
+    this.maxHealth = stats.hp;
+    this.health += hpGain;
+  }
+
+  override onCollide(other: IParticle, _context: GameContext): void {
+    this.takeDamage(other.attack * (1 - CONFIG.TOWER_DAMAGE_REDUCTION));
   }
 
   override onUpdate(_dt: number, context: GameContext): void {

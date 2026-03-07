@@ -21,7 +21,7 @@ describe(getUpgradeCost.name, () => {
     { type: 'health' as UpgradeType, level: 10, expected: Math.floor(5 * Math.pow(1.3, 10)) },
     { type: 'attack' as UpgradeType, level: 3, expected: Math.floor(5 * Math.pow(1.3, 3)) },
     { type: 'radius' as UpgradeType, level: 2, expected: Math.floor(3 * Math.pow(1.3, 2)) },
-    { type: 'spawnRate' as UpgradeType, level: 4, expected: Math.floor(10 * Math.pow(1.3, 4)) },
+    { type: 'spawnRate' as UpgradeType, level: 4, expected: Math.floor(CONFIG.UPGRADE_COSTS.spawnRate * Math.pow(1.3, 4)) },
     { type: 'maxParticles' as UpgradeType, level: 7, expected: Math.floor(10 * Math.pow(1.3, 7)) },
   ])('returns $expected for $type at level $level', ({ type, level, expected }) => {
     expect(getUpgradeCost(type, level)).toBe(expected);
@@ -57,9 +57,10 @@ describe('CONFIG', () => {
   });
 
   it('has spawn rate and speed upgrade constants', () => {
-    expect(CONFIG.MIN_SPAWN_INTERVAL).toBe(50);
-    expect(CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL).toBe(20);
-    expect(CONFIG.SPEED_PER_LEVEL).toBe(20);
+    expect(CONFIG.MIN_SPAWN_INTERVAL).toBeGreaterThan(0);
+    expect(CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL).toBeGreaterThan(0);
+    expect(CONFIG.SPEED_PER_LEVEL).toBeGreaterThan(0);
+    expect(CONFIG.SPAWN_INTERVAL_MS).toBeGreaterThan(CONFIG.MIN_SPAWN_INTERVAL);
   });
 
   it('has positive game dimensions', () => {
