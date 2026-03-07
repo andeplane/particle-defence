@@ -21,7 +21,10 @@ export function runHeadlessGame(configOverrides?: Partial<HeadlessRunConfig>): G
   const callbacks = createStatsCallbacks(statsRecorder);
 
   const engine = new GameEngine(grid, callbacks, {
-    createAIController: (playerId) => new AIController(playerId),
+    createAIController: (playerId) => {
+      const profile = playerId === 0 ? config.p0Profile : config.p1Profile;
+      return new AIController(playerId, profile ? { baseHP: CONFIG.BASE_HP, profile } : undefined);
+    },
   });
   engine.init('both');
 

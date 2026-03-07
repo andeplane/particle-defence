@@ -1,4 +1,5 @@
 import type { UpgradeType } from '../config';
+import type { AIProfile } from '../ai';
 import type { GridType } from '../grid/generators';
 import type { MatchStats } from '../stats/types';
 
@@ -22,6 +23,10 @@ export interface HeadlessRunConfig {
   readonly gridType: GridType;
   readonly tickMs: number;
   readonly maxGameTimeSec: number;
+  /** AI profile for player 0 (default: balanced) */
+  readonly p0Profile?: AIProfile;
+  /** AI profile for player 1 (default: balanced) */
+  readonly p1Profile?: AIProfile;
 }
 
 export interface BatchReport {

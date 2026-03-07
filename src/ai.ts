@@ -18,8 +18,21 @@ export interface AIGameState {
   readonly towers: readonly [ReadonlyArray<LaserTowerParticle | SlowTowerParticle>, ReadonlyArray<LaserTowerParticle | SlowTowerParticle>];
 }
 
+export interface AIProfile {
+  readonly name: string;
+  /** Multiplier applied to each upgrade type's score (default 1.0, 0 = never buy) */
+  readonly upgradeWeights?: Partial<Record<UpgradeType, number>>;
+  /** Hard-disabled upgrades (for ablation testing) */
+  readonly disabledUpgrades?: ReadonlySet<UpgradeType>;
+  /** Whether tower research/construction/upgrades are allowed (default true) */
+  readonly towersEnabled?: boolean;
+  /** Whether nuke is allowed (default true) */
+  readonly nukeEnabled?: boolean;
+}
+
 export type AIConfig = {
   baseHP: number;
+  profile?: AIProfile;
 };
 
 const defaultAIConfig: AIConfig = {
@@ -31,12 +44,18 @@ const UPGRADE_TYPES: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate',
 export class AIController {
   private readonly playerId: 0 | 1;
   private readonly config: AIConfig;
+  private readonly profile: AIProfile;
   private readonly decisionIntervalMs = 200;
   private timeSinceLastDecision = 0;
 
   constructor(playerId: 0 | 1 = 1, config: AIConfig = defaultAIConfig) {
     this.playerId = playerId;
     this.config = config;
+    this.profile = config.profile ?? { name: 'default' };
+  }
+
+  get profileName(): string {
+    return this.profile.name;
   }
 
   update(delta: number, state: AIGameState): void {
@@ -56,6 +75,7 @@ export class AIController {
   }
 
   private tryNuke(state: AIGameState): void {
+    if (this.profile.nukeEnabled === false) return;
     const ai = state.players[this.playerId];
     const opponent = state.players[this.opponentId];
     if (!ai.canUseNuke(state.gameTimeMs)) return;
@@ -76,6 +96,7 @@ export class AIController {
   }
 
   private tryTowerActions(state: AIGameState): void {
+    if (this.profile.towersEnabled === false) return;
     const ai = state.players[this.playerId];
 
     for (const towerType of TOWER_TYPES) {
@@ -135,10 +156,13 @@ export class AIController {
     let bestScore = -1;
 
     for (const type of UPGRADE_TYPES) {
+      if (this.profile.disabledUpgrades?.has(type)) continue;
       if (!ai.canAfford(type)) continue;
       if (ai.isUpgradeAtMax(type)) continue;
 
-      const score = this.scoreUpgrade(type, ai, opponent, state);
+      let score = this.scoreUpgrade(type, ai, opponent, state);
+      const weight = this.profile.upgradeWeights?.[type];
+      if (weight !== undefined) score *= weight;
       if (score > bestScore) {
         bestScore = score;
         bestType = type;

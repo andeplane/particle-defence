@@ -1,3 +1,4 @@
+import type { AIProfile } from '../ai';
 import type { GridType } from '../grid/generators';
 import { runHeadlessGame } from './HeadlessRunner';
 import type { BatchReport, GameResult, HeadlessRunConfig } from './types';
@@ -7,6 +8,8 @@ export interface BatchConfig {
   readonly gridType: GridType;
   readonly tickMs: number;
   readonly maxGameTimeSec: number;
+  readonly p0Profile?: AIProfile;
+  readonly p1Profile?: AIProfile;
   readonly onGameComplete?: (index: number, result: GameResult) => void;
 }
 
@@ -24,6 +27,8 @@ export function runBatch(configOverrides?: Partial<BatchConfig>): BatchReport {
     gridType: config.gridType,
     tickMs: config.tickMs,
     maxGameTimeSec: config.maxGameTimeSec,
+    p0Profile: config.p0Profile,
+    p1Profile: config.p1Profile,
   };
 
   const results: GameResult[] = [];

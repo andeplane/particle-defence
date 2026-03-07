@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AIController, type AIGameState } from './ai';
+import { AIController, type AIGameState, type AIProfile } from './ai';
 import { createPlayer, type PlayerConfig } from './player';
 import { createMockParticle } from './__mocks__/createMockParticle';
 import type { IParticle } from './particles/AbstractParticle';
@@ -295,6 +295,93 @@ describe(AIController.name, () => {
       ai.update(300, state);
 
       expect(state.players[1].getUpgradeLevel('interestRate')).toBeGreaterThan(0);
+    });
+  });
+
+  describe('AIProfile support', () => {
+    it('exposes profile name', () => {
+      const profile: AIProfile = { name: 'TestProfile' };
+      const ai = new AIController(1, { baseHP: 1000, profile });
+      expect(ai.profileName).toBe('TestProfile');
+    });
+
+    it('defaults to "default" profile name', () => {
+      const ai = new AIController(1, { baseHP: 1000 });
+      expect(ai.profileName).toBe('default');
+    });
+
+    it('disabledUpgrades prevents buying that upgrade', () => {
+      const profile: AIProfile = {
+        name: 'NoAttack',
+        disabledUpgrades: new Set(['attack']),
+      };
+      const ai = new AIController(1, { baseHP: 1000, profile });
+      const state = createState();
+      state.players[1].gold = 9999;
+
+      for (let i = 0; i < 20; i++) ai.update(300, state);
+
+      expect(state.players[1].getUpgradeLevel('attack')).toBe(0);
+      expect(state.players[1].gold).toBeLessThan(9999);
+    });
+
+    it('nukeEnabled=false prevents nuke launch', () => {
+      const profile: AIProfile = { name: 'NoNuke', nukeEnabled: false };
+      const ai = new AIController(1, { baseHP: 1000, profile });
+      const state = createState({
+        particles: makeParticles({ p0: 100, p1: 10 }),
+      });
+      state.players[1].baseHP = 200;
+
+      ai.update(300, state);
+
+      expect(state.launchNuke).not.toHaveBeenCalled();
+    });
+
+    it('towersEnabled=false prevents tower actions', () => {
+      const profile: AIProfile = { name: 'NoTowers', towersEnabled: false };
+      const ai = new AIController(1, { baseHP: 1000, profile });
+      const state = createState();
+      state.players[1].gold = 9999;
+
+      for (let i = 0; i < 20; i++) ai.update(300, state);
+
+      expect(state.buyResearch).not.toHaveBeenCalled();
+      expect(state.constructTower).not.toHaveBeenCalled();
+    });
+
+    it('upgradeWeights=0 prevents buying that upgrade', () => {
+      const profile: AIProfile = {
+        name: 'NoHealth',
+        upgradeWeights: { health: 0 },
+      };
+      const ai = new AIController(1, { baseHP: 1000, profile });
+      const state = createState({ gameTimeMs: 60_000 });
+      state.players[1].gold = 9999;
+      for (let i = 0; i < 10; i++) {
+        state.players[1].buyUpgrade('spawnRate');
+        state.players[1].buyUpgrade('attack');
+      }
+      state.players[0].gold = 9999;
+      for (let i = 0; i < 5; i++) state.players[0].buyUpgrade('attack');
+
+      for (let i = 0; i < 20; i++) ai.update(300, state);
+
+      expect(state.players[1].getUpgradeLevel('health')).toBe(0);
+    });
+
+    it('high upgradeWeight prioritizes that upgrade', () => {
+      const profile: AIProfile = {
+        name: 'SpeedFocused',
+        upgradeWeights: { speed: 10.0, attack: 0.01, health: 0.01, spawnRate: 0.01 },
+      };
+      const ai = new AIController(1, { baseHP: 1000, profile });
+      const state = createState();
+      state.players[1].gold = 9999;
+
+      ai.update(300, state);
+
+      expect(state.players[1].getUpgradeLevel('speed')).toBeGreaterThan(0);
     });
   });
 });

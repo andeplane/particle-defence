@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "simulate": "npx tsx src/headless/cli.ts"
+    "simulate": "npx tsx src/headless/cli.ts",
+    "balance": "npx tsx src/balance/math-report.ts",
+    "balance-test": "npx tsx src/balance/cli.ts"
   },
   "devDependencies": {
     "typescript": "~5.9.3",

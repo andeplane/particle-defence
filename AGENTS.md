@@ -37,15 +37,23 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
   - **`generators/index.ts`** - GridType union, generateGrid, re-exports
 
 ### Systems
-- **`src/ai.ts`** - AIController for single-player and headless modes. Automatically upgrades (prioritizes spawn rate, attack, health), manages towers, and uses nuke when behind or when enemy has many particles. Uses dynamic `opponentId` so it can control either player
+- **`src/ai.ts`** - AIController for single-player and headless modes. Automatically upgrades (prioritizes spawn rate, attack, health), manages towers, and uses nuke when behind or when enemy has many particles. Uses dynamic `opponentId` so it can control either player. Accepts optional `AIProfile` for configurable behavior: `upgradeWeights` (per-type score multipliers), `disabledUpgrades` (hard-block set), `towersEnabled`, `nukeEnabled`
 - **`src/collision.ts`** - Collision resolution; calls `onCollide`/`onDeath` hooks, handles bouncing and kill tracking
 - **`src/spatial-hash.ts`** - Spatial partitioning for efficient collision detection
 
 ### Headless Simulation
-- **`src/headless/HeadlessRunner.ts`** - Runs a single AI-vs-AI game without Phaser. Creates a `GameEngine` with no-op callbacks, two `AIController` instances, real grid/collision/spatial-hash, and a `MatchStatsRecorder`. Returns a `GameResult` with winner, duration, player summaries, and full match stats
-- **`src/headless/BatchRunner.ts`** - Runs N headless games sequentially. Aggregates win rates, draw rate, duration stats (min/max/mean/median), and returns all individual results
+- **`src/headless/HeadlessRunner.ts`** - Runs a single AI-vs-AI game without Phaser. Creates a `GameEngine` with no-op callbacks, two `AIController` instances, real grid/collision/spatial-hash, and a `MatchStatsRecorder`. Returns a `GameResult` with winner, duration, player summaries, and full match stats. Supports per-player `AIProfile` overrides via `HeadlessRunConfig.p0Profile` / `p1Profile`
+- **`src/headless/BatchRunner.ts`** - Runs N headless games sequentially. Aggregates win rates, draw rate, duration stats (min/max/mean/median), and returns all individual results. Forwards AI profiles to each game
 - **`src/headless/cli.ts`** - CLI entry point. Parses args, runs batch, prints summary table with win rates, duration, upgrade distributions, and tower stats
 - **`src/headless/types.ts`** - Type definitions: `GameResult`, `PlayerSummary`, `HeadlessRunConfig`, `BatchReport`
+
+### Balance Testing
+- **`src/balance/BalanceCalculator.ts`** - Pure mathematical balance analysis. Computes gold efficiency curves, duel outcomes (hits-to-kill), Lanchester power estimates, tower ROI, interest break-even, spawn rate analysis, and automated red flag detection. No simulation needed -- operates purely on config values
+- **`src/balance/math-report.ts`** - CLI script that prints all mathematical analysis tables (run via `npm run balance`)
+- **`src/balance/AIProfiles.ts`** - 6 predefined AI strategy profiles: Balanced, Rush, Economy, TowerFortress, GlassCannon, Tank. Each profile defines `upgradeWeights` and feature toggles
+- **`src/balance/AblationRunner.ts`** - Ablation testing: disables one feature at a time for P0, runs N headless games, measures win rate delta vs symmetric baseline
+- **`src/balance/TournamentRunner.ts`** - Round-robin tournament: all AI profiles play each other, produces win-rate matrix and overall rankings
+- **`src/balance/cli.ts`** - Unified balance CLI with subcommands: `math`, `ablation`, `tournament`, `full`
 
 ### Stats & Post-Game Analytics
 - **`src/stats/types.ts`** - Type definitions: `PerSecondSample`, `MatchEvent`, `MatchStats`, `PerPlayer<T>`
@@ -463,6 +471,48 @@ The CLI prints: win rates, game duration stats, average final upgrade levels per
 
 ### Performance
 A 30-minute simulated game takes ~2-3 seconds wall time at 1000ms ticks (default). Use smaller ticks (e.g., `--tick-ms 100` or `--tick-ms 16`) only if you need higher precision for specific balance testing.
+
+## Balance Testing
+
+Two-phase balance analysis framework: mathematical analysis (instant) and simulation-based testing (uses headless mode).
+
+### Running Balance Tests
+```bash
+# Mathematical analysis (instant, no simulation)
+npm run balance
+
+# Unified CLI
+npm run balance-test -- math              # Same as above
+npm run balance-test -- ablation --games 50   # Feature ablation (disable one feature at a time)
+npm run balance-test -- tournament --games 30 # Round-robin tournament across AI profiles
+npm run balance-test -- full --games 30       # Run all analyses
+
+# Options: --games N, --grid TYPE (random/maze), --json
+```
+
+### Mathematical Analysis (`BalanceCalculator`)
+Pure calculations from `config.ts` values -- no simulation needed:
+- **Gold efficiency curves** - stat/gold ratio at each upgrade level, showing diminishing returns
+- **Duel matrix** - hits-to-kill at every attack×health level combination
+- **Lanchester ROI** - combat power gain per gold using Lanchester's Square Law (army_power = N² × attack × effectiveHP). Allows direct cross-upgrade comparison
+- **Tower ROI** - break-even time, DPS, comparison to equivalent gold spent on upgrades
+- **Interest break-even** - time to recoup interest investment at various gold banks
+- **Red flag detection** - automatically identifies spawn rate caps, one-shot thresholds, cost imbalances, tower ROI issues
+
+### AI Profiles
+`AIProfile` configures AI behavior for balance testing:
+- `upgradeWeights: Partial<Record<UpgradeType, number>>` -- multiplier per upgrade type's score (0 = never buy, 2.0 = twice as likely)
+- `disabledUpgrades: ReadonlySet<UpgradeType>` -- hard-blocks (for ablation testing)
+- `towersEnabled: boolean` -- toggle tower research/construction (default true)
+- `nukeEnabled: boolean` -- toggle nuke usage (default true)
+
+Predefined profiles in `AIProfiles.ts`: Balanced, Rush, Economy, TowerFortress, GlassCannon, Tank.
+
+### Ablation Testing
+Disables one feature for P0 (while P1 is unrestricted), runs N games, measures win rate delta vs symmetric baseline. Tests all 8 upgrades + towers + nuke. Negative delta = feature is important to the player using it.
+
+### Tournament
+Round-robin of all AI profiles. Produces a win-rate matrix and overall rankings. A balanced game has no single dominant strategy (all win rates below ~65%).
 
 ## Particle Type Hierarchy
 
