@@ -2,7 +2,7 @@ import { CONFIG } from '../config';
 import type { UpgradeType } from '../config';
 import { AIController } from '../ai';
 import { GameEngine, type GameEngineCallbacks } from '../GameEngine';
-import { generateGrid, type GridType } from '../grid/generators';
+import { generateGrid } from '../grid/generators';
 import { MatchStatsRecorder } from '../stats/MatchStatsRecorder';
 import type { GameResult, HeadlessRunConfig, PlayerSummary } from './types';
 
@@ -23,7 +23,8 @@ export function runHeadlessGame(configOverrides?: Partial<HeadlessRunConfig>): G
   const engine = new GameEngine(grid, callbacks, {
     createAIController: (playerId) => {
       const profile = playerId === 0 ? config.p0Profile : config.p1Profile;
-      return new AIController(playerId, profile ? { baseHP: CONFIG.BASE_HP, profile } : undefined);
+      const aiConfig = profile ? { baseHP: CONFIG.BASE_HP, profile } : { baseHP: CONFIG.BASE_HP };
+      return new AIController(playerId, aiConfig);
     },
   });
   engine.init('both');
