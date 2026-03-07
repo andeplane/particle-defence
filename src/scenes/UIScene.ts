@@ -3,6 +3,7 @@ import { CONFIG, DEBUG_MODE, getTowerUpgradeCost, type UpgradeType, type TowerTy
 import type { IPlayer } from '../player';
 import type { GameMode } from './MenuScene';
 import { MENU_CATEGORIES, type MenuCategory, resolveKeyPress } from './menuConfig';
+import { getClearedUIState } from './UISceneState';
 import { getLaserStats, getSlowStats } from '../particles/towers';
 import type { LaserTowerParticle } from '../particles/LaserTowerParticle';
 import type { SlowTowerParticle } from '../particles/SlowTowerParticle';
@@ -101,6 +102,34 @@ export class UIScene extends Phaser.Scene {
     this.viewModel = data.viewModel ?? data.gameScene!;
   }
 
+  shutdown(): void {
+    this.clearUIState();
+  }
+
+  private clearUIState(): void {
+    const cleared = getClearedUIState();
+    this.speedButtons = cleared.speedButtons as typeof this.speedButtons;
+    this.buttons = cleared.buttons as typeof this.buttons;
+    this.nukeButtons = cleared.nukeButtons as typeof this.nukeButtons;
+    this.categoryButtons = cleared.categoryButtons as typeof this.categoryButtons;
+    this.backButtons = cleared.backButtons as typeof this.backButtons;
+    this.researchButtons = cleared.researchButtons as typeof this.researchButtons;
+    this.constructButtons = cleared.constructButtons as typeof this.constructButtons;
+    this.placeButtons = cleared.placeButtons as typeof this.placeButtons;
+    this.popups = cleared.popups as typeof this.popups;
+    this.activeCategory = cleared.activeCategory;
+    this.categoryTitle = cleared.categoryTitle as typeof this.categoryTitle;
+    this.placeholderText = cleared.placeholderText as typeof this.placeholderText;
+    this.tooltipText = cleared.tooltipText as typeof this.tooltipText;
+    this.selectedTowerIndex = cleared.selectedTowerIndex;
+    this.debugMenuBg = undefined;
+    this.debugMenuToggle = undefined;
+    this.debugSpeedText = undefined;
+    this.debugSpeedSlider = undefined;
+    this.debugSpeedSliderFill = undefined;
+    this.debugSpeedSliderHandle = undefined;
+  }
+
   create(): void {
     this.createSpeedButtons();
     this.createHPBars();
@@ -119,6 +148,7 @@ export class UIScene extends Phaser.Scene {
   private createSpeedButtons(): void {
     if (!this.viewModel.setDebugSpeedMultiplier || this.viewModel.debugSpeedMultiplier === undefined) return;
 
+    this.speedButtons = [];
     const centerX = CONFIG.GAME_WIDTH / 2;
     const barY = CONFIG.UI_GAP * 2;
     const barH = CONFIG.UI_BAR_HEIGHT;
@@ -147,6 +177,7 @@ export class UIScene extends Phaser.Scene {
         bg.setStrokeStyle(2, 0x888888, 0.8);
       });
       bg.on('pointerout', () => {
+        if (!label.scene) return;
         const current = this.viewModel.debugSpeedMultiplier ?? 1;
         bg.setFillStyle(current === speed ? 0x222244 : 0x111122, current === speed ? 0.95 : 0.85);
         bg.setStrokeStyle(2, current === speed ? 0x00ddff : 0x666666, current === speed ? 0.9 : 0.6);
@@ -746,16 +777,13 @@ export class UIScene extends Phaser.Scene {
         const speed = parseInt(key, 10);
         if (this.viewModel.setDebugSpeedMultiplier) {
           this.viewModel.setDebugSpeedMultiplier(speed);
-          // Find and update the visual button state
-          const speedBtn = this.speedButtons.find(b => b.speed === speed);
-          if (speedBtn) {
-            speedBtn.bg.setFillStyle(0x222244, 0.95);
-            speedBtn.bg.setStrokeStyle(2, 0x00ddff, 0.9);
-            speedBtn.label.setColor('#00ddff');
-          }
-          // Update other buttons
           for (const btn of this.speedButtons) {
-            if (btn.speed !== speed) {
+            if (!btn.label?.scene) continue;
+            if (btn.speed === speed) {
+              btn.bg.setFillStyle(0x222244, 0.95);
+              btn.bg.setStrokeStyle(2, 0x00ddff, 0.9);
+              btn.label.setColor('#00ddff');
+            } else {
               btn.bg.setFillStyle(0x111122, 0.85);
               btn.bg.setStrokeStyle(2, 0x666666, 0.6);
               btn.label.setColor('#aaaaaa');
@@ -852,6 +880,7 @@ export class UIScene extends Phaser.Scene {
 
     const currentSpeed = this.viewModel.debugSpeedMultiplier ?? 1;
     for (const { bg, label, speed } of this.speedButtons) {
+      if (!label?.scene) continue;
       const active = currentSpeed === speed;
       bg.setFillStyle(active ? 0x222244 : 0x111122, active ? 0.95 : 0.85);
       bg.setStrokeStyle(2, active ? 0x00ddff : 0x666666, active ? 0.9 : 0.6);
