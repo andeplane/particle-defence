@@ -36,13 +36,17 @@ export class MenuScene extends Phaser.Scene {
     createMenuButton(this, centerX, centerY + gap + btnH - 20, btnW, btnH,
       '2 Player', CONFIG.PLAYER2_COLOR, () => this.startGame('pvp'));
 
+    createMenuButton(this, centerX, centerY + 2 * (gap + btnH) - 20, btnW, btnH,
+      'How to Play', 0x88aa88, () => this.scene.start('HowToPlayScene'));
+
     this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
       const key = event.key.toUpperCase();
       if (key === '1') this.startGame('ai');
       if (key === '2') this.startGame('pvp');
+      if (key === 'H' || key === '3') this.scene.start('HowToPlayScene');
     });
 
-    this.add.text(centerX, centerY + 120, '[1] vs AI  [2] 2 Player', {
+    this.add.text(centerX, centerY + 180, '[1] vs AI  [2] 2 Player  [H] How to Play', {
       fontSize: `${CONFIG.UI_FONT_SMALL}px`,
       color: '#666666',
       fontFamily: 'monospace',

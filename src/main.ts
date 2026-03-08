@@ -3,6 +3,7 @@ import { CONFIG } from './config';
 import { GameScene } from './scenes/GameScene';
 import { MapSelectScene } from './scenes/MapSelectScene';
 import { MenuScene } from './scenes/MenuScene';
+import { HowToPlayScene } from './scenes/HowToPlayScene';
 import { PostGameStatsScene } from './scenes/PostGameStatsScene';
 import { UIScene } from './scenes/UIScene';
 
@@ -12,7 +13,7 @@ const config: Phaser.Types.Core.GameConfig = {
   height: CONFIG.GAME_HEIGHT,
   parent: 'game-container',
   backgroundColor: CONFIG.BG_COLOR,
-  scene: [MenuScene, MapSelectScene, GameScene, UIScene, PostGameStatsScene],
+  scene: [MenuScene, MapSelectScene, GameScene, UIScene, PostGameStatsScene, HowToPlayScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

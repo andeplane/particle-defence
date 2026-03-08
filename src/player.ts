@@ -55,7 +55,7 @@ export type PlayerConfig = {
   nuclearCooldownMs: number;
 };
 
-const defaultPlayerConfig: PlayerConfig = {
+export const defaultPlayerConfig: PlayerConfig = {
   baseHP: CONFIG.BASE_HP,
   startingGold: CONFIG.STARTING_GOLD,
   particleBaseHealth: CONFIG.PARTICLE_BASE_HEALTH,

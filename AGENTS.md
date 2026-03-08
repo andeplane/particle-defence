@@ -6,15 +6,17 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 ## Project Structure
 
 ### Core Files
-- **`src/main.ts`** - Entry point, initializes Phaser game with MenuScene, MapSelectScene, GameScene, UIScene, and PostGameStatsScene
+- **`src/main.ts`** - Entry point, initializes Phaser game with MenuScene, MapSelectScene, GameScene, UIScene, PostGameStatsScene, and HowToPlayScene
 - **`src/config.ts`** - **ALL GAME CONFIGURATION** - Contains all game constants, parameters, and configuration values
 - **`index.html`** - HTML entry point with game container
 
 ### Scenes
-- **`src/scenes/MenuScene.ts`** - Main menu with mode selection (1 Player vs AI / 2 Player), navigates to MapSelectScene
+- **`src/scenes/MenuScene.ts`** - Main menu with mode selection (1 Player vs AI / 2 Player) and How to Play button. Navigates to MapSelectScene or HowToPlayScene
 - **`src/scenes/MapSelectScene.ts`** - Map type selection (Random, Maze), starts GameScene with `{ mode, gridType }`
 - **`src/scenes/GameScene.ts`** - Main game logic, particle spawning, collision detection, base damage, win conditions. Accepts mode and gridType from init, runs AIController when mode is 'ai'
 - **`src/scenes/UIScene.ts`** - UI overlay with HP bars, gold display, upgrade buttons, nuke buttons, keyboard controls. Hides P2 controls and labels as "AI" when mode is 'ai'
+- **`src/scenes/HowToPlayScene.ts`** - In-game help screen with 4 tabs (Overview, Tech Tree, Combat, Strategies). Accessible from MenuScene via "How to Play" button or [H] key. Data-driven: all numbers pulled from CONFIG at runtime via `howToPlayData.ts`. Scrollable content, ESC to return to menu
+- **`src/scenes/howToPlayData.ts`** - Pure functions that generate content sections from CONFIG values. Exports `getTabContent(tabId)` returning `ContentSection[]` for each tab. No duplicated data -- uses `getUpgradeCost()`, `getLaserStats()`, `getSlowStats()`, `computeMaxLevels()`, etc.
 - **`src/scenes/PostGameStatsScene.ts`** - Post-game statistics screen with 9 dual-series timeline graphs (AoE-style). Receives `MatchStats` from GameScene on game over. Displays blue (P1) vs red (P2) line charts with glow effects, grid lines, nuke event markers, and legends. Click to return to menu
 
 ### Game Entities
@@ -477,6 +479,7 @@ Particles use an inheritance-based hierarchy. New types extend `AbstractParticle
 - UI is separate scene that overlays on top of game scene
 - Keyboard controls are handled in UIScene
 - Game state (players, particles, grid) is managed in GameScene
-- **Flow**: MenuScene → MapSelectScene → GameScene → UIScene (launched). Game over → PostGameStatsScene → MenuScene
+- **Flow**: MenuScene → MapSelectScene → GameScene → UIScene (launched). Game over → PostGameStatsScene → MenuScene. Also: MenuScene → HowToPlayScene → MenuScene (press [H] or click "How to Play")
 - **AI mode**: AIController runs in GameEngine.tick() when AI mode is enabled, makes decisions every ~200ms. Engine supports `'none'` (no AI), `'single'` (P2 only), or `'both'` (AI-vs-AI for headless simulation)
 - **Stats awareness**: When adding new gameplay features (new particle types, abilities, economy mechanics, combat changes, etc.), consider whether they should be reflected in the post-game stats. If a new feature introduces a meaningful metric players would want to see after the match, add sampling to `MatchStatsRecorder`, a new field to `PerSecondSample` or `MatchEvent`, and a corresponding graph in `PostGameStatsScene`. Keep the stats telling a compelling story about the match
+- **How to Play awareness**: When adding or changing gameplay features, upgrades, towers, combat mechanics, or strategies, update the in-game How to Play screen. The content is generated from CONFIG values in `src/scenes/howToPlayData.ts` -- so numeric changes auto-propagate, but new features, upgrades, mechanics, or strategy changes require updating the relevant tab content (Overview, Tech Tree, Combat, or Strategies). Also update `STRATEGIES.md` if strategy advice changes
