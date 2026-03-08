@@ -207,7 +207,14 @@ export abstract class AbstractParticle implements IParticle {
   onUpdate(_dt: number, _context: GameContext): void {}
 
   onCollide(other: IParticle, _context: GameContext): void {
-    this.takeDamage(other.attack);
+    const speedDiff = other.speed - this.speed;
+    const speedMultiplier = speedDiff > 0
+      ? 1 + CONFIG.SPEED_COMBAT_BONUS * (speedDiff / CONFIG.PARTICLE_SPEED)
+      : 1;
+    const hpScaling = other.attack > 0
+      ? 1 + CONFIG.PERCENT_HP_DAMAGE_SCALING * (this.maxHealth / CONFIG.PARTICLE_BASE_HEALTH)
+      : 1;
+    this.takeDamage(other.attack * speedMultiplier * hpScaling);
   }
 
   onDeath(_context: GameContext): void {}

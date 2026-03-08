@@ -252,8 +252,8 @@ export class AIController {
         break;
       }
       case 'speed': {
-        score *= 1.0;
-        if (gameTimeSec > 90) score *= 1.3;
+        score *= 1.4;
+        if (gameTimeSec > 60) score *= 1.2;
         break;
       }
       case 'radius': {

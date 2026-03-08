@@ -1,6 +1,5 @@
 import type { TowerType } from '../config';
-import { AbstractParticle, type IParticle, type ParticleDependencies } from './AbstractParticle';
-import type { GameContext } from './GameContext';
+import { AbstractParticle, type ParticleDependencies } from './AbstractParticle';
 
 export class TowerCarrierParticle extends AbstractParticle {
   readonly typeName = 'towerCarrier';
@@ -16,7 +15,4 @@ export class TowerCarrierParticle extends AbstractParticle {
     this.towerType = towerType;
   }
 
-  override onCollide(other: IParticle, _context: GameContext): void {
-    this.takeDamage(other.attack);
-  }
 }

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { CONFIG } from '../config';
 import { BasicParticle } from './BasicParticle';
 import { resetParticleIds, type ParticleDependencies, type ParticleConfig } from './AbstractParticle';
 import { createMockGameContext } from '../__mocks__/createMockGameContext';
@@ -160,11 +161,12 @@ describe(BasicParticle.name, () => {
   });
 
   describe('onCollide', () => {
-    it('calls takeDamage with other particle attack', () => {
+    it('applies attack scaled by HP ratio (anti-tank mechanic)', () => {
       const p = createParticle({ health: 10 });
       const other = createMockParticle({ attack: 3 });
       p.onCollide(other, context);
-      expect(p.health).toBe(7);
+      // hpScaling = 1 + 0.08 * (10 / 5) = 1.16; damage = 3 * 1.16 = 3.48
+      expect(p.health).toBeCloseTo(10 - 3 * (1 + CONFIG.PERCENT_HP_DAMAGE_SCALING * (10 / CONFIG.PARTICLE_BASE_HEALTH)));
     });
   });
 

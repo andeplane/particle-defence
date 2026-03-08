@@ -62,6 +62,8 @@ function createTestConfig(overrides?: Partial<BalanceConfig>): BalanceConfig {
     slowRangePerLevel: 15,
     slowUpgradeCost: 200,
     towerUpgradeCostMultiplier: 1.4,
+    percentHPDamageScaling: 0.08,
+    speedCombatBonus: 0.5,
     ...overrides,
   };
 }
@@ -195,6 +197,22 @@ describe('Combat Math', () => {
     ])('hp=$hp atk=$atk def=$def -> $expected hits', ({ hp, atk, def, expected }) => {
       expect(hitsToKill(hp, atk, def)).toBe(expected);
     });
+
+    it('HP scaling reduces hits to kill high-HP targets', () => {
+      const noScaling = hitsToKill(20, 2, 0, 1.0);
+      const withScaling = hitsToKill(20, 2, 0, 1.5);
+      expect(withScaling).toBeLessThan(noScaling);
+    });
+
+    it('HP scaling of 1.0 has no effect', () => {
+      expect(hitsToKill(10, 2, 0, 1.0)).toBe(hitsToKill(10, 2));
+    });
+
+    it('speed multiplier increases effective damage', () => {
+      const normal = hitsToKill(10, 2, 0, 1.0, 1.0);
+      const fast = hitsToKill(10, 2, 0, 1.0, 1.3);
+      expect(fast).toBeLessThan(normal);
+    });
   });
 
   describe(duelOutcome.name, () => {
@@ -290,6 +308,11 @@ describe('Lanchester Analysis', () => {
       const atkROI = lanchesterROIPerGold('attack', 0, 300, cfg);
       const defROI = lanchesterROIPerGold('defense', 0, 300, cfg);
       expect(atkROI / defROI).toBeGreaterThan(100);
+    });
+
+    it('speed ROI is positive (combat bonus)', () => {
+      const roi = lanchesterROIPerGold('speed', 0, 300, cfg);
+      expect(roi).toBeGreaterThan(0);
     });
 
     it('returns 0 for spawnRate (handled separately)', () => {

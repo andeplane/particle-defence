@@ -2,18 +2,28 @@ import type { AIProfile } from '../ai';
 
 export const BALANCED_PROFILE: AIProfile = {
   name: 'Balanced',
+  upgradeWeights: {
+    attack: 1.5,
+    speed: 1.3,
+    spawnRate: 1.5,
+    health: 1.0,
+    maxParticles: 1.0,
+    defense: 0.5,
+    radius: 0.5,
+    interestRate: 0.5,
+  },
 };
 
 export const RUSH_PROFILE: AIProfile = {
   name: 'Rush',
   upgradeWeights: {
     spawnRate: 3.0,
-    attack: 2.5,
-    speed: 1.5,
-    health: 0.5,
+    speed: 2.0,
+    attack: 2.0,
+    health: 0.3,
     defense: 0,
     interestRate: 0,
-    maxParticles: 0.3,
+    maxParticles: 0.5,
     radius: 0.3,
   },
   towersEnabled: false,
@@ -22,13 +32,13 @@ export const RUSH_PROFILE: AIProfile = {
 export const ECONOMY_PROFILE: AIProfile = {
   name: 'Economy',
   upgradeWeights: {
-    interestRate: 3.0,
-    maxParticles: 2.0,
-    health: 1.0,
-    attack: 0.8,
-    spawnRate: 0.5,
-    defense: 0.5,
-    speed: 0.5,
+    interestRate: 2.0,
+    attack: 2.0,
+    speed: 1.5,
+    spawnRate: 2.0,
+    maxParticles: 1.5,
+    health: 0.8,
+    defense: 0.3,
     radius: 0.3,
   },
 };
@@ -36,14 +46,14 @@ export const ECONOMY_PROFILE: AIProfile = {
 export const TOWER_FORTRESS_PROFILE: AIProfile = {
   name: 'TowerFortress',
   upgradeWeights: {
-    health: 1.5,
-    attack: 1.0,
-    spawnRate: 1.0,
-    speed: 0.8,
-    defense: 1.5,
-    radius: 0.5,
+    attack: 1.5,
+    speed: 1.3,
+    spawnRate: 1.2,
+    health: 1.0,
+    defense: 1.0,
     maxParticles: 0.8,
-    interestRate: 1.5,
+    interestRate: 1.0,
+    radius: 0.3,
   },
   towerPriority: 'high',
 };
@@ -51,10 +61,10 @@ export const TOWER_FORTRESS_PROFILE: AIProfile = {
 export const GLASS_CANNON_PROFILE: AIProfile = {
   name: 'GlassCannon',
   upgradeWeights: {
-    attack: 3.0,
-    speed: 2.0,
-    spawnRate: 2.0,
-    health: 0.2,
+    attack: 2.2,
+    speed: 1.8,
+    spawnRate: 1.5,
+    health: 0.3,
     defense: 0,
     radius: 0.3,
     maxParticles: 0.5,
@@ -66,13 +76,13 @@ export const GLASS_CANNON_PROFILE: AIProfile = {
 export const TANK_PROFILE: AIProfile = {
   name: 'Tank',
   upgradeWeights: {
-    health: 3.0,
-    defense: 2.5,
-    radius: 1.5,
-    attack: 0.8,
-    spawnRate: 0.5,
-    speed: 0.3,
-    maxParticles: 1.0,
+    health: 2.5,
+    attack: 1.8,
+    spawnRate: 1.5,
+    defense: 1.5,
+    maxParticles: 1.5,
+    speed: 0.8,
+    radius: 0.8,
     interestRate: 0.5,
   },
 };

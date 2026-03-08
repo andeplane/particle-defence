@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { CONFIG } from '../config';
 import { TowerCarrierParticle } from './TowerCarrierParticle';
 import { resetParticleIds, type ParticleDependencies, type ParticleConfig } from './AbstractParticle';
 import { createMockGameContext } from '../__mocks__/createMockGameContext';
@@ -45,7 +46,8 @@ describe(TowerCarrierParticle.name, () => {
     const ctx = createMockGameContext();
 
     c.onCollide(enemy, ctx);
-    expect(c.health).toBe(2);
-    expect(enemy.health).toBe(3); // no retaliation
+    // hpScaling = 1 + 0.08 * (5/5) = 1.08; damage = 3 * 1.08 = 3.24
+    expect(c.health).toBeCloseTo(5 - 3 * (1 + CONFIG.PERCENT_HP_DAMAGE_SCALING * (5 / CONFIG.PARTICLE_BASE_HEALTH)));
+    expect(enemy.health).toBe(3);
   });
 });

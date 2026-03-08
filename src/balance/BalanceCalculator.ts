@@ -43,6 +43,8 @@ export interface BalanceConfig {
   readonly slowRangePerLevel: number;
   readonly slowUpgradeCost: number;
   readonly towerUpgradeCostMultiplier: number;
+  readonly percentHPDamageScaling: number;
+  readonly speedCombatBonus: number;
 }
 
 export function defaultBalanceConfig(): BalanceConfig {
@@ -85,6 +87,8 @@ export function defaultBalanceConfig(): BalanceConfig {
     slowRangePerLevel: CONFIG.TOWER_SLOW_RANGE_PER_LEVEL,
     slowUpgradeCost: CONFIG.TOWER_SLOW_UPGRADE_COST,
     towerUpgradeCostMultiplier: CONFIG.TOWER_UPGRADE_COST_MULTIPLIER,
+    percentHPDamageScaling: CONFIG.PERCENT_HP_DAMAGE_SCALING,
+    speedCombatBonus: CONFIG.SPEED_COMBAT_BONUS,
   };
 }
 
@@ -199,8 +203,14 @@ export function upgradeEfficiencyTable(type: UpgradeType, maxLevel: number, cfg:
 // Duel / Combat Math
 // ---------------------------------------------------------------------------
 
-export function hitsToKill(targetHP: number, attackerAttack: number, targetDefense: number = 0): number {
-  const effectiveDamage = attackerAttack * (1 - targetDefense);
+export function hitsToKill(
+  targetHP: number,
+  attackerAttack: number,
+  targetDefense: number = 0,
+  hpScaling: number = 1,
+  speedMultiplier: number = 1,
+): number {
+  const effectiveDamage = attackerAttack * speedMultiplier * hpScaling * (1 - targetDefense);
   if (effectiveDamage <= 0) return Infinity;
   return Math.ceil(targetHP / effectiveDamage);
 }
@@ -317,10 +327,13 @@ export function lanchesterROIPerGold(
       // Larger radius = more collision opportunities; approximate as +10% encounter rate
       newPower = currentPower * 1.1;
       break;
-    case 'speed':
-      // Faster = more collisions + faster base reach; approximate as +5% effectiveness
-      newPower = currentPower * 1.05;
+    case 'speed': {
+      const newSpeed = statAtLevel('speed', currentLevel + 1, cfg);
+      const oldSpeed = statAtLevel('speed', currentLevel, cfg);
+      const speedBonus = cfg.speedCombatBonus * ((newSpeed - oldSpeed) / cfg.particleBaseSpeed);
+      newPower = currentPower * (1 + speedBonus) * 1.02;
       break;
+    }
     case 'spawnRate':
     case 'maxParticles':
     case 'interestRate':
@@ -515,9 +528,10 @@ export function detectRedFlags(cfg: BalanceConfig): BalanceRedFlag[] {
 }
 
 function findOneShotLevel(cfg: BalanceConfig): number | null {
+  const hpScaling = 1 + cfg.percentHPDamageScaling * (cfg.particleBaseHealth / cfg.particleBaseHealth);
   for (let level = 0; level <= 20; level++) {
     const attack = cfg.particleBaseAttack + level * cfg.attackPerLevel;
-    if (attack >= cfg.particleBaseHealth) return level;
+    if (attack * hpScaling >= cfg.particleBaseHealth) return level;
   }
   return null;
 }

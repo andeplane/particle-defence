@@ -56,6 +56,13 @@ describe('CONFIG', () => {
     expect(CONFIG.MAX_INTEREST_RATE).toBe(0.05);
   });
 
+  it('has combat mechanic constants', () => {
+    expect(CONFIG.PERCENT_HP_DAMAGE_SCALING).toBeGreaterThan(0);
+    expect(CONFIG.PERCENT_HP_DAMAGE_SCALING).toBeLessThan(0.5);
+    expect(CONFIG.SPEED_COMBAT_BONUS).toBeGreaterThan(0);
+    expect(CONFIG.SPEED_COMBAT_BONUS).toBeLessThan(1);
+  });
+
   it('has spawn rate and speed upgrade constants', () => {
     expect(CONFIG.MIN_SPAWN_INTERVAL).toBeGreaterThan(0);
     expect(CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL).toBeGreaterThan(0);
