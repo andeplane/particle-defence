@@ -81,7 +81,7 @@ Config values are organized into these categories:
 
 - **Resolution & Display** - Game dimensions (scaled by `RESOLUTION_SCALE`), background/floor/wall colors
 - **Maze** - Grid dimensions, percolation threshold, base width
-- **Particles** - Base health/attack/radius/speed, spawn interval, population caps, drift and stuck detection, `PERCENT_HP_DAMAGE_SCALING` (multiplicative anti-tank), `SPEED_COMBAT_BONUS` (speed combat advantage)
+- **Particles** - Base health/attack/radius/speed, spawn interval, population caps, drift and stuck detection, `PERCENT_HP_DAMAGE_SCALING` (multiplicative anti-tank), `SPEED_COMBAT_BONUS` (speed combat advantage), `DEFENSE_HP_SCALING_REDUCTION` (defense counters HP scaling), `GLOBAL_DEFENSE_PER_LEVEL` / `GLOBAL_DEFENSE_MAX` (defense outside owned cells)
 - **Bases** - Starting HP, damage dealt on reach
 - **Economy & Upgrades** - Starting gold, kill reward, nuke reward fraction/timing/cooldown, interest rate settings, per-type base costs (`UPGRADE_COSTS`), cost multiplier
 - **Cell Effects** - Default slow factor, damage DPS, temp wall duration/HP, rendering alphas
@@ -121,7 +121,8 @@ Config values are organized into these categories:
 - Collision damage delegated to `onCollide(other, context)` hook
 - **Default damage formula**: `damage = attack × speedMultiplier × hpScaling`, passed to `takeDamage()` which applies defense: `effectiveAmount = damage × (1 - defenseFactor)`
 - **Speed combat bonus**: Faster attackers deal bonus damage. `speedMultiplier = 1 + SPEED_COMBAT_BONUS × max(0, (attacker.speed - target.speed) / PARTICLE_SPEED)`. Rewards speed investment as a direct combat stat, counters slow tanky builds
-- **HP scaling (anti-tank)**: Damage is multiplied by `hpScaling = 1 + PERCENT_HP_DAMAGE_SCALING × (target.maxHealth / PARTICLE_BASE_HEALTH)`. This is **multiplicative** with attack, so high-attack builds deal proportionally more bonus damage to high-HP targets. Creates a natural GlassCannon-beats-Tank dynamic. Only applied when attacker has attack > 0
+- **HP scaling (anti-tank)**: Raw HP scaling = `PERCENT_HP_DAMAGE_SCALING × (target.maxHealth / PARTICLE_BASE_HEALTH)`. Defense reduces HP scaling: `hpScaling = 1 + rawHpScaling × (1 - min(1, defenseFactor × DEFENSE_HP_SCALING_REDUCTION))`. This means defense investment directly counters the anti-tank penalty. Only applied when attacker has attack > 0
+- **Global defense**: Defense upgrade provides a small damage reduction even outside owned cells (`GLOBAL_DEFENSE_PER_LEVEL` per level, capped at `GLOBAL_DEFENSE_MAX`). Full cell-based defense applies in owned cells. This gives defense-heavy builds (Tank) survivability when pushing through enemy territory
 - Tower particles (Laser, Slow) override `onCollide` with their own `TOWER_DAMAGE_REDUCTION` -- they do NOT use the speed/% HP formula
 - Elastic collision physics with velocity bouncing
 - `onDeath(context)` called when particle dies (override for AoE, etc.)
@@ -172,7 +173,7 @@ Each grid cell can be "owned" by a player. Ownership is tracked per cell and aff
 - If player A leaves the cell (no A particles in it) and player B enters, B captures the cell.
 - If B enters while A still has particles in the cell, A keeps ownership.
 
-**Defense bonus**: Particles of the owning player receive a damage reduction while standing in that owned cell. Base bonus is `OWNERSHIP_DEFENSE_BASE`. The defense upgrade increases this by `OWNERSHIP_DEFENSE_PER_LEVEL` per level, capped at `OWNERSHIP_DEFENSE_MAX`.
+**Defense bonus**: Particles of the owning player receive a damage reduction while standing in that owned cell. Base bonus is `OWNERSHIP_DEFENSE_BASE`. The defense upgrade increases this by `OWNERSHIP_DEFENSE_PER_LEVEL` per level, capped at `OWNERSHIP_DEFENSE_MAX`. Additionally, defense provides a smaller global bonus (`GLOBAL_DEFENSE_PER_LEVEL` per level, capped at `GLOBAL_DEFENSE_MAX`) that applies everywhere, including enemy territory.
 
 **Ownership slow**: Particles moving through enemy-owned cells are slowed by `OWNERSHIP_SLOW_FACTOR`. This stacks multiplicatively with other slow effects. Own-owned and unowned cells do not slow movement.
 
@@ -451,7 +452,7 @@ Particles use an inheritance-based hierarchy. New types extend `AbstractParticle
 - **`typeName`** (abstract) - Identity string for the particle type
 - **`canMove`** - Return false for stationary units (e.g. turrets)
 - **`onUpdate(dt, context)`** - Called every tick after movement; use for passive abilities (healing, scanning)
-- **`onCollide(other, context)`** - Called when colliding with enemy; default applies speed combat bonus + HP scaling: `takeDamage(other.attack × speedMultiplier × hpScaling)`
+- **`onCollide(other, context)`** - Called when colliding with enemy; default applies speed combat bonus + HP scaling (reduced by defense): `takeDamage(other.attack × speedMultiplier × hpScaling)`
 - **`onDeath(context)`** - Called when particle dies; override for death effects (AoE explosion)
 - **`getBaseDamage()`** - Damage dealt to enemy base on reach; default: `CONFIG.BASE_DAMAGE_ON_REACH`
 

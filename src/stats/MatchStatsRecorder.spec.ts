@@ -316,6 +316,7 @@ function createPlayers(overrides?: {
     particleSpeed: 180,
     maxParticles: maxP,
     particleDefense: 0,
+    globalDefense: 0,
     goldInterestRate: 0,
     isAlive: hp > 0,
     getUpgradeLevel: (type) => upgrades[type] ?? 0,

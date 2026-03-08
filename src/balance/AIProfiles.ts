@@ -46,11 +46,11 @@ export const ECONOMY_PROFILE: AIProfile = {
 export const TOWER_FORTRESS_PROFILE: AIProfile = {
   name: 'TowerFortress',
   upgradeWeights: {
-    attack: 1.5,
+    attack: 1.8,
     speed: 1.3,
     spawnRate: 1.2,
     health: 1.0,
-    defense: 1.0,
+    defense: 1.5,
     maxParticles: 0.8,
     interestRate: 1.0,
     radius: 0.3,
@@ -79,7 +79,7 @@ export const TANK_PROFILE: AIProfile = {
     health: 2.5,
     attack: 1.8,
     spawnRate: 1.5,
-    defense: 1.5,
+    defense: 2.5,
     maxParticles: 1.5,
     speed: 0.8,
     radius: 0.8,

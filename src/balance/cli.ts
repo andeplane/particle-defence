@@ -8,7 +8,7 @@
  *   npx tsx src/balance/cli.ts full [--games N] [--grid TYPE]      -- All analyses
  */
 import type { GridType } from '../grid/generators';
-import { runAblation, type AblationReport, type AblationResult } from './AblationRunner';
+import { runAblation, type AblationReport } from './AblationRunner';
 import { runTournament, type TournamentResult } from './TournamentRunner';
 import { ALL_PROFILES } from './AIProfiles';
 

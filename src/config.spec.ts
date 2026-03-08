@@ -61,6 +61,11 @@ describe('CONFIG', () => {
     expect(CONFIG.PERCENT_HP_DAMAGE_SCALING).toBeLessThan(0.5);
     expect(CONFIG.SPEED_COMBAT_BONUS).toBeGreaterThan(0);
     expect(CONFIG.SPEED_COMBAT_BONUS).toBeLessThan(1);
+    expect(CONFIG.DEFENSE_HP_SCALING_REDUCTION).toBeGreaterThan(0);
+    expect(CONFIG.GLOBAL_DEFENSE_PER_LEVEL).toBeGreaterThan(0);
+    expect(CONFIG.GLOBAL_DEFENSE_PER_LEVEL).toBeLessThan(CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL);
+    expect(CONFIG.GLOBAL_DEFENSE_MAX).toBeGreaterThan(0);
+    expect(CONFIG.GLOBAL_DEFENSE_MAX).toBeLessThan(CONFIG.OWNERSHIP_DEFENSE_MAX);
   });
 
   it('has spawn rate and speed upgrade constants', () => {

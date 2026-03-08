@@ -1,6 +1,6 @@
 import type { AIProfile } from '../ai';
 import type { GridType } from '../grid/generators';
-import { runBatch, type BatchConfig } from '../headless/BatchRunner';
+import { runBatch } from '../headless/BatchRunner';
 
 export interface MatchupResult {
   readonly p0Profile: string;

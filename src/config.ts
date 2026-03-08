@@ -37,9 +37,15 @@ export const CONFIG = {
   /** Damage gained per attack upgrade level (> 1.0 makes attack scale faster than health) */
   ATTACK_PER_LEVEL: 1.2,
   /** % max HP bonus scales attack multiplicatively: dmg = atk * (1 + scale * targetHP/baseHP) */
-  PERCENT_HP_DAMAGE_SCALING: 0.06,
+  PERCENT_HP_DAMAGE_SCALING: 0.05,
   /** Bonus damage multiplier per 100% speed advantage over target (speed combat mechanic) */
   SPEED_COMBAT_BONUS: 0.4,
+  /** How strongly defense reduces HP scaling penalty (defense * factor reduces the HP scaling bonus) */
+  DEFENSE_HP_SCALING_REDUCTION: 4.5,
+  /** Per-level defense bonus applied globally (outside owned cells). Much smaller than cell-based. */
+  GLOBAL_DEFENSE_PER_LEVEL: 0.018,
+  /** Max global defense bonus (outside owned cells) */
+  GLOBAL_DEFENSE_MAX: 0.18,
   PARTICLE_BASE_RADIUS: 3,
   PARTICLE_SPEED: 180,
   SPAWN_INTERVAL_MS: 200,

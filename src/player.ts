@@ -13,6 +13,8 @@ export interface IPlayer {
   readonly maxParticles: number;
   /** Defense bonus (0-0.25) from ownership upgrade, applied when in owned cell */
   readonly particleDefense: number;
+  /** Small defense bonus applied globally (outside owned cells) based on defense upgrade level */
+  readonly globalDefense: number;
   /** Gold interest rate (0-0.05) from interest upgrade, applied every INTEREST_INTERVAL_MS */
   readonly goldInterestRate: number;
   readonly isAlive: boolean;
@@ -144,6 +146,10 @@ export class Player implements IPlayer {
     const base = CONFIG.OWNERSHIP_DEFENSE_BASE;
     const fromUpgrade = this.upgradeLevels.defense * CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL;
     return Math.min(CONFIG.OWNERSHIP_DEFENSE_MAX, base + fromUpgrade);
+  }
+
+  get globalDefense(): number {
+    return Math.min(CONFIG.GLOBAL_DEFENSE_MAX, this.upgradeLevels.defense * CONFIG.GLOBAL_DEFENSE_PER_LEVEL);
   }
 
   get goldInterestRate(): number {

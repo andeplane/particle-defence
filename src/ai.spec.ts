@@ -9,6 +9,8 @@ const playerConfig: PlayerConfig = {
   startingGold: 100,
   particleBaseHealth: 3,
   particleBaseAttack: 1,
+  healthPerLevel: 0.8,
+  attackPerLevel: 1.2,
   particleBaseRadius: 3,
   particleBaseSpeed: 180,
   spawnIntervalMs: 200,

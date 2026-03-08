@@ -211,8 +211,10 @@ export abstract class AbstractParticle implements IParticle {
     const speedMultiplier = speedDiff > 0
       ? 1 + CONFIG.SPEED_COMBAT_BONUS * (speedDiff / CONFIG.PARTICLE_SPEED)
       : 1;
+    const rawHpScaling = CONFIG.PERCENT_HP_DAMAGE_SCALING * (this.maxHealth / CONFIG.PARTICLE_BASE_HEALTH);
+    const defenseReduction = Math.min(1, this.defenseFactor * CONFIG.DEFENSE_HP_SCALING_REDUCTION);
     const hpScaling = other.attack > 0
-      ? 1 + CONFIG.PERCENT_HP_DAMAGE_SCALING * (this.maxHealth / CONFIG.PARTICLE_BASE_HEALTH)
+      ? 1 + rawHpScaling * (1 - defenseReduction)
       : 1;
     this.takeDamage(other.attack * speedMultiplier * hpScaling);
   }

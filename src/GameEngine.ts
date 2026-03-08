@@ -368,7 +368,7 @@ export class GameEngine implements AIGameState {
       const cellOwner = context.cellEffects.getOwnerAt(p.x, p.y);
       const inOwnedCell = cellOwner === owner;
       const player = this.players[owner];
-      p.defenseFactor = inOwnedCell ? player.particleDefense : 0;
+      p.defenseFactor = inOwnedCell ? player.particleDefense : player.globalDefense;
     }
   }
 

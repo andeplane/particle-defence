@@ -165,8 +165,38 @@ describe(BasicParticle.name, () => {
       const p = createParticle({ health: 10 });
       const other = createMockParticle({ attack: 3 });
       p.onCollide(other, context);
-      // hpScaling = 1 + 0.08 * (10 / 5) = 1.16; damage = 3 * 1.16 = 3.48
-      expect(p.health).toBeCloseTo(10 - 3 * (1 + CONFIG.PERCENT_HP_DAMAGE_SCALING * (10 / CONFIG.PARTICLE_BASE_HEALTH)));
+      const hpScaling = 1 + CONFIG.PERCENT_HP_DAMAGE_SCALING * (10 / CONFIG.PARTICLE_BASE_HEALTH);
+      expect(p.health).toBeCloseTo(10 - 3 * hpScaling);
+    });
+
+    it('applies speed combat bonus when attacker is faster', () => {
+      const p = createParticle({ health: 10, speed: 100 });
+      const other = createMockParticle({ attack: 2, speed: 300 });
+      p.onCollide(other, context);
+      const speedMult = 1 + CONFIG.SPEED_COMBAT_BONUS * ((300 - 100) / CONFIG.PARTICLE_SPEED);
+      const hpScaling = 1 + CONFIG.PERCENT_HP_DAMAGE_SCALING * (10 / CONFIG.PARTICLE_BASE_HEALTH);
+      expect(p.health).toBeCloseTo(10 - 2 * speedMult * hpScaling);
+    });
+
+    it('defense reduces HP scaling via DEFENSE_HP_SCALING_REDUCTION', () => {
+      const pNoDefense = createParticle({ health: 10 });
+      const pDefense = createParticle({ health: 10 });
+      pDefense.defenseFactor = 0.15;
+      const other = createMockParticle({ attack: 3 });
+
+      pNoDefense.onCollide(other, context);
+      pDefense.onCollide(other, context);
+
+      expect(pDefense.health).toBeGreaterThan(pNoDefense.health);
+    });
+
+    it('defense factor of 0 gives no HP scaling reduction', () => {
+      const p = createParticle({ health: 10 });
+      p.defenseFactor = 0;
+      const other = createMockParticle({ attack: 3 });
+      p.onCollide(other, context);
+      const hpScaling = 1 + CONFIG.PERCENT_HP_DAMAGE_SCALING * (10 / CONFIG.PARTICLE_BASE_HEALTH);
+      expect(p.health).toBeCloseTo(10 - 3 * hpScaling * (1 - 0));
     });
   });
 

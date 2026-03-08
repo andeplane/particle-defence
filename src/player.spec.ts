@@ -90,6 +90,17 @@ describe(Player.name, () => {
     });
 
     it.each([
+      { level: 0, expected: 0, desc: '0 at level 0' },
+      { level: 1, expected: CONFIG.GLOBAL_DEFENSE_PER_LEVEL, desc: '1 level' },
+      { level: 5, expected: 5 * CONFIG.GLOBAL_DEFENSE_PER_LEVEL, desc: '5 levels' },
+      { level: 50, expected: CONFIG.GLOBAL_DEFENSE_MAX, desc: 'capped at max' },
+    ])('globalDefense $desc', ({ level, expected }) => {
+      player.gold = 99999;
+      for (let i = 0; i < level; i++) player.buyUpgrade('defense');
+      expect(player.globalDefense).toBeCloseTo(expected);
+    });
+
+    it.each([
       { level: 0, expected: 0, desc: '0% at level 0' },
       { level: 1, expected: 0.0025, desc: '0.25% at level 1' },
       { level: 3, expected: 0.0075, desc: '0.75% at level 3' },
@@ -331,6 +342,8 @@ describe(computeMaxLevels.name, () => {
       startingGold: CONFIG.STARTING_GOLD,
       particleBaseHealth: CONFIG.PARTICLE_BASE_HEALTH,
       particleBaseAttack: CONFIG.PARTICLE_BASE_ATTACK,
+      healthPerLevel: CONFIG.HEALTH_PER_LEVEL,
+      attackPerLevel: CONFIG.ATTACK_PER_LEVEL,
       particleBaseRadius: CONFIG.PARTICLE_BASE_RADIUS,
       particleBaseSpeed: CONFIG.PARTICLE_SPEED,
       spawnIntervalMs: CONFIG.SPAWN_INTERVAL_MS,
