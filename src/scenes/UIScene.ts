@@ -434,7 +434,7 @@ export class UIScene extends Phaser.Scene {
     }
 
     const staggerOffset = (btnW + gap) * 0.4;
-    const topRowCount = Math.min(6, catDef.items.length);
+    const topRowCount = Math.min(4, catDef.items.length);
     const bottomRowCount = catDef.items.length - topRowCount;
 
     catDef.items.forEach((item, i) => {

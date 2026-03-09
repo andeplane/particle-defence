@@ -239,14 +239,14 @@ The UI uses a **Warcraft-style hierarchical menu**. Each player sees top-level c
 - **E/P** - PLACE (converts active carrier to tower at its position; shows carrier HP bar)
 
 ### Upgrades Submenu (P1 keys / P2 keys)
-- **Q/I** - Upgrade Health
-- **W/O** - Upgrade Attack
-- **E/P** - Upgrade Radius
-- **R/U** - Upgrade Spawn Rate
-- **A/K** - Upgrade Speed
-- **S/L** - Upgrade Max Particles (increases population cap per level)
-- **D/J** - Upgrade Defense (ownership defense bonus, capped at `OWNERSHIP_DEFENSE_MAX`)
-- **F/H** - Upgrade Interest Rate (periodic gold interest, capped at `MAX_INTEREST_RATE`)
+- **Q/U** - Upgrade Health
+- **W/I** - Upgrade Attack
+- **E/O** - Upgrade Radius
+- **R/P** - Upgrade Spawn Rate
+- **A/H** - Upgrade Speed
+- **S/J** - Upgrade Max Particles (increases population cap per level)
+- **D/K** - Upgrade Defense (ownership defense bonus, capped at `OWNERSHIP_DEFENSE_MAX`)
+- **F/L** - Upgrade Interest Rate (periodic gold interest, capped at `MAX_INTEREST_RATE`)
 
 ### Abilities Submenu (P1 keys / P2 keys)
 - **Q/I** - Launch Nuke
