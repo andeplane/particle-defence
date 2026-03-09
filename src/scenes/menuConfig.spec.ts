@@ -136,14 +136,14 @@ describe('menuConfig', () => {
         ['S', 0, 'maxParticles'],
         ['D', 0, 'defense'],
         ['F', 0, 'interestRate'],
-        ['I', 1, 'health'],
-        ['O', 1, 'attack'],
-        ['P', 1, 'radius'],
-        ['U', 1, 'spawnRate'],
-        ['K', 1, 'speed'],
-        ['L', 1, 'maxParticles'],
-        ['J', 1, 'defense'],
-        ['H', 1, 'interestRate'],
+        ['U', 1, 'health'],
+        ['I', 1, 'attack'],
+        ['O', 1, 'radius'],
+        ['P', 1, 'spawnRate'],
+        ['H', 1, 'speed'],
+        ['J', 1, 'maxParticles'],
+        ['K', 1, 'defense'],
+        ['L', 1, 'interestRate'],
       ] as const)('P%d presses %s -> upgrade %s', (key, playerId, upgradeType) => {
         const result = resolveKeyPress(key, playerId, 'upgrades');
         expect(result).toEqual({ type: 'upgrade', upgradeType });

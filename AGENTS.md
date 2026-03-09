@@ -289,6 +289,12 @@ The UI uses a **Warcraft-style hierarchical menu**. Each player sees top-level c
 - `npm run balance` - Run mathematical balance analysis
 - `npm run balance-test` - Run balance test CLI (ablation, tournament, full)
 
+### Before Committing and Pushing
+**ALWAYS run tests and CI steps before committing and pushing:**
+- `npm run test:run` - Run all tests to ensure nothing is broken
+- `npm run build` - Verify the project builds successfully
+- Ensure all tests pass and the build completes without errors before committing
+
 ### Dependencies
 - **phaser**: ^3.90.0 - Game framework
 - **typescript**: ~5.9.3 - TypeScript compiler
