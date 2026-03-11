@@ -2,7 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>Particle Defence</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -11,15 +12,55 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        min-height: 100vh;
+        height: 100dvh;
+        min-height: 100dvh;
         overflow: hidden;
       }
       #game-container {
         position: relative;
+        touch-action: none;
+      }
+      canvas {
+        touch-action: none;
+        -webkit-touch-callout: none;
+        user-select: none;
+      }
+
+      /* Portrait overlay for mobile -- guides user to rotate device */
+      #portrait-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #0a0a0f;
+        color: #aaaaaa;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        font-family: monospace;
+        gap: 24px;
+      }
+      #portrait-overlay .rotate-icon {
+        font-size: 64px;
+      }
+      #portrait-overlay .rotate-text {
+        font-size: 20px;
+        text-align: center;
+        padding: 0 32px;
+      }
+
+      @media (hover: none) and (pointer: coarse) and (orientation: portrait) {
+        #portrait-overlay {
+          display: flex;
+        }
       }
     </style>
   </head>
   <body>
+    <div id="portrait-overlay">
+      <div class="rotate-icon">&#x21BB;</div>
+      <div class="rotate-text">Rotate your device to landscape to play</div>
+    </div>
     <div id="game-container"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

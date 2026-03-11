@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CONFIG } from '../config';
+import { isMobile } from '../mobile';
 import type { GameMode } from './MenuScene';
 import type { GridType } from '../grid';
 import { createMenuButton } from './createMenuButton';
@@ -18,6 +19,7 @@ export class MapSelectScene extends Phaser.Scene {
   create(): void {
     const centerX = CONFIG.GAME_WIDTH / 2;
     const centerY = CONFIG.GAME_HEIGHT / 2;
+    const mobile = isMobile();
 
     this.add.text(centerX, centerY - 120, 'TOWER DEFENCE', {
       fontSize: '64px',
@@ -54,26 +56,28 @@ export class MapSelectScene extends Phaser.Scene {
       createMenuButton(this, x, y, btnW, btnH, label, color, () => this.startGame(type));
     }
 
-    this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
-      const key = event.key.toUpperCase();
-      const keyToType: Record<string, GridType> = {
-        '1': 'random',
-        '2': 'maze',
-        '3': 'hourglass',
-        '4': 'lanes',
-        '5': 'islands',
-        '6': 'rooms',
-        '7': 'fortress',
-      };
-      const gridType = keyToType[key];
-      if (gridType) this.startGame(gridType);
-    });
+    if (!mobile) {
+      this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
+        const key = event.key.toUpperCase();
+        const keyToType: Record<string, GridType> = {
+          '1': 'random',
+          '2': 'maze',
+          '3': 'hourglass',
+          '4': 'lanes',
+          '5': 'islands',
+          '6': 'rooms',
+          '7': 'fortress',
+        };
+        const gridType = keyToType[key];
+        if (gridType) this.startGame(gridType);
+      });
 
-    this.add.text(centerX, centerY + 180, '[1-7] Select map', {
-      fontSize: `${CONFIG.UI_FONT_SMALL}px`,
-      color: '#666666',
-      fontFamily: 'monospace',
-    }).setOrigin(0.5);
+      this.add.text(centerX, centerY + 180, '[1-7] Select map', {
+        fontSize: `${CONFIG.UI_FONT_SMALL}px`,
+        color: '#666666',
+        fontFamily: 'monospace',
+      }).setOrigin(0.5);
+    }
   }
 
   private startGame(gridType: GridType): void {

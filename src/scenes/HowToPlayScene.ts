@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CONFIG } from '../config';
+import { isMobile } from '../mobile';
 import { TABS, getTabContent, type TabId, type ContentSection } from './howToPlayData';
 
 const TAB_BAR_H = 52;
@@ -103,7 +104,8 @@ export class HowToPlayScene extends Phaser.Scene {
   }
 
   private drawBackButton(): void {
-    const btn = this.add.text(CONFIG.GAME_WIDTH / 2, CONFIG.GAME_HEIGHT - 30, '[ ESC ] Back to Menu', {
+    const label = isMobile() ? 'Back to Menu' : '[ ESC ] Back to Menu';
+    const btn = this.add.text(CONFIG.GAME_WIDTH / 2, CONFIG.GAME_HEIGHT - 30, label, {
       fontSize: `${BODY_SIZE}px`,
       color: '#666666',
       fontFamily: 'monospace',
@@ -115,6 +117,7 @@ export class HowToPlayScene extends Phaser.Scene {
   }
 
   private setupKeyboard(): void {
+    if (isMobile()) return;
     this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         this.scene.start('MenuScene');

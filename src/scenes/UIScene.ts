@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CONFIG, DEBUG_MODE, getTowerUpgradeCost, setDebugEverythingCheap, type UpgradeType, type TowerType } from '../config';
+import { isMobile } from '../mobile';
 import type { IPlayer } from '../player';
 import type { GameMode } from './MenuScene';
 import { MENU_CATEGORIES, type MenuCategory, resolveKeyPress } from './menuConfig';
@@ -110,6 +111,7 @@ export class UIScene extends Phaser.Scene {
   private debugEverythingCheapToggle?: Phaser.GameObjects.Rectangle;
   private debugEverythingCheapText?: Phaser.GameObjects.Text;
   private speedButtons: { bg: Phaser.GameObjects.Rectangle; label: Phaser.GameObjects.Text; speed: number }[] = [];
+  private readonly _mobile = isMobile();
 
   constructor() {
     super({ key: 'UIScene' });
@@ -486,7 +488,7 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
     const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setVisible(!this._mobile);
 
     bg.on('pointerdown', () => { this.activeCategory[playerId] = categoryId; this.renderMenuForPlayer(playerId); });
     bg.on('pointerover', () => {
@@ -513,7 +515,7 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
     const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setVisible(!this._mobile);
 
     bg.on('pointerdown', () => {
       this.activeCategory[playerId] = null;
@@ -546,7 +548,7 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
     const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setVisible(!this._mobile);
 
     bg.on('pointerdown', () => this.handleUpgrade(playerId, type, bg));
     bg.on('pointerover', () => {
@@ -577,7 +579,7 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
     const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setVisible(!this._mobile);
 
     bg.on('pointerdown', () => this.handleNuke(playerId, bg));
     bg.on('pointerover', () => {
@@ -607,7 +609,7 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
     const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setVisible(!this._mobile);
 
     bg.on('pointerdown', () => this.handleResearch(playerId, towerType, bg));
     bg.on('pointerover', () => { bg.setFillStyle(0x224422, 0.9); this.showTooltip(tooltip, x, y, playerId); });
@@ -631,7 +633,7 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
     const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setVisible(!this._mobile);
 
     bg.on('pointerdown', () => this.handleConstruct(playerId, towerType, bg));
     bg.on('pointerover', () => { bg.setFillStyle(0x222244, 0.9); this.showTooltip(tooltip, x, y, playerId); });
@@ -664,7 +666,7 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
     const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setVisible(!this._mobile);
 
     bg.on('pointerdown', () => this.handlePlace(playerId, bg));
     bg.on('pointerover', () => { bg.setFillStyle(0x333322, 0.9); this.showTooltip('Place tower at carrier position', x, y, playerId); });
@@ -685,7 +687,7 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
     const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setVisible(!this._mobile);
 
     bg.on('pointerdown', () => {
       if (action === 'towerPrev') this.handleTowerCycle(playerId, -1);
@@ -798,6 +800,7 @@ export class UIScene extends Phaser.Scene {
   // ── Keyboard ───────────────────────────────────────────────────────
 
   private setupKeyboard(): void {
+    if (this._mobile) return;
     this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
       const key = event.key;
 
