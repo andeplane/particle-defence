@@ -8,6 +8,18 @@ import { HowToPlayScene } from './scenes/HowToPlayScene';
 import { PostGameStatsScene } from './scenes/PostGameStatsScene';
 import { UIScene } from './scenes/UIScene';
 
+const mobile = isMobile();
+
+if (mobile) {
+  const container = document.getElementById('game-container')!;
+  const resize = () => {
+    container.style.width = `${window.innerWidth}px`;
+    container.style.height = `${window.innerHeight}px`;
+  };
+  resize();
+  window.addEventListener('resize', resize);
+}
+
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
   width: CONFIG.GAME_WIDTH,
@@ -30,7 +42,7 @@ const config: Phaser.Types.Core.GameConfig = {
 
 new Phaser.Game(config);
 
-if (isMobile()) {
+if (mobile) {
   const enterFullscreen = () => {
     const doc = document.documentElement;
     const rfs = doc.requestFullscreen
@@ -43,7 +55,6 @@ if (isMobile()) {
         } catch { /* orientation lock not supported */ }
       }).catch(() => {});
     }
-    document.removeEventListener('pointerdown', enterFullscreen);
   };
   document.addEventListener('pointerdown', enterFullscreen, { once: true });
 }
