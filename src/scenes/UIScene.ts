@@ -706,11 +706,11 @@ export class UIScene extends Phaser.Scene {
     const player = this.viewModel.players[playerId];
     const cost = player.getResearchCost(towerType);
     if (this.viewModel.researchTower(playerId, towerType)) {
-      if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
       this.showGoldPopup(playerId, `-$${cost}`);
       this.renderMenuForPlayer(playerId);
     } else {
-      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
     }
   }
 
@@ -719,19 +719,19 @@ export class UIScene extends Phaser.Scene {
     const player = this.viewModel.players[playerId];
     const cost = player.getConstructionCost(towerType);
     if (this.viewModel.constructTower(playerId, towerType)) {
-      if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
       this.showGoldPopup(playerId, `-$${cost}`);
     } else {
-      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
     }
   }
 
   private handlePlace(playerId: 0 | 1, btn?: Phaser.GameObjects.Rectangle): void {
     if (this.viewModel.gameOver) return;
     if (this.viewModel.placeTower(playerId)) {
-      if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
     } else {
-      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
     }
   }
 
@@ -749,24 +749,24 @@ export class UIScene extends Phaser.Scene {
     const tower = towers[idx];
     const cost = getTowerUpgradeCost(tower.towerType, tower.level);
     if (this.viewModel.upgradeTower(playerId, idx)) {
-      if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
       this.showGoldPopup(playerId, `-$${cost}`);
     } else {
-      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
     }
   }
 
   private handleNuke(playerId: 0 | 1, btn?: Phaser.GameObjects.Rectangle): void {
     if (this.viewModel.gameOver) return;
     if (this.viewModel.launchNuke(playerId)) {
-      if (btn) {
+      if (btn && !this.tweens.isTweening(btn)) {
         this.tweens.add({
           targets: btn, scaleX: 1.15, scaleY: 1.15,
           duration: 80, yoyo: true, ease: 'Quad.easeOut',
         });
       }
     } else {
-      if (btn) {
+      if (btn && !this.tweens.isTweening(btn)) {
         this.tweens.add({
           targets: btn, x: btn.x + 3,
           duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut',
@@ -780,7 +780,7 @@ export class UIScene extends Phaser.Scene {
     const player = this.viewModel.players[playerId];
     const cost = player.getUpgradeCost(type);
     if (this.viewModel.purchaseUpgrade(playerId, type)) {
-      if (btn) {
+      if (btn && !this.tweens.isTweening(btn)) {
         this.tweens.add({
           targets: btn, scaleX: 1.15, scaleY: 1.15,
           duration: 80, yoyo: true, ease: 'Quad.easeOut',
@@ -788,7 +788,7 @@ export class UIScene extends Phaser.Scene {
       }
       this.showGoldPopup(playerId, `-$${cost}`);
     } else {
-      if (btn) {
+      if (btn && !this.tweens.isTweening(btn)) {
         this.tweens.add({
           targets: btn, x: btn.x + 3,
           duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut',
