@@ -109,9 +109,9 @@ function getTechTreeSections(): ContentSection[] {
   const towerConstruction: ContentSection = {
     title: 'Tower Construction',
     lines: [
-      'Building a tower spawns a carrier particle from your base.',
-      `Carrier HP: ${CONFIG.TOWER_CARRIER_HP}  (can be killed before placement)`,
-      'Press PLACE to convert the carrier into a tower at its position.',
+      'Each map has 6 fixed tower pads marked as wall cells.',
+      'Select LASER or SLOW, cycle eligible pads, then press BUILD.',
+      'A pad is eligible only when you own every adjacent open cell.',
       `Max towers per player: ${CONFIG.TOWER_MAX_PER_PLAYER}`,
       '',
       `  Laser Tower build cost:  ${getTowerConstructionCost('laser')}g`,

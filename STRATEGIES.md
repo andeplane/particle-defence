@@ -12,6 +12,7 @@ Before diving into strategies, understand the key mechanics that shape decision-
 - **Defense reduces HP scaling**: The defense upgrade partially negates the anti-tank HP scaling penalty, making defense a direct counter to the anti-tank mechanic.
 - **Global defense**: Defense provides a small damage reduction everywhere (not just in owned territory), giving defensive builds survivability when pushing.
 - **Cell ownership**: Controlling territory grants a defense bonus to your particles standing in owned cells and slows enemy particles passing through.
+- **Tower pads**: Every map has six fixed tower pads at marked wall cells. You can build on a pad only after owning every adjacent open cell around it.
 
 ### Economy Basics
 
@@ -45,7 +46,7 @@ Upgrade costs scale exponentially: `baseCost × 1.3^level`. Early upgrades are c
 
 **Weaknesses**: Doesn't excel in any specific area. Can be outpaced by specialists in their domain.
 
-**Tower Usage**: Standard. Researches after 2 minutes, builds when gold allows. Alternates laser and slow towers.
+**Tower Usage**: Standard. Researches after 2 minutes, builds when gold allows and a controlled tower pad is available. Alternates laser and slow towers.
 
 ---
 
@@ -120,6 +121,8 @@ Upgrade costs scale exponentially: `baseCost × 1.3^level`. Early upgrades are c
 | Slow | 40% slow in range | 140 | 40 | 500g |
 
 Towers are upgraded by spending gold (200g base, ×1.4 per level). Each level improves damage/slow, range, and HP.
+
+Towers must be built on one of six fixed map pads. To unlock a pad, fully control the adjacent open cells around it, then cycle to that eligible pad and build directly.
 
 **Key Mechanic**: `towerPriority: 'high'` makes the AI research at 60s instead of 120s and build with less gold reserve (1.2× cost vs 1.5×).
 
