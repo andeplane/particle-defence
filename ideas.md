@@ -22,9 +22,46 @@ A carrier-style particle (like tower carriers) that, when triggered, converts al
 
 ---
 
-## Max Towers Upgrade
+## Bomb Particle
 
-Add a new upgrade that increases the maximum number of towers a player can have (currently capped at 5 via `TOWER_MAX_PER_PLAYER`).
+A fragile, high-impact particle that detonates on contact or death.
+
+- **Mechanics**: Moves like a normal particle, but deals burst damage when it reaches enemies, towers, or the enemy base
+- **Tradeoff**: Lower health and/or attack while alive, with most value concentrated in the explosion
+- **Upgrades**: TBD (e.g. blast radius, explosion damage, fuse behavior)
+
+---
+
+## Splitting Particle
+
+A particle that splits into smaller, weaker particles when it dies.
+
+- **Mechanics**: On death, spawns multiple child particles at its location
+- **Scaling**: Potentially supports multiple split levels, with each generation becoming smaller and weaker
+- **Tradeoff**: Strong against single-target damage, weaker against AoE and splash effects
+- **Upgrades**: TBD (e.g. number of children, split depth, child stat retention)
+
+---
+
+## AoE Death Particle
+
+A particle that damages nearby enemies when it dies.
+
+- **Mechanics**: On death, applies area damage to enemy particles and towers within a radius
+- **Tradeoff**: Rewards good timing and clustered fights, but may be inefficient against spread-out enemies
+- **Upgrades**: TBD (e.g. death radius, explosion damage, falloff)
+
+---
+
+## Reflective Mirror Column
+
+A map feature or buildable effect where a full column, or part of a column, acts like a half-reflective mirror.
+
+- **Mechanics**: Particles crossing the mirror have a chance to reflect as if they hit a wall
+- **Directionality**: Each player upgrades reflection strength in their own defensive direction; for example, if Red has 20% reflection, particles moving toward Red's side have a 20% chance to reflect
+- **Research**: Requires a new mirror/reflection research unlock before upgrades become available
+- **Upgrades**: Increase the reflection chance for particles moving toward that player's side
+- **Placement/Shape**: Could affect a whole column, one third of a column, or selected mirror segments
 
 ---
 
