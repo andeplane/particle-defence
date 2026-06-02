@@ -6,9 +6,9 @@ import {
   getVisibleConstructionItems,
   selectConstructionTower,
 } from './constructionMenuState';
-import { MENU_CATEGORIES } from './menuConfig';
+import { getConstructionSubmenuItems } from './menuConfig';
 
-const constructionItems = MENU_CATEGORIES.find((category) => category.id === 'construction')!.items;
+const constructionItems = getConstructionSubmenuItems('towers');
 
 describe('construction menu state', () => {
   it('starts with tower type selection visible and no site selection', () => {

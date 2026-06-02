@@ -8,6 +8,7 @@ import {
   getConstructionSubmenuItems,
   type BuildSubmenu,
   type MenuCategory,
+  type MenuItemDef,
   type ResearchType,
   resolveKeyPress,
 } from './menuConfig';
@@ -544,7 +545,7 @@ export class UIScene extends Phaser.Scene {
     this.categoryButtons.push({ bg, label: labelText, keyText, categoryId: 'construction', playerId });
   }
 
-  private getVisibleMenuItems(playerId: 0 | 1, items: typeof MENU_CATEGORIES[number]['items']) {
+  private getVisibleMenuItems(playerId: 0 | 1, items: readonly MenuItemDef[]) {
     if (this.activeCategory[playerId] !== 'construction' || this.activeBuildSubmenu[playerId] !== 'towers') {
       return items;
     }

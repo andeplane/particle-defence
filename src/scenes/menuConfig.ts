@@ -174,10 +174,10 @@ export function resolveKeyPress(
         if (item.kind === 'upgrade') {
           return { type: 'upgrade', upgradeType: item.type };
         } else if (item.kind === 'research') {
-          return { type: 'research', towerType: item.towerType };
+          return { type: 'research', researchType: item.researchType };
         } else if (item.kind === 'construct') {
           return { type: 'construct', towerType: item.towerType };
-        } else {
+        } else if (item.kind === 'action') {
           return { type: 'action', action: item.action };
         }
       }
@@ -186,9 +186,7 @@ export function resolveKeyPress(
 
     const catDef = MENU_CATEGORIES.find(c => c.id === currentCategory);
     if (catDef) {
-      const items = currentCategory === 'construction'
-        ? catDef.items.filter((item) => constructionSiteSelectionActive ? item.kind === 'action' : item.kind === 'construct')
-        : catDef.items;
+      const items = catDef.items;
       const item = items.find(i => {
         const itemKey = playerId === 0 ? i.p1Key : i.p2Key;
         return itemKey === upperKey;
@@ -200,7 +198,7 @@ export function resolveKeyPress(
           return { type: 'research', researchType: item.researchType };
         } else if (item.kind === 'construct') {
           return { type: 'construct', towerType: item.towerType };
-        } else {
+        } else if (item.kind === 'action') {
           return { type: 'action', action: item.action };
         }
       }
