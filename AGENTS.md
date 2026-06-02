@@ -219,7 +219,7 @@ The UI uses a **Warcraft-style hierarchical menu**. Each player sees top-level c
 
 | Category      | P1 Key | P2 Key | Contents |
 |---------------|--------|--------|----------|
-| BUILD         | Q      | I      | Construct towers (laser, slow) + place carrier |
+| BUILD         | Q      | I      | Open build categories (Towers / Particles) |
 | RESEARCH      | W      | O      | Unlock tower types (one-time purchase) |
 | UPGRADES      | E      | P      | All particle stat upgrades |
 | ABILITIES     | A      | K      | Nuke |
@@ -233,7 +233,11 @@ The UI uses a **Warcraft-style hierarchical menu**. Each player sees top-level c
 - **Q/I** - Research Laser Tower (one-time cost, see `config.ts`)
 - **W/O** - Research Slow Tower (one-time cost, see `config.ts`)
 
-### Construction Submenu (P1 keys / P2 keys)
+### Build Submenu (P1 keys / P2 keys)
+- **Q/I** - Open `BUILD -> TOWERS`
+- **W/O** - Open `BUILD -> PARTICLES` (reserved for future buildable particle types)
+
+### Build > Towers Submenu (P1 keys / P2 keys)
 - **Q/I** - Build Laser Tower (spawns carrier) -- greyed if not researched
 - **W/O** - Build Slow Tower (spawns carrier) -- greyed if not researched
 - **E/P** - PLACE (converts active carrier to tower at its position; shows carrier HP bar)
@@ -489,3 +493,4 @@ Particles use an inheritance-based hierarchy. New types extend `AbstractParticle
 - **AI mode**: AIController runs in GameEngine.tick() when AI mode is enabled, makes decisions every ~200ms. Engine supports `'none'` (no AI), `'single'` (P2 only), or `'both'` (AI-vs-AI for headless simulation)
 - **Stats awareness**: When adding new gameplay features (new particle types, abilities, economy mechanics, combat changes, etc.), consider whether they should be reflected in the post-game stats. If a new feature introduces a meaningful metric players would want to see after the match, add sampling to `MatchStatsRecorder`, a new field to `PerSecondSample` or `MatchEvent`, and a corresponding graph in `PostGameStatsScene`. Keep the stats telling a compelling story about the match
 - **How to Play awareness**: When adding or changing gameplay features, upgrades, towers, combat mechanics, or strategies, update the in-game How to Play screen. The content is generated from CONFIG values in `src/scenes/howToPlayData.ts` -- so numeric changes auto-propagate, but new features, upgrades, mechanics, or strategy changes require updating the relevant tab content (Overview, Tech Tree, Combat, or Strategies). Also update `STRATEGIES.md` if strategy advice changes
+- **Build/research principle**: New buildable content should generally require prior research unlocks. Exceptions are allowed, but should be explicit and documented in code/comments and UI text.

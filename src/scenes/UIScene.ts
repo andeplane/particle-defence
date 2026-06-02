@@ -3,7 +3,13 @@ import { CONFIG, DEBUG_MODE, getTowerUpgradeCost, setDebugEverythingCheap, type 
 import { isMobile } from '../mobile';
 import type { IPlayer } from '../player';
 import type { GameMode } from './MenuScene';
-import { MENU_CATEGORIES, type MenuCategory, resolveKeyPress } from './menuConfig';
+import {
+  MENU_CATEGORIES,
+  getConstructionSubmenuItems,
+  type BuildSubmenu,
+  type MenuCategory,
+  resolveKeyPress,
+} from './menuConfig';
 import { getClearedUIState } from './UISceneState';
 import { getLaserStats, getSlowStats } from '../particles/towers';
 import type { LaserTowerParticle } from '../particles/LaserTowerParticle';
@@ -91,6 +97,7 @@ export class UIScene extends Phaser.Scene {
   private nukeButtons: NukeButton[] = [];
   private categoryButtons: CategoryButton[] = [];
   private activeCategory: [MenuCategory | null, MenuCategory | null] = [null, null];
+  private activeBuildSubmenu: [BuildSubmenu | null, BuildSubmenu | null] = [null, null];
   private categoryTitle: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
   private backButtons: BackButton[] = [];
   private placeholderText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
@@ -137,6 +144,7 @@ export class UIScene extends Phaser.Scene {
     this.placeButtons = cleared.placeButtons as typeof this.placeButtons;
     this.popups = cleared.popups as typeof this.popups;
     this.activeCategory = cleared.activeCategory;
+    this.activeBuildSubmenu = cleared.activeBuildSubmenu;
     this.categoryTitle = cleared.categoryTitle as typeof this.categoryTitle;
     this.placeholderText = cleared.placeholderText as typeof this.placeholderText;
     this.tooltipText = cleared.tooltipText as typeof this.tooltipText;
@@ -398,6 +406,7 @@ export class UIScene extends Phaser.Scene {
     const { btnW, btnH, gap, startX, rightEdge, topRowY, bottomRowY, isRight } = this.getPanelLayout(playerId);
     const key = (def: { p1Key: string; p2Key: string }) => (playerId === 0 ? def.p1Key : def.p2Key);
     const category = this.activeCategory[playerId];
+    const buildSubmenu = this.activeBuildSubmenu[playerId];
 
     if (category === null) {
       const topCats = MENU_CATEGORIES.slice(0, 3);
@@ -415,14 +424,20 @@ export class UIScene extends Phaser.Scene {
     }
 
     const catDef = MENU_CATEGORIES.find(c => c.id === category)!;
+    const items = category === 'construction' && buildSubmenu !== null
+      ? getConstructionSubmenuItems(buildSubmenu)
+      : catDef.items;
     const titleY = topRowY - CONFIG.UI_FONT_SMALL - CONFIG.UI_GAP * 2;
     const titleX = isRight ? rightEdge - 2 * (btnW + gap) : startX + 2 * (btnW + gap);
 
-    this.categoryTitle[playerId] = this.add.text(titleX, titleY, catDef.label, {
+    const title = category === 'construction' && buildSubmenu !== null
+      ? `${catDef.label}: ${buildSubmenu.toUpperCase()}`
+      : catDef.label;
+    this.categoryTitle[playerId] = this.add.text(titleX, titleY, title, {
       fontSize: `${CONFIG.UI_FONT_SMALL}px`, color: '#aaaaaa', fontFamily: 'monospace',
     }).setOrigin(isRight ? 1 : 0, 0.5);
 
-    if (catDef.items.length === 0) {
+    if (items.length === 0) {
       this.placeholderText[playerId] = this.add.text(
         titleX,
         topRowY + btnH / 2,
@@ -436,10 +451,10 @@ export class UIScene extends Phaser.Scene {
     }
 
     const staggerOffset = (btnW + gap) * 0.4;
-    const topRowCount = Math.min(4, catDef.items.length);
-    const bottomRowCount = catDef.items.length - topRowCount;
+    const topRowCount = Math.min(4, items.length);
+    const bottomRowCount = items.length - topRowCount;
 
-    catDef.items.forEach((item, i) => {
+    items.forEach((item, i) => {
       const isTopRow = i < topRowCount;
       const rowIndex = isTopRow ? i : i - topRowCount;
       const totalInRow = isTopRow ? topRowCount : bottomRowCount;
@@ -453,6 +468,8 @@ export class UIScene extends Phaser.Scene {
         this.createResearchButton(x, y, btnW, btnH, item.towerType, item.label, item.tooltip, key(item), playerId);
       } else if (item.kind === 'construct') {
         this.createConstructButton(x, y, btnW, btnH, item.towerType, item.label, item.tooltip, key(item), playerId);
+      } else if (item.kind === 'buildSubmenu') {
+        this.createBuildSubmenuButton(x, y, btnW, btnH, item.buildSubmenu, item.label, item.tooltip, key(item), playerId);
       } else if (item.kind === 'action' && item.action === 'nuke') {
         this.createActionButton(x, y, btnW, btnH, item.label, item.tooltip, key(item), playerId);
       } else if (item.kind === 'action' && item.action === 'place') {
@@ -475,6 +492,36 @@ export class UIScene extends Phaser.Scene {
     }
   }
 
+  private createBuildSubmenuButton(
+    x: number, y: number, w: number, h: number,
+    buildSubmenu: BuildSubmenu, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
+  ): void {
+    const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, 0.85)
+      .setStrokeStyle(2, color, 0.5)
+      .setInteractive({ useHandCursor: true });
+    const labelText = this.add.text(x, y + h * 0.35, label, {
+      fontSize: `${CONFIG.UI_FONT_SMALL}px`, color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5);
+    const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
+    }).setOrigin(0.5).setVisible(!this._mobile);
+
+    bg.on('pointerdown', () => {
+      this.activeBuildSubmenu[playerId] = buildSubmenu;
+      this.renderMenuForPlayer(playerId);
+    });
+    bg.on('pointerover', () => {
+      bg.setFillStyle(0x222244, 0.9);
+      this.showTooltip(tooltip, x, y, playerId);
+    });
+    bg.on('pointerout', () => {
+      bg.setFillStyle(0x111122, 0.85);
+      this.hideTooltip(playerId);
+    });
+    this.categoryButtons.push({ bg, label: labelText, keyText, categoryId: 'construction', playerId });
+  }
+
   private createCategoryButton(
     x: number, y: number, w: number, h: number,
     categoryId: MenuCategory, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
@@ -490,7 +537,11 @@ export class UIScene extends Phaser.Scene {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5).setVisible(!this._mobile);
 
-    bg.on('pointerdown', () => { this.activeCategory[playerId] = categoryId; this.renderMenuForPlayer(playerId); });
+    bg.on('pointerdown', () => {
+      this.activeCategory[playerId] = categoryId;
+      this.activeBuildSubmenu[playerId] = null;
+      this.renderMenuForPlayer(playerId);
+    });
     bg.on('pointerover', () => {
       bg.setFillStyle(0x222244, 0.9);
       this.showTooltip(tooltip, x, y, playerId);
@@ -518,7 +569,12 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5).setVisible(!this._mobile);
 
     bg.on('pointerdown', () => {
-      this.activeCategory[playerId] = null;
+      if (this.activeCategory[playerId] === 'construction' && this.activeBuildSubmenu[playerId] !== null) {
+        this.activeBuildSubmenu[playerId] = null;
+      } else {
+        this.activeCategory[playerId] = null;
+        this.activeBuildSubmenu[playerId] = null;
+      }
       this.renderMenuForPlayer(playerId);
     });
     bg.on('pointerover', () => {
@@ -833,17 +889,27 @@ export class UIScene extends Phaser.Scene {
   }
 
   private dispatchKeyForPlayer(playerId: 0 | 1, key: string, event: KeyboardEvent): void {
-    const result = resolveKeyPress(key, playerId, this.activeCategory[playerId]);
+    const result = resolveKeyPress(key, playerId, this.activeCategory[playerId], this.activeBuildSubmenu[playerId]);
     if (!result) return;
 
     switch (result.type) {
       case 'back':
         event.preventDefault();
-        this.activeCategory[playerId] = null;
+        if (this.activeCategory[playerId] === 'construction' && this.activeBuildSubmenu[playerId] !== null) {
+          this.activeBuildSubmenu[playerId] = null;
+        } else {
+          this.activeCategory[playerId] = null;
+          this.activeBuildSubmenu[playerId] = null;
+        }
         this.renderMenuForPlayer(playerId);
         break;
       case 'navigate':
         this.activeCategory[playerId] = result.category;
+        this.activeBuildSubmenu[playerId] = null;
+        this.renderMenuForPlayer(playerId);
+        break;
+      case 'navigateBuildSubmenu':
+        this.activeBuildSubmenu[playerId] = result.buildSubmenu;
         this.renderMenuForPlayer(playerId);
         break;
       case 'upgrade': {

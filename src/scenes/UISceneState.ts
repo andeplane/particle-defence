@@ -1,4 +1,4 @@
-import type { MenuCategory } from './menuConfig';
+import type { BuildSubmenu, MenuCategory } from './menuConfig';
 
 /** Cleared state for UIScene to prevent stale Phaser object refs on scene restart. */
 export interface UIClearedState {
@@ -12,6 +12,7 @@ export interface UIClearedState {
   placeButtons: unknown[];
   popups: unknown[];
   activeCategory: [MenuCategory | null, MenuCategory | null];
+  activeBuildSubmenu: [BuildSubmenu | null, BuildSubmenu | null];
   categoryTitle: [null, null];
   placeholderText: [null, null];
   tooltipText: [null, null];
@@ -30,6 +31,7 @@ export function getClearedUIState(): UIClearedState {
     placeButtons: [],
     popups: [],
     activeCategory: [null, null],
+    activeBuildSubmenu: [null, null],
     categoryTitle: [null, null],
     placeholderText: [null, null],
     tooltipText: [null, null],

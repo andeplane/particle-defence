@@ -62,10 +62,10 @@ describe('menuConfig', () => {
       }
     });
 
-    it('should have construction category with tower build items and place action', () => {
+    it('should have construction category with nested build submenu items', () => {
       const cat = MENU_CATEGORIES.find(c => c.id === 'construction')!;
-      expect(cat.items.some(i => i.kind === 'construct')).toBe(true);
-      expect(cat.items.some(i => i.kind === 'action' && i.action === 'place')).toBe(true);
+      expect(cat.items.every(i => i.kind === 'buildSubmenu')).toBe(true);
+      expect(cat.items).toHaveLength(2);
     });
 
     it('should have research category with research items', () => {
@@ -174,15 +174,37 @@ describe('menuConfig', () => {
 
     describe('construction submenu dispatch', () => {
       it.each([
+        ['Q', 0, { type: 'navigateBuildSubmenu', buildSubmenu: 'towers' }],
+        ['W', 0, { type: 'navigateBuildSubmenu', buildSubmenu: 'particles' }],
+        ['I', 1, { type: 'navigateBuildSubmenu', buildSubmenu: 'towers' }],
+        ['O', 1, { type: 'navigateBuildSubmenu', buildSubmenu: 'particles' }],
+      ] as const)('P%d presses %s -> %o', (key, playerId, expected) => {
+        const result = resolveKeyPress(key, playerId, 'construction');
+        expect(result).toEqual(expected);
+      });
+
+      it.each([
         ['Q', 0, { type: 'construct', towerType: 'laser' }],
         ['W', 0, { type: 'construct', towerType: 'slow' }],
         ['E', 0, { type: 'action', action: 'place' }],
         ['I', 1, { type: 'construct', towerType: 'laser' }],
         ['O', 1, { type: 'construct', towerType: 'slow' }],
         ['P', 1, { type: 'action', action: 'place' }],
-      ] as const)('P%d presses %s -> %o', (key, playerId, expected) => {
-        const result = resolveKeyPress(key, playerId, 'construction');
+      ] as const)('P%d presses %s in build>TOWERS -> %o', (key, playerId, expected) => {
+        const result = resolveKeyPress(key, playerId, 'construction', 'towers');
         expect(result).toEqual(expected);
+      });
+
+      it.each([
+        ['Q', 0],
+        ['W', 0],
+        ['E', 0],
+        ['I', 1],
+        ['O', 1],
+        ['P', 1],
+      ] as const)('P%d key %s does nothing in build>PARTICLES for now', (key, playerId) => {
+        const result = resolveKeyPress(key, playerId, 'construction', 'particles');
+        expect(result).toBeNull();
       });
     });
 
