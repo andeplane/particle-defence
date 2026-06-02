@@ -315,6 +315,11 @@ export class GameEngine implements AIGameState {
     return this.players[playerId].researchTower(towerType);
   }
 
+  buyNukeResearch(playerId: 0 | 1): boolean {
+    if (this.gameOver) return false;
+    return this.players[playerId].researchNuke();
+  }
+
   private createTower(towerType: TowerType, x: number, y: number, playerId: 0 | 1): LaserTowerParticle | SlowTowerParticle {
     return towerType === 'laser'
       ? new LaserTowerParticle(x, y, playerId)

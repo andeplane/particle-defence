@@ -41,6 +41,7 @@ function createState(overrides: Partial<AIGameState> = {}): AIGameState {
     gameTimeMs: 10_000,
     gameOver: false,
     launchNuke: vi.fn(() => true),
+    buyNukeResearch: vi.fn((playerId: 0 | 1) => overrides.players?.[playerId].researchNuke() ?? true),
     buyResearch: vi.fn(() => true),
     constructTower: vi.fn(() => true),
     upgradeTower: vi.fn(() => true),
@@ -65,6 +66,8 @@ describe(AIController.name, () => {
       });
       state.players[0].baseHP = 500;
       state.players[1].baseHP = 900;
+      state.players[0].gold = 9999;
+      state.players[0].researchNuke();
 
       ai0.update(300, state);
 
@@ -173,6 +176,8 @@ describe(AIController.name, () => {
       });
       state.players[0].baseHP = humanHP;
       state.players[1].baseHP = aiHP;
+      state.players[1].gold = 9999;
+      state.players[1].researchNuke();
 
       ai.update(300, state);
 
@@ -188,10 +193,41 @@ describe(AIController.name, () => {
         particles: makeParticles({ p0: 100, p1: 10 }),
       });
       state.players[1].baseHP = 200;
+      state.players[1].gold = 9999;
+      state.players[1].researchNuke();
       state.players[1].useNuke(9000);
 
       ai.update(300, state);
 
+      expect(state.launchNuke).not.toHaveBeenCalled();
+    });
+
+    it('researches nuke before launching when enabled and affordable', () => {
+      const state = createState({
+        gameTimeMs: 240_000,
+        particles: makeParticles({ p0: 100, p1: 10 }),
+      });
+      state.players[1].gold = 9999;
+
+      ai.update(300, state);
+
+      expect(state.buyNukeResearch).toHaveBeenCalledWith(1);
+      expect(state.launchNuke).not.toHaveBeenCalled();
+    });
+
+    it('does not research or launch nuke when nukeEnabled=false', () => {
+      const noNukeAI = new AIController(1, {
+        baseHP: 1000,
+        profile: { name: 'NoNuke', nukeEnabled: false },
+      });
+      const state = createState({
+        particles: makeParticles({ p0: 100, p1: 10 }),
+      });
+      state.players[1].gold = 9999;
+
+      noNukeAI.update(300, state);
+
+      expect(state.buyNukeResearch).not.toHaveBeenCalled();
       expect(state.launchNuke).not.toHaveBeenCalled();
     });
   });
@@ -326,7 +362,7 @@ describe(AIController.name, () => {
       expect(state.players[1].gold).toBeLessThan(9999);
     });
 
-    it('nukeEnabled=false prevents nuke launch', () => {
+    it('nukeEnabled=false prevents nuke research and launch', () => {
       const profile: AIProfile = { name: 'NoNuke', nukeEnabled: false };
       const ai = new AIController(1, { baseHP: 1000, profile });
       const state = createState({
@@ -336,6 +372,7 @@ describe(AIController.name, () => {
 
       ai.update(300, state);
 
+      expect(state.buyNukeResearch).not.toHaveBeenCalled();
       expect(state.launchNuke).not.toHaveBeenCalled();
     });
 

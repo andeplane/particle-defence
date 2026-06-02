@@ -195,27 +195,34 @@ describe(Player.name, () => {
   });
 
   describe('nuke system', () => {
-    it('cannot use nuke before first available time', () => {
-      expect(player.canUseNuke(500)).toBe(false);
+    it.each([
+      { researched: false, gameTimeMs: 2000, expected: false, scenario: 'not researched' },
+      { researched: true, gameTimeMs: 500, expected: false, scenario: 'researched before first available time' },
+      { researched: true, gameTimeMs: 1000, expected: true, scenario: 'researched at first available time' },
+      { researched: true, gameTimeMs: 2000, expected: true, scenario: 'researched after first available time' },
+    ])('canUseNuke returns $expected when $scenario', ({ researched, gameTimeMs, expected }) => {
+      if (researched) {
+        player.gold = 9999;
+        player.researchNuke();
+      }
+      expect(player.canUseNuke(gameTimeMs)).toBe(expected);
     });
 
-    it('can use nuke after first available time when never used', () => {
-      expect(player.canUseNuke(1000)).toBe(true);
-      expect(player.canUseNuke(2000)).toBe(true);
-    });
-
-    it('cannot use nuke during cooldown', () => {
+    it.each([
+      { gameTimeMs: 1500, expected: false },
+      { gameTimeMs: 5999, expected: false },
+      { gameTimeMs: 6000, expected: true },
+    ])('canUseNuke returns $expected at $gameTimeMs during/after cooldown', ({ gameTimeMs, expected }) => {
+      player.gold = 9999;
+      player.researchNuke();
       player.useNuke(1000);
-      expect(player.canUseNuke(1500)).toBe(false);
-      expect(player.canUseNuke(5999)).toBe(false);
-    });
-
-    it('can use nuke after cooldown expires', () => {
-      player.useNuke(1000);
-      expect(player.canUseNuke(6000)).toBe(true);
+      expect(player.canUseNuke(gameTimeMs)).toBe(expected);
     });
 
     it('getNukeCooldownRemainingMs returns correct values', () => {
+      player.gold = 9999;
+      player.researchNuke();
+
       // Before first available
       expect(player.getNukeCooldownRemainingMs(0)).toBe(1000);
 
@@ -228,6 +235,28 @@ describe(Player.name, () => {
 
       // After cooldown
       expect(player.getNukeCooldownRemainingMs(7000)).toBe(0);
+    });
+
+    it('getNukeCooldownRemainingMs returns 0 while nuke is locked by research', () => {
+      expect(player.getNukeCooldownRemainingMs(0)).toBe(0);
+    });
+
+    it('researchNuke deducts gold and unlocks nuke once', () => {
+      player.gold = 9999;
+      const cost = player.getNukeResearchCost();
+
+      expect(player.researchNuke()).toBe(true);
+      expect(player.gold).toBe(9999 - cost);
+      expect(player.hasResearchedNuke()).toBe(true);
+      expect(player.canResearchNuke()).toBe(false);
+      expect(player.researchNuke()).toBe(false);
+    });
+
+    it('researchNuke returns false when cannot afford', () => {
+      player.gold = 0;
+      expect(player.canResearchNuke()).toBe(false);
+      expect(player.researchNuke()).toBe(false);
+      expect(player.hasResearchedNuke()).toBe(false);
     });
   });
 

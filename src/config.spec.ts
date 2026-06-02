@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { CONFIG, getUpgradeCost, getTowerUpgradeCost, getTowerResearchCost, getTowerConstructionCost, setDebugEverythingCheap, type UpgradeType } from './config';
+import { CONFIG, getUpgradeCost, getTowerUpgradeCost, getTowerResearchCost, getTowerConstructionCost, getNukeResearchCost, setDebugEverythingCheap, type UpgradeType } from './config';
 
 describe(getUpgradeCost.name, () => {
   const upgradeTypes: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles', 'defense', 'interestRate'];
@@ -56,6 +56,11 @@ describe('CONFIG', () => {
     expect(CONFIG.MAX_INTEREST_RATE).toBe(0.05);
   });
 
+  it('has nuke research cost', () => {
+    expect(CONFIG.NUKE_RESEARCH_COST).toBe(2000);
+    expect(getNukeResearchCost()).toBe(2000);
+  });
+
   it('has combat mechanic constants', () => {
     expect(CONFIG.PERCENT_HP_DAMAGE_SCALING).toBeGreaterThan(0);
     expect(CONFIG.PERCENT_HP_DAMAGE_SCALING).toBeLessThan(0.5);
@@ -108,6 +113,11 @@ describe('Debug Everything Cheap', () => {
     setDebugEverythingCheap(true);
     expect(getTowerResearchCost('laser')).toBe(1);
     expect(getTowerResearchCost('slow')).toBe(1);
+  });
+
+  it('getNukeResearchCost returns 1 when enabled', () => {
+    setDebugEverythingCheap(true);
+    expect(getNukeResearchCost()).toBe(1);
   });
 
   it('getTowerConstructionCost returns 1 when enabled', () => {

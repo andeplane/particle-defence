@@ -72,7 +72,7 @@ describe('menuConfig', () => {
     it('should have research category with research items', () => {
       const cat = MENU_CATEGORIES.find(c => c.id === 'research')!;
       expect(cat.items.every(i => i.kind === 'research')).toBe(true);
-      expect(cat.items.length).toBeGreaterThanOrEqual(2);
+      expect(cat.items.length).toBeGreaterThanOrEqual(3);
     });
 
     it('should have towers category with prev/next/upgrade items', () => {
@@ -165,11 +165,13 @@ describe('menuConfig', () => {
       it.each([
         ['Q', 0, 'laser'],
         ['W', 0, 'slow'],
+        ['E', 0, 'nuke'],
         ['I', 1, 'laser'],
         ['O', 1, 'slow'],
-      ] as const)('P%d presses %s -> research %s', (key, playerId, towerType) => {
+        ['P', 1, 'nuke'],
+      ] as const)('P%d presses %s -> research %s', (key, playerId, researchType) => {
         const result = resolveKeyPress(key, playerId, 'research');
-        expect(result).toEqual({ type: 'research', towerType });
+        expect(result).toEqual({ type: 'research', researchType });
       });
     });
 

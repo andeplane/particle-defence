@@ -1,4 +1,4 @@
-import { CONFIG, getUpgradeCost, getTowerResearchCost, getTowerConstructionCost, getTowerUpgradeCost, type UpgradeType } from '../config';
+import { CONFIG, getUpgradeCost, getTowerResearchCost, getTowerConstructionCost, getTowerUpgradeCost, getNukeResearchCost, type UpgradeType } from '../config';
 import { getLaserStats, getSlowStats } from '../particles/towers';
 import { computeMaxLevels, defaultPlayerConfig } from '../player';
 
@@ -76,6 +76,7 @@ function getOverviewSections(): ContentSection[] {
       title: 'Nuclear Weapon',
       lines: [
         'Instantly kills ALL enemy particles (including towers).',
+        `Must be researched first for ${getNukeResearchCost()}g.`,
         `First available at ${formatTime(CONFIG.NUCLEAR_FIRST_AVAILABLE_MS)}.`,
         `Cooldown: ${formatTime(CONFIG.NUCLEAR_COOLDOWN_MS)}.`,
         `Kills from nukes give only ${CONFIG.NUCLEAR_KILL_REWARD_FRACTION * 100}% gold reward.`,
@@ -97,12 +98,14 @@ function getTechTreeSections(): ContentSection[] {
   };
 
   const towerResearch: ContentSection = {
-    title: 'Tower Research (one-time unlock)',
+    title: 'Research (one-time unlocks)',
     lines: [
-      'You must research a tower type before you can build it.',
+      'You must research towers before building them,',
+      'and research nukes before launching them.',
       '',
       `  Laser Tower research:  ${getTowerResearchCost('laser')}g`,
       `  Slow Tower research:   ${getTowerResearchCost('slow')}g`,
+      `  Nuke research:         ${getNukeResearchCost()}g`,
     ],
   };
 

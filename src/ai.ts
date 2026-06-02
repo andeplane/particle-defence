@@ -11,6 +11,7 @@ export interface AIGameState {
   readonly gameTimeMs: number;
   readonly gameOver: boolean;
   launchNuke(playerId: 0 | 1): boolean;
+  buyNukeResearch(playerId: 0 | 1): boolean;
   buyResearch(playerId: 0 | 1, towerType: TowerType): boolean;
   constructTower(playerId: 0 | 1, towerType: TowerType, siteId: number): boolean;
   upgradeTower(playerId: 0 | 1, towerIndex: number): boolean;
@@ -67,6 +68,7 @@ export class AIController {
     while (this.timeSinceLastDecision >= this.decisionIntervalMs) {
       this.timeSinceLastDecision -= this.decisionIntervalMs;
 
+      this.tryNukeResearch(state);
       this.tryNuke(state);
       this.tryTowerActions(state);
       this.tryUpgrade(state);
@@ -75,6 +77,16 @@ export class AIController {
 
   private get opponentId(): 0 | 1 {
     return this.playerId === 0 ? 1 : 0;
+  }
+
+  private tryNukeResearch(state: AIGameState): void {
+    if (this.profile.nukeEnabled === false) return;
+    const ai = state.players[this.playerId];
+    if (ai.hasResearchedNuke()) return;
+    if (state.gameTimeMs < CONFIG.NUCLEAR_FIRST_AVAILABLE_MS * 0.8) return;
+    if (ai.canResearchNuke()) {
+      state.buyNukeResearch(this.playerId);
+    }
   }
 
   private tryNuke(state: AIGameState): void {

@@ -11,10 +11,12 @@ export interface CategoryDef {
   items: MenuItemDef[];
 }
 
+export type ResearchType = TowerType | 'nuke';
+
 export type MenuItemDef =
   | { kind: 'upgrade'; type: UpgradeType; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'action'; action: 'nuke'; label: string; tooltip: string; p1Key: string; p2Key: string }
-  | { kind: 'research'; towerType: TowerType; label: string; tooltip: string; p1Key: string; p2Key: string }
+  | { kind: 'research'; researchType: ResearchType; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'construct'; towerType: TowerType; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'action'; action: 'buildPrev'; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'action'; action: 'buildNext'; label: string; tooltip: string; p1Key: string; p2Key: string }
@@ -45,8 +47,9 @@ export const MENU_CATEGORIES: CategoryDef[] = [
     p1Key: 'W',
     p2Key: 'O',
     items: [
-      { kind: 'research', towerType: 'laser', label: 'LASER', tooltip: 'Unlock laser tower construction', p1Key: 'Q', p2Key: 'I' },
-      { kind: 'research', towerType: 'slow', label: 'SLOW', tooltip: 'Unlock slow tower construction', p1Key: 'W', p2Key: 'O' },
+      { kind: 'research', researchType: 'laser', label: 'LASER', tooltip: 'Unlock laser tower construction', p1Key: 'Q', p2Key: 'I' },
+      { kind: 'research', researchType: 'slow', label: 'SLOW', tooltip: 'Unlock slow tower construction', p1Key: 'W', p2Key: 'O' },
+      { kind: 'research', researchType: 'nuke', label: 'NUKE', tooltip: 'Unlock nuclear weapon launch', p1Key: 'E', p2Key: 'P' },
     ],
   },
   {
@@ -73,7 +76,7 @@ export const MENU_CATEGORIES: CategoryDef[] = [
     p1Key: 'A',
     p2Key: 'K',
     items: [
-      { kind: 'action', action: 'nuke', label: 'NUKE', tooltip: 'Kill all enemy particles (10min cooldown)', p1Key: 'Q', p2Key: 'I' },
+      { kind: 'action', action: 'nuke', label: 'NUKE', tooltip: 'Kill all enemy particles (5min cooldown)', p1Key: 'Q', p2Key: 'I' },
     ],
   },
   {
@@ -97,7 +100,7 @@ export type KeyPressResult =
   | { type: 'navigate'; category: MenuCategory }
   | { type: 'upgrade'; upgradeType: UpgradeType }
   | { type: 'action'; action: ActionType }
-  | { type: 'research'; towerType: TowerType }
+  | { type: 'research'; researchType: ResearchType }
   | { type: 'construct'; towerType: TowerType }
   | null;
 
@@ -141,7 +144,7 @@ export function resolveKeyPress(
         if (item.kind === 'upgrade') {
           return { type: 'upgrade', upgradeType: item.type };
         } else if (item.kind === 'research') {
-          return { type: 'research', towerType: item.towerType };
+          return { type: 'research', researchType: item.researchType };
         } else if (item.kind === 'construct') {
           return { type: 'construct', towerType: item.towerType };
         } else {

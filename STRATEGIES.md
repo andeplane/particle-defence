@@ -200,7 +200,7 @@ The game is designed so no single strategy dominates. Here are the general match
 
 ## Nuclear Weapons
 
-Available after 5 minutes, then on a 5-minute cooldown. Instantly kills all enemy particles.
+Must be researched for 2000g before use. Once researched, available after 5 minutes, then on a 5-minute cooldown. Instantly kills all enemy particles.
 
 **When to nuke**:
 - You're losing badly (below 60% HP while enemy is above 80%)

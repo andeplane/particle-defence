@@ -133,6 +133,44 @@ describe(GameEngine.name, () => {
     });
   });
 
+  describe('nuke lifecycle', () => {
+    function createNukeEngine() {
+      const callbacks = { ...noopCallbacks, onNuke: vi.fn() };
+      const enemyParticle = createMockParticle({ owner: 1, alive: true });
+      const engine = new GameEngine(createMockGrid(), callbacks, {
+        createPlayer: (id) => createPlayer(id, {
+          ...noSpawnConfig,
+          startingGold: 9999,
+          nuclearFirstAvailableMs: 1000,
+          nuclearCooldownMs: 5000,
+        }),
+        maxParticlesTotal: 0,
+        createParticle: () => createMockParticle({ alive: true }),
+      });
+      engine.init(false);
+      engine.particles.push(enemyParticle);
+      engine.tick(1000);
+      return { engine, callbacks, enemyParticle };
+    }
+
+    it('refuses launch before nuke research', () => {
+      const { engine, callbacks, enemyParticle } = createNukeEngine();
+
+      expect(engine.launchNuke(0)).toBe(false);
+      expect(enemyParticle.alive).toBe(true);
+      expect(callbacks.onNuke).not.toHaveBeenCalled();
+    });
+
+    it('launches after nuke research and first available time', () => {
+      const { engine, callbacks } = createNukeEngine();
+
+      expect(engine.buyNukeResearch(0)).toBe(true);
+      expect(engine.launchNuke(0)).toBe(true);
+
+      expect(callbacks.onNuke).toHaveBeenCalledWith(0, 1);
+    });
+  });
+
   describe('tower lifecycle', () => {
     function createTowerEngine(overrides: { cellEffects?: ICellEffectMap } = {}) {
       const cells = Array.from({ length: 8 }, () => Array(16).fill(true));

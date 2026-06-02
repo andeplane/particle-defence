@@ -76,6 +76,7 @@ export const CONFIG = {
   KILL_REWARD: 1,
   /** Fraction of KILL_REWARD awarded per nuke kill (1/4) */
   NUCLEAR_KILL_REWARD_FRACTION: 0.25,
+  NUKE_RESEARCH_COST: 2000,
   NUCLEAR_FIRST_AVAILABLE_MS: 300_000,  // 5 minutes
   NUCLEAR_COOLDOWN_MS: 300_000,        // 5 minutes
   /** Interval (ms) between gold interest payouts */
@@ -204,6 +205,11 @@ export function getTowerUpgradeCost(towerType: TowerType, level: number): number
 export function getTowerResearchCost(towerType: TowerType): number {
   if (DEBUG_EVERYTHING_CHEAP) return 1;
   return CONFIG.TOWER_RESEARCH_COSTS[towerType];
+}
+
+export function getNukeResearchCost(): number {
+  if (DEBUG_EVERYTHING_CHEAP) return 1;
+  return CONFIG.NUKE_RESEARCH_COST;
 }
 
 export function getTowerConstructionCost(towerType: TowerType): number {

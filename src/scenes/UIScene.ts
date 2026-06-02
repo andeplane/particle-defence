@@ -3,7 +3,7 @@ import { CONFIG, DEBUG_MODE, getTowerUpgradeCost, setDebugEverythingCheap, type 
 import { isMobile } from '../mobile';
 import type { IPlayer } from '../player';
 import type { GameMode } from './MenuScene';
-import { MENU_CATEGORIES, type MenuCategory, resolveKeyPress } from './menuConfig';
+import { MENU_CATEGORIES, type MenuCategory, type ResearchType, resolveKeyPress } from './menuConfig';
 import { getClearedUIState } from './UISceneState';
 import {
   backFromConstructionState,
@@ -32,6 +32,7 @@ export interface IGameViewModel {
   purchaseUpgrade(playerId: 0 | 1, type: UpgradeType): boolean;
   launchNuke(playerId: 0 | 1): boolean;
   researchTower(playerId: 0 | 1, towerType: TowerType): boolean;
+  researchNuke(playerId: 0 | 1): boolean;
   constructTower(playerId: 0 | 1, towerType: TowerType, siteId: number): boolean;
   upgradeTower(playerId: 0 | 1, towerIndex: number): boolean;
   getEligibleTowerSites(playerId: 0 | 1): readonly TowerSite[];
@@ -111,7 +112,7 @@ export class UIScene extends Phaser.Scene {
     createDefaultConstructionMenuState(),
   ];
   private selectedBuildSiteId: [number, number] = [0, 0];
-  private researchButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; towerType: TowerType; playerId: 0 | 1 }[] = [];
+  private researchButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; researchType: ResearchType; playerId: 0 | 1 }[] = [];
   private constructButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; towerType: TowerType; playerId: 0 | 1 }[] = [];
   private buildActionButtons: BuildActionButton[] = [];
   private towerInfoText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
@@ -470,7 +471,7 @@ export class UIScene extends Phaser.Scene {
       if (item.kind === 'upgrade') {
         this.createUpgradeButton(x, y, btnW, btnH, item.type, item.label, key(item), playerId);
       } else if (item.kind === 'research') {
-        this.createResearchButton(x, y, btnW, btnH, item.towerType, item.label, item.tooltip, key(item), playerId);
+        this.createResearchButton(x, y, btnW, btnH, item.researchType, item.label, item.tooltip, key(item), playerId);
       } else if (item.kind === 'construct') {
         this.createConstructButton(x, y, btnW, btnH, item.towerType, item.label, item.tooltip, key(item), playerId);
       } else if (item.kind === 'action' && item.action === 'nuke') {
@@ -624,7 +625,7 @@ export class UIScene extends Phaser.Scene {
 
   private createResearchButton(
     x: number, y: number, w: number, h: number,
-    towerType: TowerType, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
+    researchType: ResearchType, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
   ): void {
     const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
     const bg = this.add.rectangle(x, y + h / 2, w, h, 0x112211, 0.85)
@@ -640,10 +641,10 @@ export class UIScene extends Phaser.Scene {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5).setVisible(!this._mobile);
 
-    bg.on('pointerdown', () => this.handleResearch(playerId, towerType, bg));
+    bg.on('pointerdown', () => this.handleResearch(playerId, researchType, bg));
     bg.on('pointerover', () => { bg.setFillStyle(0x224422, 0.9); this.showTooltip(tooltip, x, y, playerId); });
     bg.on('pointerout', () => { bg.setFillStyle(0x112211, 0.85); this.hideTooltip(playerId); });
-    this.researchButtons.push({ bg, labelText, costText, keyText, towerType, playerId });
+    this.researchButtons.push({ bg, labelText, costText, keyText, researchType, playerId });
   }
 
   private createConstructButton(
@@ -721,11 +722,11 @@ export class UIScene extends Phaser.Scene {
 
   // ── Actions ────────────────────────────────────────────────────────
 
-  private handleResearch(playerId: 0 | 1, towerType: TowerType, btn?: Phaser.GameObjects.Rectangle): void {
+  private handleResearch(playerId: 0 | 1, researchType: ResearchType, btn?: Phaser.GameObjects.Rectangle): void {
     if (this.viewModel.gameOver) return;
     const player = this.viewModel.players[playerId];
-    const cost = player.getResearchCost(towerType);
-    if (this.viewModel.researchTower(playerId, towerType)) {
+    const cost = this.getResearchCost(player, researchType);
+    if (this.purchaseResearch(playerId, researchType)) {
       if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
       this.showGoldPopup(playerId, `-$${cost}`);
       this.renderMenuForPlayer(playerId);
@@ -824,6 +825,24 @@ export class UIScene extends Phaser.Scene {
     }
   }
 
+  private hasResearched(player: IPlayer, researchType: ResearchType): boolean {
+    return researchType === 'nuke' ? player.hasResearchedNuke() : player.hasResearched(researchType);
+  }
+
+  private canResearch(player: IPlayer, researchType: ResearchType): boolean {
+    return researchType === 'nuke' ? player.canResearchNuke() : player.canResearchTower(researchType);
+  }
+
+  private getResearchCost(player: IPlayer, researchType: ResearchType): number {
+    return researchType === 'nuke' ? player.getNukeResearchCost() : player.getResearchCost(researchType);
+  }
+
+  private purchaseResearch(playerId: 0 | 1, researchType: ResearchType): boolean {
+    return researchType === 'nuke'
+      ? this.viewModel.researchNuke(playerId)
+      : this.viewModel.researchTower(playerId, researchType);
+  }
+
   private handleUpgrade(playerId: 0 | 1, type: UpgradeType, btn?: Phaser.GameObjects.Rectangle): void {
     if (this.viewModel.gameOver) return;
     const player = this.viewModel.players[playerId];
@@ -910,7 +929,7 @@ export class UIScene extends Phaser.Scene {
         break;
       }
       case 'research':
-        this.handleResearch(playerId, result.towerType);
+        this.handleResearch(playerId, result.researchType);
         break;
       case 'construct':
         this.handleConstruct(playerId, result.towerType);
@@ -1027,10 +1046,10 @@ export class UIScene extends Phaser.Scene {
 
     for (const btn of this.researchButtons) {
       const player = this.viewModel.players[btn.playerId];
-      const researched = player.hasResearched(btn.towerType);
-      const canResearch = player.canResearchTower(btn.towerType);
+      const researched = this.hasResearched(player, btn.researchType);
+      const canResearch = this.canResearch(player, btn.researchType);
       btn.bg.setAlpha(researched ? 0.3 : canResearch ? 1 : 0.4);
-      btn.costText.setText(researched ? 'DONE' : `$${player.getResearchCost(btn.towerType)}`);
+      btn.costText.setText(researched ? 'DONE' : `$${this.getResearchCost(player, btn.researchType)}`);
       if (researched) btn.costText.setColor('#66ff66');
       else btn.costText.setColor('#ffd700');
     }
@@ -1047,6 +1066,12 @@ export class UIScene extends Phaser.Scene {
     const gameTimeMs = this.viewModel.gameTimeMs;
     for (const btn of this.nukeButtons) {
       const player = this.viewModel.players[btn.playerId];
+      if (!player.hasResearchedNuke()) {
+        btn.bg.setAlpha(0.4);
+        btn.statusText.setText('LOCKED');
+        btn.statusText.setColor('#666666');
+        continue;
+      }
       const canUse = player.canUseNuke(gameTimeMs);
       btn.bg.setAlpha(canUse ? 1 : 0.4);
       const remainingMs = player.getNukeCooldownRemainingMs(gameTimeMs);
