@@ -104,7 +104,8 @@ export type KeyPressResult =
 export function resolveKeyPress(
   key: string,
   playerId: 0 | 1,
-  currentCategory: MenuCategory | null
+  currentCategory: MenuCategory | null,
+  constructionSiteSelectionActive: boolean = false,
 ): KeyPressResult {
   const upperKey = key.toUpperCase();
   const isBackspace = key === 'Backspace';
@@ -129,7 +130,10 @@ export function resolveKeyPress(
   if (currentCategory !== null) {
     const catDef = MENU_CATEGORIES.find(c => c.id === currentCategory);
     if (catDef) {
-      const item = catDef.items.find(i => {
+      const items = currentCategory === 'construction'
+        ? catDef.items.filter((item) => constructionSiteSelectionActive ? item.kind === 'action' : item.kind === 'construct')
+        : catDef.items;
+      const item = items.find(i => {
         const itemKey = playerId === 0 ? i.p1Key : i.p2Key;
         return itemKey === upperKey;
       });

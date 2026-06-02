@@ -5,6 +5,13 @@ import type { IPlayer } from '../player';
 import type { GameMode } from './MenuScene';
 import { MENU_CATEGORIES, type MenuCategory, resolveKeyPress } from './menuConfig';
 import { getClearedUIState } from './UISceneState';
+import {
+  backFromConstructionState,
+  createDefaultConstructionMenuState,
+  getVisibleConstructionItems,
+  selectConstructionTower,
+  type ConstructionMenuState,
+} from './constructionMenuState';
 import { getLaserStats, getSlowStats } from '../particles/towers';
 import type { LaserTowerParticle } from '../particles/LaserTowerParticle';
 import type { SlowTowerParticle } from '../particles/SlowTowerParticle';
@@ -99,7 +106,10 @@ export class UIScene extends Phaser.Scene {
   private placeholderText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
   private tooltipText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
   private selectedTowerIndex: [number, number] = [0, 0];
-  private selectedBuildTowerType: [TowerType, TowerType] = ['laser', 'laser'];
+  private constructionMenuState: [ConstructionMenuState, ConstructionMenuState] = [
+    createDefaultConstructionMenuState(),
+    createDefaultConstructionMenuState(),
+  ];
   private selectedBuildSiteId: [number, number] = [0, 0];
   private researchButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; towerType: TowerType; playerId: 0 | 1 }[] = [];
   private constructButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; towerType: TowerType; playerId: 0 | 1 }[] = [];
@@ -146,7 +156,10 @@ export class UIScene extends Phaser.Scene {
     this.placeholderText = cleared.placeholderText as typeof this.placeholderText;
     this.tooltipText = cleared.tooltipText as typeof this.tooltipText;
     this.selectedTowerIndex = cleared.selectedTowerIndex;
-    this.selectedBuildTowerType = ['laser', 'laser'];
+    this.constructionMenuState = [
+      createDefaultConstructionMenuState(),
+      createDefaultConstructionMenuState(),
+    ];
     this.selectedBuildSiteId = [0, 0];
     this.debugMenuBg = undefined;
     this.debugMenuToggle = undefined;
@@ -442,10 +455,11 @@ export class UIScene extends Phaser.Scene {
     }
 
     const staggerOffset = (btnW + gap) * 0.4;
-    const topRowCount = Math.min(4, catDef.items.length);
-    const bottomRowCount = catDef.items.length - topRowCount;
+    const visibleItems = this.getVisibleMenuItems(playerId, catDef.items);
+    const topRowCount = Math.min(4, visibleItems.length);
+    const bottomRowCount = visibleItems.length - topRowCount;
 
-    catDef.items.forEach((item, i) => {
+    visibleItems.forEach((item, i) => {
       const isTopRow = i < topRowCount;
       const rowIndex = isTopRow ? i : i - topRowCount;
       const totalInRow = isTopRow ? topRowCount : bottomRowCount;
@@ -479,6 +493,11 @@ export class UIScene extends Phaser.Scene {
         fontSize: `${CONFIG.UI_FONT_SMALL}px`, color: '#cccccc', fontFamily: 'monospace',
       }).setOrigin(isRight ? 1 : 0, 0);
     }
+  }
+
+  private getVisibleMenuItems(playerId: 0 | 1, items: typeof MENU_CATEGORIES[number]['items']) {
+    if (this.activeCategory[playerId] !== 'construction') return items;
+    return getVisibleConstructionItems(items, this.constructionMenuState[playerId]);
   }
 
   private createCategoryButton(
@@ -524,7 +543,11 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5).setVisible(!this._mobile);
 
     bg.on('pointerdown', () => {
-      this.activeCategory[playerId] = null;
+      if (this.activeCategory[playerId] === 'construction' && this.constructionMenuState[playerId].siteSelectionActive) {
+        this.constructionMenuState[playerId] = backFromConstructionState(this.constructionMenuState[playerId]);
+      } else {
+        this.activeCategory[playerId] = null;
+      }
       this.renderMenuForPlayer(playerId);
     });
     bg.on('pointerover', () => {
@@ -713,13 +736,18 @@ export class UIScene extends Phaser.Scene {
 
   private handleConstruct(playerId: 0 | 1, towerType: TowerType, btn?: Phaser.GameObjects.Rectangle): void {
     if (this.viewModel.gameOver) return;
-    this.selectedBuildTowerType[playerId] = towerType;
+    this.constructionMenuState[playerId] = {
+      ...this.constructionMenuState[playerId],
+      selectedTowerType: towerType,
+    };
     const player = this.viewModel.players[playerId];
     if (!player.hasResearched(towerType)) {
       if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
       return;
     }
+    this.constructionMenuState[playerId] = selectConstructionTower(this.constructionMenuState[playerId], towerType);
     if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+    this.renderMenuForPlayer(playerId);
   }
 
   private handleBuildAction(playerId: 0 | 1, action: BuildAction, btn?: Phaser.GameObjects.Rectangle): void {
@@ -737,7 +765,7 @@ export class UIScene extends Phaser.Scene {
       return;
     }
 
-    const towerType = this.selectedBuildTowerType[playerId];
+    const towerType = this.constructionMenuState[playerId].selectedTowerType;
     const cost = this.viewModel.players[playerId].getConstructionCost(towerType);
     if (this.viewModel.constructTower(playerId, towerType, selectedSite.id)) {
       if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
@@ -854,13 +882,22 @@ export class UIScene extends Phaser.Scene {
   }
 
   private dispatchKeyForPlayer(playerId: 0 | 1, key: string, event: KeyboardEvent): void {
-    const result = resolveKeyPress(key, playerId, this.activeCategory[playerId]);
+    const result = resolveKeyPress(
+      key,
+      playerId,
+      this.activeCategory[playerId],
+      this.constructionMenuState[playerId].siteSelectionActive,
+    );
     if (!result) return;
 
     switch (result.type) {
       case 'back':
         event.preventDefault();
-        this.activeCategory[playerId] = null;
+        if (this.activeCategory[playerId] === 'construction' && this.constructionMenuState[playerId].siteSelectionActive) {
+          this.constructionMenuState[playerId] = backFromConstructionState(this.constructionMenuState[playerId]);
+        } else {
+          this.activeCategory[playerId] = null;
+        }
         this.renderMenuForPlayer(playerId);
         break;
       case 'navigate':
@@ -1001,7 +1038,7 @@ export class UIScene extends Phaser.Scene {
     for (const btn of this.constructButtons) {
       const player = this.viewModel.players[btn.playerId];
       const researched = player.hasResearched(btn.towerType);
-      const selected = this.selectedBuildTowerType[btn.playerId] === btn.towerType;
+      const selected = this.constructionMenuState[btn.playerId].selectedTowerType === btn.towerType;
       btn.bg.setAlpha(researched ? (selected ? 1 : 0.7) : 0.4);
       btn.bg.setStrokeStyle(2, selected ? 0xffffff : (btn.playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR), selected ? 0.9 : 0.5);
       btn.costText.setText(researched ? `$${player.getConstructionCost(btn.towerType)}` : 'LOCKED');
@@ -1027,7 +1064,7 @@ export class UIScene extends Phaser.Scene {
     for (const btn of this.buildActionButtons) {
       const selectedSite = this.getSelectedBuildSite(btn.playerId);
       const player = this.viewModel.players[btn.playerId];
-      const towerType = this.selectedBuildTowerType[btn.playerId];
+      const towerType = this.constructionMenuState[btn.playerId].selectedTowerType;
       const canBuild = selectedSite !== null
         && player.hasResearched(towerType)
         && player.canAffordConstruction(towerType)
@@ -1052,12 +1089,12 @@ export class UIScene extends Phaser.Scene {
       this.viewModel.towerSelectionForRender[0] = {
         active: this.activeCategory[0] === 'towers',
         selectedIndex: this.selectedTowerIndex[0],
-        selectedBuildSiteId: this.activeCategory[0] === 'construction' ? this.getSelectedBuildSite(0)?.id : undefined,
+        selectedBuildSiteId: this.activeCategory[0] === 'construction' && this.constructionMenuState[0].siteSelectionActive ? this.getSelectedBuildSite(0)?.id : undefined,
       };
       this.viewModel.towerSelectionForRender[1] = {
         active: this.activeCategory[1] === 'towers',
         selectedIndex: this.selectedTowerIndex[1],
-        selectedBuildSiteId: this.activeCategory[1] === 'construction' ? this.getSelectedBuildSite(1)?.id : undefined,
+        selectedBuildSiteId: this.activeCategory[1] === 'construction' && this.constructionMenuState[1].siteSelectionActive ? this.getSelectedBuildSite(1)?.id : undefined,
       };
     }
   }
@@ -1083,11 +1120,16 @@ export class UIScene extends Phaser.Scene {
     const info = this.towerInfoText[playerId];
     if (!info) return;
 
-    const towerType = this.selectedBuildTowerType[playerId];
+    const towerType = this.constructionMenuState[playerId].selectedTowerType;
     const selectedSite = this.getSelectedBuildSite(playerId);
     const player = this.viewModel.players[playerId];
     const cost = player.getConstructionCost(towerType);
     const eligibleCount = this.viewModel.getEligibleTowerSites(playerId).length;
+
+    if (!this.constructionMenuState[playerId].siteSelectionActive) {
+      info.setText('Choose LASER or SLOW to select a tower type');
+      return;
+    }
 
     if (!player.hasResearched(towerType)) {
       info.setText(`${towerType.toUpperCase()} selected\nResearch required before building\nEligible sites: ${eligibleCount}/6`);

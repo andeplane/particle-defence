@@ -173,21 +173,32 @@ describe('menuConfig', () => {
       });
     });
 
-    describe('construction submenu dispatch', () => {
+    describe('construction submenu dispatch before tower type selection', () => {
       it.each([
         ['Q', 0, { type: 'construct', towerType: 'laser' }],
         ['W', 0, { type: 'construct', towerType: 'slow' }],
+        ['I', 1, { type: 'construct', towerType: 'laser' }],
+        ['O', 1, { type: 'construct', towerType: 'slow' }],
+      ] as const)('P%d presses %s -> %o', (key, playerId, expected) => {
+        const result = resolveKeyPress(key, playerId, 'construction');
+        expect(result).toEqual(expected);
+      });
+
+      it.each([
         ['A', 0, { type: 'action', action: 'buildPrev' }],
         ['S', 0, { type: 'action', action: 'buildNext' }],
         ['E', 0, { type: 'action', action: 'buildSelected' }],
-        ['I', 1, { type: 'construct', towerType: 'laser' }],
-        ['O', 1, { type: 'construct', towerType: 'slow' }],
         ['K', 1, { type: 'action', action: 'buildPrev' }],
         ['L', 1, { type: 'action', action: 'buildNext' }],
         ['P', 1, { type: 'action', action: 'buildSelected' }],
       ] as const)('P%d presses %s -> %o', (key, playerId, expected) => {
-        const result = resolveKeyPress(key, playerId, 'construction');
+        const result = resolveKeyPress(key, playerId, 'construction', true);
         expect(result).toEqual(expected);
+      });
+
+      it('ignores site-selection keys before a tower type is selected', () => {
+        expect(resolveKeyPress('E', 0, 'construction')).toBeNull();
+        expect(resolveKeyPress('P', 1, 'construction')).toBeNull();
       });
     });
 
