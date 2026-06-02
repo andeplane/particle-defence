@@ -16,7 +16,9 @@ export type MenuItemDef =
   | { kind: 'action'; action: 'nuke'; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'research'; towerType: TowerType; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'construct'; towerType: TowerType; label: string; tooltip: string; p1Key: string; p2Key: string }
-  | { kind: 'action'; action: 'place'; label: string; tooltip: string; p1Key: string; p2Key: string }
+  | { kind: 'action'; action: 'buildPrev'; label: string; tooltip: string; p1Key: string; p2Key: string }
+  | { kind: 'action'; action: 'buildNext'; label: string; tooltip: string; p1Key: string; p2Key: string }
+  | { kind: 'action'; action: 'buildSelected'; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'action'; action: 'towerPrev'; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'action'; action: 'towerNext'; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'action'; action: 'towerUpgrade'; label: string; tooltip: string; p1Key: string; p2Key: string };
@@ -29,9 +31,11 @@ export const MENU_CATEGORIES: CategoryDef[] = [
     p1Key: 'Q',
     p2Key: 'I',
     items: [
-      { kind: 'construct', towerType: 'laser', label: 'LASER', tooltip: 'Build a laser tower', p1Key: 'Q', p2Key: 'I' },
-      { kind: 'construct', towerType: 'slow', label: 'SLOW', tooltip: 'Build a slow tower', p1Key: 'W', p2Key: 'O' },
-      { kind: 'action', action: 'place', label: 'PLACE', tooltip: 'Place tower at carrier position', p1Key: 'E', p2Key: 'P' },
+      { kind: 'construct', towerType: 'laser', label: 'LASER', tooltip: 'Select laser tower for fixed-site construction', p1Key: 'Q', p2Key: 'I' },
+      { kind: 'construct', towerType: 'slow', label: 'SLOW', tooltip: 'Select slow tower for fixed-site construction', p1Key: 'W', p2Key: 'O' },
+      { kind: 'action', action: 'buildPrev', label: '< SITE', tooltip: 'Select previous eligible tower site', p1Key: 'A', p2Key: 'K' },
+      { kind: 'action', action: 'buildNext', label: 'SITE >', tooltip: 'Select next eligible tower site', p1Key: 'S', p2Key: 'L' },
+      { kind: 'action', action: 'buildSelected', label: 'BUILD', tooltip: 'Build selected tower at selected eligible site', p1Key: 'E', p2Key: 'P' },
     ],
   },
   {
@@ -86,7 +90,7 @@ export const MENU_CATEGORIES: CategoryDef[] = [
   },
 ];
 
-export type ActionType = 'nuke' | 'place' | 'towerPrev' | 'towerNext' | 'towerUpgrade';
+export type ActionType = 'nuke' | 'buildPrev' | 'buildNext' | 'buildSelected' | 'towerPrev' | 'towerNext' | 'towerUpgrade';
 
 export type KeyPressResult =
   | { type: 'back' }

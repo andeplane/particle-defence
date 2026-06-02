@@ -6,7 +6,7 @@ import { SlowTowerParticle } from './particles/SlowTowerParticle';
 import { createPlayer, type IPlayer } from './player';
 import { SpatialHash, type ISpatialHash } from './spatial-hash';
 import { resolveCollisions, type CollisionResult } from './collision';
-import type { IGrid } from './grid';
+import type { IGrid, TowerSite } from './grid';
 import type { ICellEffectMap } from './grid/CellEffect';
 import { CellEffectMap } from './grid/CellEffectMap';
 
@@ -235,53 +235,63 @@ export class GameEngine implements AIGameState {
     return true;
   }
 
-  constructTower(playerId: 0 | 1, towerType: TowerType): boolean {
+  constructTower(playerId: 0 | 1, towerType: TowerType, siteId: number): boolean {
     if (this.gameOver) return false;
     const player = this.players[playerId];
-    if (this.carriers[playerId] !== null) return false;
     if (this.towers[playerId].length >= CONFIG.TOWER_MAX_PER_PLAYER) return false;
+    const site = this.grid.towerSites.find((candidate) => candidate.id === siteId);
+    if (!site) return false;
+    if (this.isTowerSiteOccupied(site.id)) return false;
+    if (!this.canBuildTowerAt(playerId, site.id)) return false;
+    if (!player.hasResearched(towerType)) return false;
+    if (!player.canAffordConstruction(towerType)) return false;
+
     if (!player.payForConstruction(towerType)) return false;
 
-    const baseW = this.grid.baseWidthCells * this.grid.cellW;
-    const x = playerId === 0 ? baseW / 2 : CONFIG.GAME_WIDTH - baseW / 2;
-    const y = CONFIG.GAME_HEIGHT / 2;
+    const x = (site.col + 0.5) * this.grid.cellW;
+    const y = (site.row + 0.5) * this.grid.cellH;
+    const tower = this.createTower(towerType, x, y, playerId);
 
-    const carrier = new TowerCarrierParticle(
-      x, y, playerId,
-      CONFIG.TOWER_CARRIER_HP, player.particleSpeed / 2, towerType,
-    );
-
-    this.carriers[playerId] = carrier;
-    this.particles.push(carrier);
-    this.callbacks.onParticleSpawned(carrier);
+    this.towers[playerId].push(tower);
+    this.particles.push(tower);
+    this.callbacks.onParticleSpawned(tower);
+    this.callbacks.onTowerPlaced(tower, playerId);
     return true;
   }
 
   placeTower(playerId: 0 | 1): boolean {
-    if (this.gameOver) return false;
-    const carrier = this.carriers[playerId];
-    if (!carrier || !carrier.alive) {
-      this.carriers[playerId] = null;
-      return false;
-    }
-
-    const context = this.createContext();
-    carrier.leaveCurrentCell(context);
-    carrier.destroy();
-
-    let tower: LaserTowerParticle | SlowTowerParticle;
-    if (carrier.towerType === 'laser') {
-      tower = new LaserTowerParticle(carrier.x, carrier.y, playerId);
-    } else {
-      tower = new SlowTowerParticle(carrier.x, carrier.y, playerId);
-    }
-
-    this.towers[playerId].push(tower);
-    this.particles.push(tower);
     this.carriers[playerId] = null;
-    this.callbacks.onParticleSpawned(tower);
-    this.callbacks.onTowerPlaced(tower, playerId);
+    return false;
+  }
+
+  getEligibleTowerSites(playerId: 0 | 1): readonly TowerSite[] {
+    return this.grid.towerSites.filter((site) => this.canBuildTowerAt(playerId, site.id));
+  }
+
+  canBuildTowerAt(playerId: 0 | 1, siteId: number): boolean {
+    const site = this.grid.towerSites.find((candidate) => candidate.id === siteId);
+    if (!site) return false;
+    if (this.isTowerSiteOccupied(site.id)) return false;
+    const adjacentOpenCells = this.getAdjacentOpenCells(site);
+    if (adjacentOpenCells.length === 0) return false;
+
+    for (const cell of adjacentOpenCells) {
+      const px = (cell.col + 0.5) * this.grid.cellW;
+      const py = (cell.row + 0.5) * this.grid.cellH;
+      if (this.cellEffects.getOwnerAt(px, py) !== playerId) return false;
+    }
+
     return true;
+  }
+
+  isTowerSiteOccupied(siteId: number): boolean {
+    const site = this.grid.towerSites.find((candidate) => candidate.id === siteId);
+    if (!site) return false;
+    return this.towers.some((playerTowers) => playerTowers.some((tower) => (
+      tower.alive
+      && Math.floor(tower.x / this.grid.cellW) === site.col
+      && Math.floor(tower.y / this.grid.cellH) === site.row
+    )));
   }
 
   upgradeTower(playerId: 0 | 1, towerIndex: number): boolean {
@@ -303,6 +313,29 @@ export class GameEngine implements AIGameState {
   buyResearch(playerId: 0 | 1, towerType: TowerType): boolean {
     if (this.gameOver) return false;
     return this.players[playerId].researchTower(towerType);
+  }
+
+  private createTower(towerType: TowerType, x: number, y: number, playerId: 0 | 1): LaserTowerParticle | SlowTowerParticle {
+    return towerType === 'laser'
+      ? new LaserTowerParticle(x, y, playerId)
+      : new SlowTowerParticle(x, y, playerId);
+  }
+
+  private getAdjacentOpenCells(site: TowerSite): Array<{ col: number; row: number }> {
+    const candidates = [
+      { col: site.col - 1, row: site.row },
+      { col: site.col + 1, row: site.row },
+      { col: site.col, row: site.row - 1 },
+      { col: site.col, row: site.row + 1 },
+    ];
+
+    return candidates.filter(({ col, row }) => (
+      col >= 0
+      && col < this.grid.cols
+      && row >= 0
+      && row < this.grid.rows
+      && this.grid.cells[row][col]
+    ));
   }
 
   private resetTowerSlowFactors(): void {

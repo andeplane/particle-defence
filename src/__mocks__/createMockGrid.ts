@@ -7,6 +7,7 @@ export function createMockGrid(overrides: Partial<IGrid> = {}): IGrid {
     rows: 8,
     baseWidthCells: 2,
     cells: [],
+    towerSites: [],
     cellW: 32,
     cellH: 32,
     isWall: vi.fn(() => false),

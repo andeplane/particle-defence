@@ -1,5 +1,6 @@
 import { CONFIG } from '../../config';
 import { Grid } from '../Grid';
+import { applyTowerSites } from '../towerSites';
 import { ensurePathExists } from './ensurePath';
 
 export type RandomGridParams = {
@@ -36,7 +37,8 @@ export function generateRandomGrid(overrides?: Partial<RandomGridParams>): Grid 
       cells = createPercolationCells(p.cols, p.rows, p.fallbackThreshold, p.baseWidth);
     }
     ensurePathExists(cells, p.cols, p.rows, p.baseWidth);
-    grid = new Grid(p.cols, p.rows, p.baseWidth, cells, p.gameWidth, p.gameHeight);
+    const towerSites = applyTowerSites(cells, p.cols, p.rows, p.baseWidth);
+    grid = new Grid(p.cols, p.rows, p.baseWidth, cells, p.gameWidth, p.gameHeight, towerSites);
     attempts++;
   } while (!grid.hasPath());
 

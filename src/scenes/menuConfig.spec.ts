@@ -62,10 +62,11 @@ describe('menuConfig', () => {
       }
     });
 
-    it('should have construction category with tower build items and place action', () => {
+    it('should have construction category with tower type selection and fixed-site build actions', () => {
       const cat = MENU_CATEGORIES.find(c => c.id === 'construction')!;
+      const actions = cat.items.filter(i => i.kind === 'action').map(i => (i as { action: string }).action);
       expect(cat.items.some(i => i.kind === 'construct')).toBe(true);
-      expect(cat.items.some(i => i.kind === 'action' && i.action === 'place')).toBe(true);
+      expect(actions).toEqual(['buildPrev', 'buildNext', 'buildSelected']);
     });
 
     it('should have research category with research items', () => {
@@ -176,10 +177,14 @@ describe('menuConfig', () => {
       it.each([
         ['Q', 0, { type: 'construct', towerType: 'laser' }],
         ['W', 0, { type: 'construct', towerType: 'slow' }],
-        ['E', 0, { type: 'action', action: 'place' }],
+        ['A', 0, { type: 'action', action: 'buildPrev' }],
+        ['S', 0, { type: 'action', action: 'buildNext' }],
+        ['E', 0, { type: 'action', action: 'buildSelected' }],
         ['I', 1, { type: 'construct', towerType: 'laser' }],
         ['O', 1, { type: 'construct', towerType: 'slow' }],
-        ['P', 1, { type: 'action', action: 'place' }],
+        ['K', 1, { type: 'action', action: 'buildPrev' }],
+        ['L', 1, { type: 'action', action: 'buildNext' }],
+        ['P', 1, { type: 'action', action: 'buildSelected' }],
       ] as const)('P%d presses %s -> %o', (key, playerId, expected) => {
         const result = resolveKeyPress(key, playerId, 'construction');
         expect(result).toEqual(expected);
