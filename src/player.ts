@@ -1,4 +1,4 @@
-import { CONFIG, getUpgradeCost, getTowerResearchCost, getTowerConstructionCost, type UpgradeType, type TowerType } from './config';
+import { CONFIG, getUpgradeCost, getTowerResearchCost, getTowerConstructionCost, getNukeResearchCost, type UpgradeType, type TowerType } from './config';
 
 export interface IPlayer {
   readonly id: 0 | 1;
@@ -26,6 +26,10 @@ export interface IPlayer {
   canUseNuke(gameTimeMs: number): boolean;
   useNuke(gameTimeMs: number): void;
   getNukeCooldownRemainingMs(gameTimeMs: number): number;
+  hasResearchedNuke(): boolean;
+  canResearchNuke(): boolean;
+  researchNuke(): boolean;
+  getNukeResearchCost(): number;
   takeDamage(amount: number): void;
   hasResearched(towerType: TowerType): boolean;
   canResearchTower(towerType: TowerType): boolean;
@@ -105,6 +109,7 @@ export class Player implements IPlayer {
 
   /** Time (ms) when nuke was last used; -1 if never used */
   lastNukeTimeMs: number = -1;
+  private nukeResearched = false;
 
   private readonly researchedTowers = new Set<TowerType>();
 
@@ -182,6 +187,7 @@ export class Player implements IPlayer {
   }
 
   canUseNuke(gameTimeMs: number): boolean {
+    if (!this.nukeResearched) return false;
     if (this.lastNukeTimeMs < 0) {
       return gameTimeMs >= this.config.nuclearFirstAvailableMs;
     }
@@ -193,11 +199,32 @@ export class Player implements IPlayer {
   }
 
   getNukeCooldownRemainingMs(gameTimeMs: number): number {
+    if (!this.nukeResearched) return 0;
     if (this.canUseNuke(gameTimeMs)) return 0;
     if (this.lastNukeTimeMs < 0) {
       return Math.max(0, this.config.nuclearFirstAvailableMs - gameTimeMs);
     }
     return Math.max(0, this.lastNukeTimeMs + this.config.nuclearCooldownMs - gameTimeMs);
+  }
+
+  hasResearchedNuke(): boolean {
+    return this.nukeResearched;
+  }
+
+  canResearchNuke(): boolean {
+    if (this.nukeResearched) return false;
+    return this.gold >= this.getNukeResearchCost();
+  }
+
+  researchNuke(): boolean {
+    if (!this.canResearchNuke()) return false;
+    this.gold -= this.getNukeResearchCost();
+    this.nukeResearched = true;
+    return true;
+  }
+
+  getNukeResearchCost(): number {
+    return getNukeResearchCost();
   }
 
   takeDamage(amount: number): void {

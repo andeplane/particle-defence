@@ -3,6 +3,7 @@ import { AIController } from '../ai';
 import { CONFIG, setDebugEverythingCheap, type UpgradeType, type TowerType } from '../config';
 import { generateGrid, type GridType } from '../grid';
 import type { CellEffect } from '../grid/CellEffect';
+import type { TowerSite } from '../grid';
 import type { IParticle } from '../particles';
 import type { LaserTowerParticle } from '../particles/LaserTowerParticle';
 import type { SlowTowerParticle } from '../particles/SlowTowerParticle';
@@ -30,6 +31,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   private glowTextureP1Created = false;
   private glowTextureP2Created = false;
   private effectsGfx!: Phaser.GameObjects.Graphics;
+  private towerSiteGfx!: Phaser.GameObjects.Graphics;
 
   get players() { return this.engine.players; }
   get particles() { return this.engine.particles; }
@@ -111,6 +113,8 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
     this.effectsGfx = this.add.graphics();
     this.effectsGfx.setDepth(3);
+    this.towerSiteGfx = this.add.graphics();
+    this.towerSiteGfx.setDepth(4);
 
     this.scene.launch('UIScene', { viewModel: this as IGameViewModel, mode: this.mode });
   }
@@ -145,8 +149,12 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     return this.engine.buyResearch(playerId, towerType);
   }
 
-  constructTower(playerId: 0 | 1, towerType: TowerType): boolean {
-    return this.engine.constructTower(playerId, towerType);
+  researchNuke(playerId: 0 | 1): boolean {
+    return this.engine.buyNukeResearch(playerId);
+  }
+
+  constructTower(playerId: 0 | 1, towerType: TowerType, siteId: number): boolean {
+    return this.engine.constructTower(playerId, towerType, siteId);
   }
 
   placeTower(playerId: 0 | 1): boolean {
@@ -157,15 +165,16 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     return this.engine.upgradeTower(playerId, towerIndex);
   }
 
-  hasActiveCarrier(playerId: 0 | 1): boolean {
-    const carrier = this.engine.carriers[playerId];
-    return carrier !== null && carrier.alive;
+  getEligibleTowerSites(playerId: 0 | 1): readonly TowerSite[] {
+    return this.engine.getEligibleTowerSites(playerId);
   }
 
-  getCarrierHealth(playerId: 0 | 1): { health: number; maxHealth: number } | null {
-    const carrier = this.engine.carriers[playerId];
-    if (!carrier || !carrier.alive) return null;
-    return { health: carrier.health, maxHealth: carrier.maxHealth };
+  getTowerSites(): readonly TowerSite[] {
+    return this.engine.grid.towerSites;
+  }
+
+  isTowerSiteOccupied(siteId: number): boolean {
+    return this.engine.isTowerSiteOccupied(siteId);
   }
 
   getTowers(playerId: 0 | 1): ReadonlyArray<LaserTowerParticle | SlowTowerParticle> {
@@ -177,6 +186,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     this.engine.tick(spedDelta);
     this.statsRecorder.tick(spedDelta, this.engine.particles, this.engine.players);
     this.renderCellEffects();
+    this.renderTowerSites();
     this.renderTowerEffects();
   }
 
@@ -550,6 +560,39 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
         this.effectsGfx.fillStyle(color, alpha);
         this.effectsGfx.fillRect(x, y, cellW, cellH);
       });
+    }
+  }
+
+  private renderTowerSites(): void {
+    this.towerSiteGfx.clear();
+    const grid = this.engine.grid;
+    const selectedSiteIds = new Set<number>();
+    for (const selection of this.towerSelectionForRender) {
+      if (selection.selectedBuildSiteId !== undefined) selectedSiteIds.add(selection.selectedBuildSiteId);
+    }
+
+    for (const site of grid.towerSites) {
+      const centerX = (site.col + 0.5) * grid.cellW;
+      const centerY = (site.row + 0.5) * grid.cellH;
+      const size = Math.min(grid.cellW, grid.cellH) * 0.72;
+      const half = size / 2;
+      const occupied = this.engine.isTowerSiteOccupied(site.id);
+      const selected = selectedSiteIds.has(site.id);
+
+      this.towerSiteGfx.lineStyle(selected ? 4 : 2, selected ? 0xffffff : 0xffdd66, selected ? 0.95 : 0.65);
+      this.towerSiteGfx.strokeRect(centerX - half, centerY - half, size, size);
+      this.towerSiteGfx.lineStyle(2, occupied ? 0x66ff66 : 0xffdd66, occupied ? 0.9 : 0.5);
+      this.towerSiteGfx.lineBetween(centerX - half * 0.6, centerY, centerX + half * 0.6, centerY);
+      this.towerSiteGfx.lineBetween(centerX, centerY - half * 0.6, centerX, centerY + half * 0.6);
+
+      if (occupied) {
+        this.towerSiteGfx.fillStyle(0x66ff66, 0.18);
+      } else if (selected) {
+        this.towerSiteGfx.fillStyle(0xffffff, 0.14);
+      } else {
+        this.towerSiteGfx.fillStyle(0xffdd66, 0.08);
+      }
+      this.towerSiteGfx.fillRect(centerX - half, centerY - half, size, size);
     }
   }
 

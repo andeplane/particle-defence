@@ -8,16 +8,26 @@ import {
   getConstructionSubmenuItems,
   type BuildSubmenu,
   type MenuCategory,
+  type ResearchType,
   resolveKeyPress,
 } from './menuConfig';
 import { getClearedUIState } from './UISceneState';
+import {
+  backFromConstructionState,
+  createDefaultConstructionMenuState,
+  getVisibleConstructionItems,
+  selectConstructionTower,
+  type ConstructionMenuState,
+} from './constructionMenuState';
 import { getLaserStats, getSlowStats } from '../particles/towers';
 import type { LaserTowerParticle } from '../particles/LaserTowerParticle';
 import type { SlowTowerParticle } from '../particles/SlowTowerParticle';
+import type { TowerSite } from '../grid';
 
 export interface TowerSelectionForRender {
   active: boolean;
   selectedIndex: number;
+  selectedBuildSiteId?: number;
 }
 
 export interface IGameViewModel {
@@ -29,11 +39,12 @@ export interface IGameViewModel {
   purchaseUpgrade(playerId: 0 | 1, type: UpgradeType): boolean;
   launchNuke(playerId: 0 | 1): boolean;
   researchTower(playerId: 0 | 1, towerType: TowerType): boolean;
-  constructTower(playerId: 0 | 1, towerType: TowerType): boolean;
-  placeTower(playerId: 0 | 1): boolean;
+  researchNuke(playerId: 0 | 1): boolean;
+  constructTower(playerId: 0 | 1, towerType: TowerType, siteId: number): boolean;
   upgradeTower(playerId: 0 | 1, towerIndex: number): boolean;
-  hasActiveCarrier(playerId: 0 | 1): boolean;
-  getCarrierHealth(playerId: 0 | 1): { health: number; maxHealth: number } | null;
+  getEligibleTowerSites(playerId: 0 | 1): readonly TowerSite[];
+  getTowerSites(): readonly TowerSite[];
+  isTowerSiteOccupied(siteId: number): boolean;
   getTowers(playerId: 0 | 1): ReadonlyArray<LaserTowerParticle | SlowTowerParticle>;
   /** Mutable; UIScene updates each frame for in-world selection ring rendering */
   towerSelectionForRender?: [TowerSelectionForRender, TowerSelectionForRender];
@@ -62,9 +73,10 @@ interface NukeButton {
   playerId: 0 | 1;
 }
 
-interface PlaceButton extends NukeButton {
-  hpBarBg: Phaser.GameObjects.Rectangle;
-  hpBarFill: Phaser.GameObjects.Rectangle;
+type BuildAction = 'buildPrev' | 'buildNext' | 'buildSelected';
+
+interface BuildActionButton extends NukeButton {
+  action: BuildAction;
 }
 
 interface CategoryButton {
@@ -103,9 +115,14 @@ export class UIScene extends Phaser.Scene {
   private placeholderText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
   private tooltipText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
   private selectedTowerIndex: [number, number] = [0, 0];
-  private researchButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; towerType: TowerType; playerId: 0 | 1 }[] = [];
+  private constructionMenuState: [ConstructionMenuState, ConstructionMenuState] = [
+    createDefaultConstructionMenuState(),
+    createDefaultConstructionMenuState(),
+  ];
+  private selectedBuildSiteId: [number, number] = [0, 0];
+  private researchButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; researchType: ResearchType; playerId: 0 | 1 }[] = [];
   private constructButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; towerType: TowerType; playerId: 0 | 1 }[] = [];
-  private placeButtons: PlaceButton[] = [];
+  private buildActionButtons: BuildActionButton[] = [];
   private towerInfoText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
   private popups: Phaser.GameObjects.Text[] = [];
   private debugMenuCollapsed: boolean = true;
@@ -141,7 +158,7 @@ export class UIScene extends Phaser.Scene {
     this.backButtons = cleared.backButtons as typeof this.backButtons;
     this.researchButtons = cleared.researchButtons as typeof this.researchButtons;
     this.constructButtons = cleared.constructButtons as typeof this.constructButtons;
-    this.placeButtons = cleared.placeButtons as typeof this.placeButtons;
+    this.buildActionButtons = cleared.placeButtons as typeof this.buildActionButtons;
     this.popups = cleared.popups as typeof this.popups;
     this.activeCategory = cleared.activeCategory;
     this.activeBuildSubmenu = cleared.activeBuildSubmenu;
@@ -149,6 +166,11 @@ export class UIScene extends Phaser.Scene {
     this.placeholderText = cleared.placeholderText as typeof this.placeholderText;
     this.tooltipText = cleared.tooltipText as typeof this.tooltipText;
     this.selectedTowerIndex = cleared.selectedTowerIndex;
+    this.constructionMenuState = [
+      createDefaultConstructionMenuState(),
+      createDefaultConstructionMenuState(),
+    ];
+    this.selectedBuildSiteId = [0, 0];
     this.debugMenuBg = undefined;
     this.debugMenuToggle = undefined;
     this.debugSpeedText = undefined;
@@ -357,10 +379,9 @@ export class UIScene extends Phaser.Scene {
       btn.bg.destroy(); btn.labelText.destroy(); btn.costText.destroy(); btn.keyText.destroy();
       return false;
     });
-    this.placeButtons = this.placeButtons.filter(btn => {
+    this.buildActionButtons = this.buildActionButtons.filter(btn => {
       if (btn.playerId !== playerId) return true;
       btn.bg.destroy(); btn.labelText.destroy(); btn.statusText.destroy(); btn.keyText.destroy();
-      btn.hpBarBg.destroy(); btn.hpBarFill.destroy();
       return false;
     });
     const title = this.categoryTitle[playerId];
@@ -451,10 +472,11 @@ export class UIScene extends Phaser.Scene {
     }
 
     const staggerOffset = (btnW + gap) * 0.4;
-    const topRowCount = Math.min(4, items.length);
-    const bottomRowCount = items.length - topRowCount;
+    const visibleItems = this.getVisibleMenuItems(playerId, items);
+    const topRowCount = Math.min(4, visibleItems.length);
+    const bottomRowCount = visibleItems.length - topRowCount;
 
-    items.forEach((item, i) => {
+    visibleItems.forEach((item, i) => {
       const isTopRow = i < topRowCount;
       const rowIndex = isTopRow ? i : i - topRowCount;
       const totalInRow = isTopRow ? topRowCount : bottomRowCount;
@@ -465,15 +487,15 @@ export class UIScene extends Phaser.Scene {
       if (item.kind === 'upgrade') {
         this.createUpgradeButton(x, y, btnW, btnH, item.type, item.label, key(item), playerId);
       } else if (item.kind === 'research') {
-        this.createResearchButton(x, y, btnW, btnH, item.towerType, item.label, item.tooltip, key(item), playerId);
+        this.createResearchButton(x, y, btnW, btnH, item.researchType, item.label, item.tooltip, key(item), playerId);
       } else if (item.kind === 'construct') {
         this.createConstructButton(x, y, btnW, btnH, item.towerType, item.label, item.tooltip, key(item), playerId);
       } else if (item.kind === 'buildSubmenu') {
         this.createBuildSubmenuButton(x, y, btnW, btnH, item.buildSubmenu, item.label, item.tooltip, key(item), playerId);
       } else if (item.kind === 'action' && item.action === 'nuke') {
         this.createActionButton(x, y, btnW, btnH, item.label, item.tooltip, key(item), playerId);
-      } else if (item.kind === 'action' && item.action === 'place') {
-        this.createPlaceButton(x, y, btnW, btnH, key(item), playerId);
+      } else if (item.kind === 'action' && (item.action === 'buildPrev' || item.action === 'buildNext' || item.action === 'buildSelected')) {
+        this.createBuildActionButton(x, y, btnW, btnH, item.action, item.label, item.tooltip, key(item), playerId);
       } else if (item.kind === 'action' && (item.action === 'towerPrev' || item.action === 'towerNext' || item.action === 'towerUpgrade')) {
         this.createTowerMgmtButton(x, y, btnW, btnH, item.action, item.label, item.tooltip, key(item), playerId);
       }
@@ -483,7 +505,7 @@ export class UIScene extends Phaser.Scene {
     const backX = this.getButtonX(playerId, bottomRowCount, bottomRowCount + 1, staggerOffset, isRight);
     this.createBackButton(backX, bottomRowY, btnW, btnH, backKey, playerId);
 
-    if (category === 'towers') {
+    if (category === 'towers' || category === 'construction') {
       const infoX = isRight ? rightEdge - 2 * (btnW + gap) : startX + 2 * (btnW + gap);
       const infoY = topRowY - CONFIG.UI_FONT_SMALL * 3 - CONFIG.UI_GAP * 4;
       this.towerInfoText[playerId] = this.add.text(infoX, infoY, '', {
@@ -520,6 +542,13 @@ export class UIScene extends Phaser.Scene {
       this.hideTooltip(playerId);
     });
     this.categoryButtons.push({ bg, label: labelText, keyText, categoryId: 'construction', playerId });
+  }
+
+  private getVisibleMenuItems(playerId: 0 | 1, items: typeof MENU_CATEGORIES[number]['items']) {
+    if (this.activeCategory[playerId] !== 'construction' || this.activeBuildSubmenu[playerId] !== 'towers') {
+      return items;
+    }
+    return getVisibleConstructionItems(items, this.constructionMenuState[playerId]);
   }
 
   private createCategoryButton(
@@ -569,7 +598,9 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5).setVisible(!this._mobile);
 
     bg.on('pointerdown', () => {
-      if (this.activeCategory[playerId] === 'construction' && this.activeBuildSubmenu[playerId] !== null) {
+      if (this.activeCategory[playerId] === 'construction' && this.constructionMenuState[playerId].siteSelectionActive) {
+        this.constructionMenuState[playerId] = backFromConstructionState(this.constructionMenuState[playerId]);
+      } else if (this.activeCategory[playerId] === 'construction' && this.activeBuildSubmenu[playerId] !== null) {
         this.activeBuildSubmenu[playerId] = null;
       } else {
         this.activeCategory[playerId] = null;
@@ -651,7 +682,7 @@ export class UIScene extends Phaser.Scene {
 
   private createResearchButton(
     x: number, y: number, w: number, h: number,
-    towerType: TowerType, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
+    researchType: ResearchType, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
   ): void {
     const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
     const bg = this.add.rectangle(x, y + h / 2, w, h, 0x112211, 0.85)
@@ -667,10 +698,10 @@ export class UIScene extends Phaser.Scene {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5).setVisible(!this._mobile);
 
-    bg.on('pointerdown', () => this.handleResearch(playerId, towerType, bg));
+    bg.on('pointerdown', () => this.handleResearch(playerId, researchType, bg));
     bg.on('pointerover', () => { bg.setFillStyle(0x224422, 0.9); this.showTooltip(tooltip, x, y, playerId); });
     bg.on('pointerout', () => { bg.setFillStyle(0x112211, 0.85); this.hideTooltip(playerId); });
-    this.researchButtons.push({ bg, labelText, costText, keyText, towerType, playerId });
+    this.researchButtons.push({ bg, labelText, costText, keyText, researchType, playerId });
   }
 
   private createConstructButton(
@@ -697,37 +728,28 @@ export class UIScene extends Phaser.Scene {
     this.constructButtons.push({ bg, labelText, costText, keyText, towerType, playerId });
   }
 
-  private createPlaceButton(
+  private createBuildActionButton(
     x: number, y: number, w: number, h: number,
-    keyName: string, playerId: 0 | 1,
+    action: BuildAction, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
   ): void {
     const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
     const bg = this.add.rectangle(x, y + h / 2, w, h, 0x222211, 0.85)
       .setStrokeStyle(2, color, 0.5)
       .setInteractive({ useHandCursor: true });
-    const labelText = this.add.text(x, y + h * 0.22, 'PLACE', {
+    const labelText = this.add.text(x, y + h * 0.22, label, {
       fontSize: `${CONFIG.UI_FONT_SMALL + 2}px`, color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5);
-
-    const barWidth = w * 0.7;
-    const barHeight = 6;
-    const barY = y + h * 0.46;
-    const hpBarBg = this.add.rectangle(x, barY, barWidth, barHeight, 0x333333, 0.8)
-      .setOrigin(0.5).setVisible(false);
-    const hpBarFill = this.add.rectangle(x - barWidth / 2, barY, barWidth, barHeight, color, 0.9)
-      .setOrigin(0, 0.5).setVisible(false);
-
-    const statusText = this.add.text(x, y + h * 0.64, '--', {
+    const statusText = this.add.text(x, y + h * 0.52, '--', {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5);
     const keyText = this.add.text(x, y + h * 0.85, `[${keyName}]`, {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5).setVisible(!this._mobile);
 
-    bg.on('pointerdown', () => this.handlePlace(playerId, bg));
-    bg.on('pointerover', () => { bg.setFillStyle(0x333322, 0.9); this.showTooltip('Place tower at carrier position', x, y, playerId); });
+    bg.on('pointerdown', () => this.handleBuildAction(playerId, action, bg));
+    bg.on('pointerover', () => { bg.setFillStyle(0x333322, 0.9); this.showTooltip(tooltip, x, y, playerId); });
     bg.on('pointerout', () => { bg.setFillStyle(0x222211, 0.85); this.hideTooltip(playerId); });
-    this.placeButtons.push({ bg, labelText, statusText, keyText, hpBarBg, hpBarFill, playerId });
+    this.buildActionButtons.push({ bg, labelText, statusText, keyText, action, playerId });
   }
 
   private createTowerMgmtButton(
@@ -757,11 +779,11 @@ export class UIScene extends Phaser.Scene {
 
   // ── Actions ────────────────────────────────────────────────────────
 
-  private handleResearch(playerId: 0 | 1, towerType: TowerType, btn?: Phaser.GameObjects.Rectangle): void {
+  private handleResearch(playerId: 0 | 1, researchType: ResearchType, btn?: Phaser.GameObjects.Rectangle): void {
     if (this.viewModel.gameOver) return;
     const player = this.viewModel.players[playerId];
-    const cost = player.getResearchCost(towerType);
-    if (this.viewModel.researchTower(playerId, towerType)) {
+    const cost = this.getResearchCost(player, researchType);
+    if (this.purchaseResearch(playerId, researchType)) {
       if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
       this.showGoldPopup(playerId, `-$${cost}`);
       this.renderMenuForPlayer(playerId);
@@ -772,9 +794,38 @@ export class UIScene extends Phaser.Scene {
 
   private handleConstruct(playerId: 0 | 1, towerType: TowerType, btn?: Phaser.GameObjects.Rectangle): void {
     if (this.viewModel.gameOver) return;
+    this.constructionMenuState[playerId] = {
+      ...this.constructionMenuState[playerId],
+      selectedTowerType: towerType,
+    };
     const player = this.viewModel.players[playerId];
-    const cost = player.getConstructionCost(towerType);
-    if (this.viewModel.constructTower(playerId, towerType)) {
+    if (!player.hasResearched(towerType)) {
+      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      return;
+    }
+    this.constructionMenuState[playerId] = selectConstructionTower(this.constructionMenuState[playerId], towerType);
+    if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+    this.renderMenuForPlayer(playerId);
+  }
+
+  private handleBuildAction(playerId: 0 | 1, action: BuildAction, btn?: Phaser.GameObjects.Rectangle): void {
+    if (this.viewModel.gameOver) return;
+    if (action === 'buildPrev' || action === 'buildNext') {
+      const direction = action === 'buildPrev' ? -1 : 1;
+      this.handleBuildSiteCycle(playerId, direction);
+      if (btn) this.tweens.add({ targets: btn, scaleX: 1.08, scaleY: 1.08, duration: 60, yoyo: true, ease: 'Quad.easeOut' });
+      return;
+    }
+
+    const selectedSite = this.getSelectedBuildSite(playerId);
+    if (!selectedSite) {
+      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      return;
+    }
+
+    const towerType = this.constructionMenuState[playerId].selectedTowerType;
+    const cost = this.viewModel.players[playerId].getConstructionCost(towerType);
+    if (this.viewModel.constructTower(playerId, towerType, selectedSite.id)) {
       if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
       this.showGoldPopup(playerId, `-$${cost}`);
     } else {
@@ -782,13 +833,13 @@ export class UIScene extends Phaser.Scene {
     }
   }
 
-  private handlePlace(playerId: 0 | 1, btn?: Phaser.GameObjects.Rectangle): void {
-    if (this.viewModel.gameOver) return;
-    if (this.viewModel.placeTower(playerId)) {
-      if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
-    } else {
-      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
-    }
+  private handleBuildSiteCycle(playerId: 0 | 1, direction: -1 | 1): void {
+    const eligibleSites = this.viewModel.getEligibleTowerSites(playerId);
+    if (eligibleSites.length === 0) return;
+    const currentSiteId = this.selectedBuildSiteId[playerId];
+    const currentIndex = Math.max(0, eligibleSites.findIndex((site) => site.id === currentSiteId));
+    const nextIndex = ((currentIndex + direction) % eligibleSites.length + eligibleSites.length) % eligibleSites.length;
+    this.selectedBuildSiteId[playerId] = eligibleSites[nextIndex].id;
   }
 
   private handleTowerCycle(playerId: 0 | 1, direction: -1 | 1): void {
@@ -829,6 +880,24 @@ export class UIScene extends Phaser.Scene {
         });
       }
     }
+  }
+
+  private hasResearched(player: IPlayer, researchType: ResearchType): boolean {
+    return researchType === 'nuke' ? player.hasResearchedNuke() : player.hasResearched(researchType);
+  }
+
+  private canResearch(player: IPlayer, researchType: ResearchType): boolean {
+    return researchType === 'nuke' ? player.canResearchNuke() : player.canResearchTower(researchType);
+  }
+
+  private getResearchCost(player: IPlayer, researchType: ResearchType): number {
+    return researchType === 'nuke' ? player.getNukeResearchCost() : player.getResearchCost(researchType);
+  }
+
+  private purchaseResearch(playerId: 0 | 1, researchType: ResearchType): boolean {
+    return researchType === 'nuke'
+      ? this.viewModel.researchNuke(playerId)
+      : this.viewModel.researchTower(playerId, researchType);
   }
 
   private handleUpgrade(playerId: 0 | 1, type: UpgradeType, btn?: Phaser.GameObjects.Rectangle): void {
@@ -889,13 +958,21 @@ export class UIScene extends Phaser.Scene {
   }
 
   private dispatchKeyForPlayer(playerId: 0 | 1, key: string, event: KeyboardEvent): void {
-    const result = resolveKeyPress(key, playerId, this.activeCategory[playerId], this.activeBuildSubmenu[playerId]);
+    const result = resolveKeyPress(
+      key,
+      playerId,
+      this.activeCategory[playerId],
+      this.activeBuildSubmenu[playerId],
+      this.constructionMenuState[playerId].siteSelectionActive,
+    );
     if (!result) return;
 
     switch (result.type) {
       case 'back':
         event.preventDefault();
-        if (this.activeCategory[playerId] === 'construction' && this.activeBuildSubmenu[playerId] !== null) {
+        if (this.activeCategory[playerId] === 'construction' && this.constructionMenuState[playerId].siteSelectionActive) {
+          this.constructionMenuState[playerId] = backFromConstructionState(this.constructionMenuState[playerId]);
+        } else if (this.activeCategory[playerId] === 'construction' && this.activeBuildSubmenu[playerId] !== null) {
           this.activeBuildSubmenu[playerId] = null;
         } else {
           this.activeCategory[playerId] = null;
@@ -918,7 +995,7 @@ export class UIScene extends Phaser.Scene {
         break;
       }
       case 'research':
-        this.handleResearch(playerId, result.towerType);
+        this.handleResearch(playerId, result.researchType);
         break;
       case 'construct':
         this.handleConstruct(playerId, result.towerType);
@@ -927,8 +1004,9 @@ export class UIScene extends Phaser.Scene {
         if (result.action === 'nuke') {
           const nukeBtn = this.nukeButtons.find(b => b.playerId === playerId);
           this.handleNuke(playerId, nukeBtn?.bg);
-        } else if (result.action === 'place') {
-          this.handlePlace(playerId);
+        } else if (result.action === 'buildPrev' || result.action === 'buildNext' || result.action === 'buildSelected') {
+          const buildBtn = this.buildActionButtons.find(b => b.playerId === playerId && b.action === result.action);
+          this.handleBuildAction(playerId, result.action, buildBtn?.bg);
         } else if (result.action === 'towerPrev') {
           this.handleTowerCycle(playerId, -1);
         } else if (result.action === 'towerNext') {
@@ -1034,10 +1112,10 @@ export class UIScene extends Phaser.Scene {
 
     for (const btn of this.researchButtons) {
       const player = this.viewModel.players[btn.playerId];
-      const researched = player.hasResearched(btn.towerType);
-      const canResearch = player.canResearchTower(btn.towerType);
+      const researched = this.hasResearched(player, btn.researchType);
+      const canResearch = this.canResearch(player, btn.researchType);
       btn.bg.setAlpha(researched ? 0.3 : canResearch ? 1 : 0.4);
-      btn.costText.setText(researched ? 'DONE' : `$${player.getResearchCost(btn.towerType)}`);
+      btn.costText.setText(researched ? 'DONE' : `$${this.getResearchCost(player, btn.researchType)}`);
       if (researched) btn.costText.setColor('#66ff66');
       else btn.costText.setColor('#ffd700');
     }
@@ -1045,16 +1123,21 @@ export class UIScene extends Phaser.Scene {
     for (const btn of this.constructButtons) {
       const player = this.viewModel.players[btn.playerId];
       const researched = player.hasResearched(btn.towerType);
-      const canAfford = player.canAffordConstruction(btn.towerType);
-      const hasCarrier = this.viewModel.hasActiveCarrier(btn.playerId);
-      const atCap = this.viewModel.getTowers(btn.playerId).length >= CONFIG.TOWER_MAX_PER_PLAYER;
-      btn.bg.setAlpha(researched && canAfford && !hasCarrier && !atCap ? 1 : 0.4);
+      const selected = this.constructionMenuState[btn.playerId].selectedTowerType === btn.towerType;
+      btn.bg.setAlpha(researched ? (selected ? 1 : 0.7) : 0.4);
+      btn.bg.setStrokeStyle(2, selected ? 0xffffff : (btn.playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR), selected ? 0.9 : 0.5);
       btn.costText.setText(researched ? `$${player.getConstructionCost(btn.towerType)}` : 'LOCKED');
     }
 
     const gameTimeMs = this.viewModel.gameTimeMs;
     for (const btn of this.nukeButtons) {
       const player = this.viewModel.players[btn.playerId];
+      if (!player.hasResearchedNuke()) {
+        btn.bg.setAlpha(0.4);
+        btn.statusText.setText('LOCKED');
+        btn.statusText.setColor('#666666');
+        continue;
+      }
       const canUse = player.canUseNuke(gameTimeMs);
       btn.bg.setAlpha(canUse ? 1 : 0.4);
       const remainingMs = player.getNukeCooldownRemainingMs(gameTimeMs);
@@ -1069,39 +1152,92 @@ export class UIScene extends Phaser.Scene {
       }
     }
 
-    for (const btn of this.placeButtons) {
-      const carrierHP = this.viewModel.getCarrierHealth(btn.playerId);
-      const hasCarrier = carrierHP !== null;
-      btn.bg.setAlpha(hasCarrier ? 1 : 0.4);
-      if (hasCarrier) {
-        const ratio = carrierHP.health / carrierHP.maxHealth;
-        const barWidth = btn.hpBarBg.width;
-        btn.hpBarFill.setDisplaySize(Math.max(1, barWidth * ratio), btn.hpBarFill.height);
-        btn.hpBarBg.setVisible(true);
-        btn.hpBarFill.setVisible(true);
-        btn.statusText.setText(`HP ${Math.ceil(carrierHP.health)}/${Math.ceil(carrierHP.maxHealth)}`);
-        btn.statusText.setColor(ratio > 0.5 ? '#66ff66' : ratio > 0.25 ? '#ffaa33' : '#ff4444');
-      } else {
-        btn.hpBarBg.setVisible(false);
-        btn.hpBarFill.setVisible(false);
-        btn.statusText.setText('NO CARRIER');
+    for (const btn of this.buildActionButtons) {
+      const selectedSite = this.getSelectedBuildSite(btn.playerId);
+      const player = this.viewModel.players[btn.playerId];
+      const towerType = this.constructionMenuState[btn.playerId].selectedTowerType;
+      const canBuild = selectedSite !== null
+        && player.hasResearched(towerType)
+        && player.canAffordConstruction(towerType)
+        && this.viewModel.getTowers(btn.playerId).length < CONFIG.TOWER_MAX_PER_PLAYER;
+      btn.bg.setAlpha(btn.action === 'buildSelected' ? (canBuild ? 1 : 0.4) : (selectedSite ? 1 : 0.4));
+      if (!selectedSite) {
+        btn.statusText.setText('NO SITE');
         btn.statusText.setColor('#666666');
+      } else if (btn.action === 'buildSelected') {
+        btn.statusText.setText(`SITE ${selectedSite.id + 1}`);
+        btn.statusText.setColor(canBuild ? '#66ff66' : '#ffaa33');
+      } else {
+        btn.statusText.setText(`${selectedSite.id + 1}/6`);
+        btn.statusText.setColor('#cccccc');
       }
     }
 
-    this.updateTowerInfoText(0);
-    this.updateTowerInfoText(1);
+    this.updatePanelInfoText(0);
+    this.updatePanelInfoText(1);
 
     if (this.viewModel.towerSelectionForRender) {
       this.viewModel.towerSelectionForRender[0] = {
         active: this.activeCategory[0] === 'towers',
         selectedIndex: this.selectedTowerIndex[0],
+        selectedBuildSiteId: this.activeCategory[0] === 'construction' && this.constructionMenuState[0].siteSelectionActive ? this.getSelectedBuildSite(0)?.id : undefined,
       };
       this.viewModel.towerSelectionForRender[1] = {
         active: this.activeCategory[1] === 'towers',
         selectedIndex: this.selectedTowerIndex[1],
+        selectedBuildSiteId: this.activeCategory[1] === 'construction' && this.constructionMenuState[1].siteSelectionActive ? this.getSelectedBuildSite(1)?.id : undefined,
       };
     }
+  }
+
+  private getSelectedBuildSite(playerId: 0 | 1): TowerSite | null {
+    const eligibleSites = this.viewModel.getEligibleTowerSites(playerId);
+    if (eligibleSites.length === 0) return null;
+    const selectedSiteId = this.selectedBuildSiteId[playerId];
+    const selected = eligibleSites.find((site) => site.id === selectedSiteId) ?? eligibleSites[0];
+    this.selectedBuildSiteId[playerId] = selected.id;
+    return selected;
+  }
+
+  private updatePanelInfoText(playerId: 0 | 1): void {
+    if (this.activeCategory[playerId] === 'construction') {
+      this.updateBuildInfoText(playerId);
+      return;
+    }
+    this.updateTowerInfoText(playerId);
+  }
+
+  private updateBuildInfoText(playerId: 0 | 1): void {
+    const info = this.towerInfoText[playerId];
+    if (!info) return;
+
+    const towerType = this.constructionMenuState[playerId].selectedTowerType;
+    const selectedSite = this.getSelectedBuildSite(playerId);
+    const player = this.viewModel.players[playerId];
+    const cost = player.getConstructionCost(towerType);
+    const eligibleCount = this.viewModel.getEligibleTowerSites(playerId).length;
+
+    if (!this.constructionMenuState[playerId].siteSelectionActive) {
+      info.setText('Choose LASER or SLOW to select a tower type');
+      return;
+    }
+
+    if (!player.hasResearched(towerType)) {
+      info.setText(`${towerType.toUpperCase()} selected\nResearch required before building\nEligible sites: ${eligibleCount}/6`);
+      return;
+    }
+
+    if (!selectedSite) {
+      info.setText(`${towerType.toUpperCase()} selected\nNo eligible sites\nOwn all adjacent open cells around a pad`);
+      return;
+    }
+
+    const canAfford = player.canAffordConstruction(towerType);
+    info.setText(
+      `${towerType.toUpperCase()} selected  Cost: $${cost}${canAfford ? '' : ' (need gold)'}\n` +
+      `Selected site ${selectedSite.id + 1}/6  Eligible: ${eligibleCount}/6\n` +
+      'Cycle sites, then BUILD'
+    );
   }
 
   private updateTowerInfoText(playerId: 0 | 1): void {

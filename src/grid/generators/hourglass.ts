@@ -1,5 +1,6 @@
 import { CONFIG } from '../../config';
 import { Grid } from '../Grid';
+import { applyTowerSites } from '../towerSites';
 import { ensurePathExists } from './ensurePath';
 
 export type HourglassGridParams = {
@@ -36,7 +37,8 @@ export function generateHourglassGrid(overrides?: Partial<HourglassGridParams>):
   do {
     const cells = createHourglassCells(p.cols, p.rows, p.baseWidth);
     ensurePathExists(cells, p.cols, p.rows, p.baseWidth);
-    grid = new Grid(p.cols, p.rows, p.baseWidth, cells, p.gameWidth, p.gameHeight);
+    const towerSites = applyTowerSites(cells, p.cols, p.rows, p.baseWidth);
+    grid = new Grid(p.cols, p.rows, p.baseWidth, cells, p.gameWidth, p.gameHeight, towerSites);
     attempts++;
     if (attempts > 20) break;
   } while (!grid.hasPath());

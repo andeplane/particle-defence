@@ -71,7 +71,7 @@ describe('menuConfig', () => {
     it('should have research category with research items', () => {
       const cat = MENU_CATEGORIES.find(c => c.id === 'research')!;
       expect(cat.items.every(i => i.kind === 'research')).toBe(true);
-      expect(cat.items.length).toBeGreaterThanOrEqual(2);
+      expect(cat.items.length).toBeGreaterThanOrEqual(3);
     });
 
     it('should have towers category with prev/next/upgrade items', () => {
@@ -164,15 +164,17 @@ describe('menuConfig', () => {
       it.each([
         ['Q', 0, 'laser'],
         ['W', 0, 'slow'],
+        ['E', 0, 'nuke'],
         ['I', 1, 'laser'],
         ['O', 1, 'slow'],
-      ] as const)('P%d presses %s -> research %s', (key, playerId, towerType) => {
+        ['P', 1, 'nuke'],
+      ] as const)('P%d presses %s -> research %s', (key, playerId, researchType) => {
         const result = resolveKeyPress(key, playerId, 'research');
-        expect(result).toEqual({ type: 'research', towerType });
+        expect(result).toEqual({ type: 'research', researchType });
       });
     });
 
-    describe('construction submenu dispatch', () => {
+    describe('construction submenu dispatch before tower type selection', () => {
       it.each([
         ['Q', 0, { type: 'navigateBuildSubmenu', buildSubmenu: 'towers' }],
         ['W', 0, { type: 'navigateBuildSubmenu', buildSubmenu: 'particles' }],
@@ -186,12 +188,22 @@ describe('menuConfig', () => {
       it.each([
         ['Q', 0, { type: 'construct', towerType: 'laser' }],
         ['W', 0, { type: 'construct', towerType: 'slow' }],
-        ['E', 0, { type: 'action', action: 'place' }],
         ['I', 1, { type: 'construct', towerType: 'laser' }],
         ['O', 1, { type: 'construct', towerType: 'slow' }],
-        ['P', 1, { type: 'action', action: 'place' }],
-      ] as const)('P%d presses %s in build>TOWERS -> %o', (key, playerId, expected) => {
-        const result = resolveKeyPress(key, playerId, 'construction', 'towers');
+      ] as const)('P%d presses %s in build>TOWERS before site selection -> %o', (key, playerId, expected) => {
+        const result = resolveKeyPress(key, playerId, 'construction', 'towers', false);
+        expect(result).toEqual(expected);
+      });
+
+      it.each([
+        ['A', 0, { type: 'action', action: 'buildPrev' }],
+        ['S', 0, { type: 'action', action: 'buildNext' }],
+        ['E', 0, { type: 'action', action: 'buildSelected' }],
+        ['K', 1, { type: 'action', action: 'buildPrev' }],
+        ['L', 1, { type: 'action', action: 'buildNext' }],
+        ['P', 1, { type: 'action', action: 'buildSelected' }],
+      ] as const)('P%d presses %s in build>TOWERS after site selection -> %o', (key, playerId, expected) => {
+        const result = resolveKeyPress(key, playerId, 'construction', 'towers', true);
         expect(result).toEqual(expected);
       });
 

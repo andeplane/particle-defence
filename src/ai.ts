@@ -3,6 +3,7 @@ import type { IPlayer } from './player';
 import type { IParticle } from './particles';
 import type { LaserTowerParticle } from './particles/LaserTowerParticle';
 import type { SlowTowerParticle } from './particles/SlowTowerParticle';
+import type { TowerSite } from './grid';
 
 export interface AIGameState {
   readonly players: readonly [IPlayer, IPlayer];
@@ -10,11 +11,11 @@ export interface AIGameState {
   readonly gameTimeMs: number;
   readonly gameOver: boolean;
   launchNuke(playerId: 0 | 1): boolean;
+  buyNukeResearch(playerId: 0 | 1): boolean;
   buyResearch(playerId: 0 | 1, towerType: TowerType): boolean;
-  constructTower(playerId: 0 | 1, towerType: TowerType): boolean;
-  placeTower(playerId: 0 | 1): boolean;
+  constructTower(playerId: 0 | 1, towerType: TowerType, siteId: number): boolean;
   upgradeTower(playerId: 0 | 1, towerIndex: number): boolean;
-  readonly carriers: readonly [unknown, unknown];
+  getEligibleTowerSites(playerId: 0 | 1): readonly TowerSite[];
   readonly towers: readonly [ReadonlyArray<LaserTowerParticle | SlowTowerParticle>, ReadonlyArray<LaserTowerParticle | SlowTowerParticle>];
 }
 
@@ -67,6 +68,7 @@ export class AIController {
     while (this.timeSinceLastDecision >= this.decisionIntervalMs) {
       this.timeSinceLastDecision -= this.decisionIntervalMs;
 
+      this.tryNukeResearch(state);
       this.tryNuke(state);
       this.tryTowerActions(state);
       this.tryUpgrade(state);
@@ -75,6 +77,16 @@ export class AIController {
 
   private get opponentId(): 0 | 1 {
     return this.playerId === 0 ? 1 : 0;
+  }
+
+  private tryNukeResearch(state: AIGameState): void {
+    if (this.profile.nukeEnabled === false) return;
+    const ai = state.players[this.playerId];
+    if (ai.hasResearchedNuke()) return;
+    if (state.gameTimeMs < CONFIG.NUCLEAR_FIRST_AVAILABLE_MS * 0.8) return;
+    if (ai.canResearchNuke()) {
+      state.buyNukeResearch(this.playerId);
+    }
   }
 
   private tryNuke(state: AIGameState): void {
@@ -114,33 +126,17 @@ export class AIController {
       }
     }
 
-    const carrier = state.carriers[this.playerId];
-    if (carrier && (carrier as IParticle).alive) {
-      const p = carrier as IParticle;
-      const baseW = CONFIG.BASE_WIDTH_CELLS * (CONFIG.GAME_WIDTH / CONFIG.MAZE_COLS);
-      const distFromBase = this.playerId === 0
-        ? p.x - baseW
-        : CONFIG.GAME_WIDTH - baseW - p.x;
-
-      const minPlaceDist = CONFIG.GAME_WIDTH * 0.30;
-      if (distFromBase > minPlaceDist) {
-        const nearbyEnemies = this.countNearbyEnemies(state, p.x, p.y, 200);
-        if (nearbyEnemies >= 3 || distFromBase > CONFIG.GAME_WIDTH * 0.45) {
-          state.placeTower(this.playerId);
-          return;
-        }
-      }
-      return;
-    }
-
     const towers = state.towers[this.playerId];
+    const eligibleSites = state.getEligibleTowerSites(this.playerId);
     if (towers.length < CONFIG.TOWER_MAX_PER_PLAYER) {
+      if (eligibleSites.length === 0) return;
       const constructionReserve = highPriority ? 1.2 : 1.5;
       const preferredType: TowerType = towers.length % 2 === 0 ? 'laser' : 'slow';
+      const siteId = eligibleSites[0].id;
       if (ai.hasResearched(preferredType) && ai.canAffordConstruction(preferredType)) {
         const cost = ai.getConstructionCost(preferredType);
         if (ai.gold >= cost * constructionReserve) {
-          state.constructTower(this.playerId, preferredType);
+          state.constructTower(this.playerId, preferredType, siteId);
           return;
         }
       }
@@ -148,7 +144,7 @@ export class AIController {
         if (ai.hasResearched(t) && ai.canAffordConstruction(t)) {
           const cost = ai.getConstructionCost(t);
           if (ai.gold >= cost * constructionReserve) {
-            state.constructTower(this.playerId, t);
+            state.constructTower(this.playerId, t, siteId);
             return;
           }
         }
@@ -166,18 +162,6 @@ export class AIController {
       }
       state.upgradeTower(this.playerId, lowestIdx);
     }
-  }
-
-  private countNearbyEnemies(state: AIGameState, x: number, y: number, range: number): number {
-    const rangeSq = range * range;
-    let count = 0;
-    for (const p of state.particles) {
-      if (!p.alive || p.owner === this.playerId) continue;
-      const dx = p.x - x;
-      const dy = p.y - y;
-      if (dx * dx + dy * dy <= rangeSq) count++;
-    }
-    return count;
   }
 
   private tryUpgrade(state: AIGameState): void {

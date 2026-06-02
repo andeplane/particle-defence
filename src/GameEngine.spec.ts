@@ -4,6 +4,8 @@ import { GameEngine, type GameEngineCallbacks } from './GameEngine';
 import { createPlayer, type IPlayer } from './player';
 import { createMockGrid } from './__mocks__/createMockGrid';
 import { createMockParticle } from './__mocks__/createMockParticle';
+import { createMockCellEffectMap } from './__mocks__/createMockCellEffectMap';
+import type { ICellEffectMap } from './grid';
 
 const noopCallbacks: GameEngineCallbacks = {
   onKill: vi.fn(),
@@ -131,12 +133,67 @@ describe(GameEngine.name, () => {
     });
   });
 
-  describe('tower lifecycle', () => {
-    function createTowerEngine() {
-      const callbacks = { ...noopCallbacks, onParticleSpawned: vi.fn(), onTowerPlaced: vi.fn() };
+  describe('nuke lifecycle', () => {
+    function createNukeEngine() {
+      const callbacks = { ...noopCallbacks, onNuke: vi.fn() };
+      const enemyParticle = createMockParticle({ owner: 1, alive: true });
       const engine = new GameEngine(createMockGrid(), callbacks, {
+        createPlayer: (id) => createPlayer(id, {
+          ...noSpawnConfig,
+          startingGold: 9999,
+          nuclearFirstAvailableMs: 1000,
+          nuclearCooldownMs: 5000,
+        }),
+        maxParticlesTotal: 0,
+        createParticle: () => createMockParticle({ alive: true }),
+      });
+      engine.init(false);
+      engine.particles.push(enemyParticle);
+      engine.tick(1000);
+      return { engine, callbacks, enemyParticle };
+    }
+
+    it('refuses launch before nuke research', () => {
+      const { engine, callbacks, enemyParticle } = createNukeEngine();
+
+      expect(engine.launchNuke(0)).toBe(false);
+      expect(enemyParticle.alive).toBe(true);
+      expect(callbacks.onNuke).not.toHaveBeenCalled();
+    });
+
+    it('launches after nuke research and first available time', () => {
+      const { engine, callbacks } = createNukeEngine();
+
+      expect(engine.buyNukeResearch(0)).toBe(true);
+      expect(engine.launchNuke(0)).toBe(true);
+
+      expect(callbacks.onNuke).toHaveBeenCalledWith(0, 1);
+    });
+  });
+
+  describe('tower lifecycle', () => {
+    function createTowerEngine(overrides: { cellEffects?: ICellEffectMap } = {}) {
+      const cells = Array.from({ length: 8 }, () => Array(16).fill(true));
+      cells[2][4] = false;
+      cells[2][8] = false;
+      cells[2][12] = false;
+      cells[5][4] = false;
+      cells[5][8] = false;
+      cells[5][12] = false;
+      const towerSites = [
+        { id: 0, col: 4, row: 2 },
+        { id: 1, col: 8, row: 2 },
+        { id: 2, col: 12, row: 2 },
+        { id: 3, col: 4, row: 5 },
+        { id: 4, col: 8, row: 5 },
+        { id: 5, col: 12, row: 5 },
+      ];
+      const callbacks = { ...noopCallbacks, onParticleSpawned: vi.fn(), onTowerPlaced: vi.fn() };
+      const cellEffects = overrides.cellEffects ?? createMockCellEffectMap({ getOwnerAt: vi.fn((): 0 => 0) });
+      const engine = new GameEngine(createMockGrid({ cells, towerSites }), callbacks, {
         createPlayer: (id) => createPlayer(id, { ...noSpawnConfig, startingGold: 9999 }),
         createParticle: () => createMockParticle({ alive: true }),
+        createCellEffectMap: () => cellEffects,
       });
       engine.init(false);
       return { engine, callbacks };
@@ -148,64 +205,56 @@ describe(GameEngine.name, () => {
       expect(engine.players[0].hasResearched('laser')).toBe(true);
     });
 
-    it('constructTower spawns a carrier particle', () => {
+    it('constructTower builds directly at the selected tower site', () => {
       const { engine, callbacks } = createTowerEngine();
       engine.buyResearch(0, 'laser');
-      const result = engine.constructTower(0, 'laser');
+      const result = engine.constructTower(0, 'laser', 0);
 
       expect(result).toBe(true);
-      expect(engine.carriers[0]).not.toBeNull();
-      expect(engine.carriers[0]!.towerType).toBe('laser');
+      expect(engine.carriers[0]).toBeNull();
+      expect(engine.towers[0]).toHaveLength(1);
+      expect(engine.towers[0][0].typeName).toBe('laserTower');
+      expect(engine.towers[0][0].x).toBe(4.5 * 32);
+      expect(engine.towers[0][0].y).toBe(2.5 * 32);
       expect(callbacks.onParticleSpawned).toHaveBeenCalled();
+      expect(callbacks.onTowerPlaced).toHaveBeenCalled();
     });
 
     it('constructTower fails when not researched', () => {
       const { engine } = createTowerEngine();
-      expect(engine.constructTower(0, 'laser')).toBe(false);
-    });
-
-    it('constructTower fails when carrier already active', () => {
-      const { engine } = createTowerEngine();
-      engine.buyResearch(0, 'laser');
-      engine.constructTower(0, 'laser');
-      expect(engine.constructTower(0, 'laser')).toBe(false);
+      expect(engine.constructTower(0, 'laser', 0)).toBe(false);
     });
 
     it('constructTower fails when tower cap reached', () => {
       const { engine } = createTowerEngine();
       engine.buyResearch(0, 'laser');
       for (let i = 0; i < CONFIG.TOWER_MAX_PER_PLAYER; i++) {
-        engine.constructTower(0, 'laser');
-        engine.placeTower(0);
+        engine.constructTower(0, 'laser', i);
       }
-      expect(engine.constructTower(0, 'laser')).toBe(false);
+      expect(engine.constructTower(0, 'laser', 5)).toBe(false);
     });
 
-    it('placeTower converts carrier to tower', () => {
-      const { engine, callbacks } = createTowerEngine();
+    it('constructTower fails when adjacent open cells are not all owned', () => {
+      const cellEffects = createMockCellEffectMap({ getOwnerAt: vi.fn((): 1 => 1) });
+      const { engine } = createTowerEngine({ cellEffects });
       engine.buyResearch(0, 'laser');
-      engine.constructTower(0, 'laser');
 
-      const result = engine.placeTower(0);
-
-      expect(result).toBe(true);
-      expect(engine.carriers[0]).toBeNull();
-      expect(engine.towers[0]).toHaveLength(1);
-      expect(engine.towers[0][0].typeName).toBe('laserTower');
-      expect(callbacks.onTowerPlaced).toHaveBeenCalled();
+      expect(engine.constructTower(0, 'laser', 0)).toBe(false);
+      expect(engine.towers[0]).toHaveLength(0);
     });
 
-    it('placeTower fails when no carrier', () => {
+    it('constructTower fails when the selected site is occupied', () => {
       const { engine } = createTowerEngine();
-      expect(engine.placeTower(0)).toBe(false);
+      engine.buyResearch(0, 'laser');
+      engine.buyResearch(1, 'laser');
+      expect(engine.constructTower(0, 'laser', 0)).toBe(true);
+      expect(engine.constructTower(1, 'laser', 0)).toBe(false);
     });
 
-    it('placeTower creates slow tower from slow carrier', () => {
+    it('constructTower creates slow tower at selected site', () => {
       const { engine } = createTowerEngine();
       engine.buyResearch(0, 'slow');
-      engine.constructTower(0, 'slow');
-
-      engine.placeTower(0);
+      engine.constructTower(0, 'slow', 1);
 
       expect(engine.towers[0][0].typeName).toBe('slowTower');
     });
@@ -213,8 +262,7 @@ describe(GameEngine.name, () => {
     it('upgradeTower deducts gold and increases level', () => {
       const { engine } = createTowerEngine();
       engine.buyResearch(0, 'laser');
-      engine.constructTower(0, 'laser');
-      engine.placeTower(0);
+      engine.constructTower(0, 'laser', 0);
 
       const goldBefore = engine.players[0].gold;
       const result = engine.upgradeTower(0, 0);
@@ -227,8 +275,7 @@ describe(GameEngine.name, () => {
     it('upgradeTower fails when cannot afford', () => {
       const { engine } = createTowerEngine();
       engine.buyResearch(0, 'laser');
-      engine.constructTower(0, 'laser');
-      engine.placeTower(0);
+      engine.constructTower(0, 'laser', 0);
       engine.players[0].gold = 0;
 
       expect(engine.upgradeTower(0, 0)).toBe(false);
@@ -243,8 +290,7 @@ describe(GameEngine.name, () => {
     it('cleanupDeadTowers removes dead towers from tracking', () => {
       const { engine } = createTowerEngine();
       engine.buyResearch(0, 'laser');
-      engine.constructTower(0, 'laser');
-      engine.placeTower(0);
+      engine.constructTower(0, 'laser', 0);
 
       expect(engine.towers[0]).toHaveLength(1);
 
@@ -252,19 +298,6 @@ describe(GameEngine.name, () => {
       engine.tick(16);
 
       expect(engine.towers[0]).toHaveLength(0);
-    });
-
-    it('cleanupDeadTowers clears dead carrier', () => {
-      const { engine } = createTowerEngine();
-      engine.buyResearch(0, 'laser');
-      engine.constructTower(0, 'laser');
-
-      expect(engine.carriers[0]).not.toBeNull();
-
-      engine.carriers[0]!.alive = false;
-      engine.tick(16);
-
-      expect(engine.carriers[0]).toBeNull();
     });
 
     it('resetTowerSlowFactors resets to 1 each tick', () => {

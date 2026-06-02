@@ -12,13 +12,17 @@ export interface CategoryDef {
   items: MenuItemDef[];
 }
 
+export type ResearchType = TowerType | 'nuke';
+
 export type MenuItemDef =
   | { kind: 'upgrade'; type: UpgradeType; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'action'; action: 'nuke'; label: string; tooltip: string; p1Key: string; p2Key: string }
-  | { kind: 'research'; towerType: TowerType; label: string; tooltip: string; p1Key: string; p2Key: string }
+  | { kind: 'research'; researchType: ResearchType; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'construct'; towerType: TowerType; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'buildSubmenu'; buildSubmenu: BuildSubmenu; label: string; tooltip: string; p1Key: string; p2Key: string }
-  | { kind: 'action'; action: 'place'; label: string; tooltip: string; p1Key: string; p2Key: string }
+  | { kind: 'action'; action: 'buildPrev'; label: string; tooltip: string; p1Key: string; p2Key: string }
+  | { kind: 'action'; action: 'buildNext'; label: string; tooltip: string; p1Key: string; p2Key: string }
+  | { kind: 'action'; action: 'buildSelected'; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'action'; action: 'towerPrev'; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'action'; action: 'towerNext'; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'action'; action: 'towerUpgrade'; label: string; tooltip: string; p1Key: string; p2Key: string };
@@ -42,8 +46,9 @@ export const MENU_CATEGORIES: CategoryDef[] = [
     p1Key: 'W',
     p2Key: 'O',
     items: [
-      { kind: 'research', towerType: 'laser', label: 'LASER', tooltip: 'Unlock laser tower construction', p1Key: 'Q', p2Key: 'I' },
-      { kind: 'research', towerType: 'slow', label: 'SLOW', tooltip: 'Unlock slow tower construction', p1Key: 'W', p2Key: 'O' },
+      { kind: 'research', researchType: 'laser', label: 'LASER', tooltip: 'Unlock laser tower construction', p1Key: 'Q', p2Key: 'I' },
+      { kind: 'research', researchType: 'slow', label: 'SLOW', tooltip: 'Unlock slow tower construction', p1Key: 'W', p2Key: 'O' },
+      { kind: 'research', researchType: 'nuke', label: 'NUKE', tooltip: 'Unlock nuclear weapon launch', p1Key: 'E', p2Key: 'P' },
     ],
   },
   {
@@ -70,7 +75,7 @@ export const MENU_CATEGORIES: CategoryDef[] = [
     p1Key: 'A',
     p2Key: 'K',
     items: [
-      { kind: 'action', action: 'nuke', label: 'NUKE', tooltip: 'Kill all enemy particles (10min cooldown)', p1Key: 'Q', p2Key: 'I' },
+      { kind: 'action', action: 'nuke', label: 'NUKE', tooltip: 'Kill all enemy particles (5min cooldown)', p1Key: 'Q', p2Key: 'I' },
     ],
   },
   {
@@ -89,9 +94,11 @@ export const MENU_CATEGORIES: CategoryDef[] = [
 
 const CONSTRUCTION_SUBMENU_ITEMS: Record<BuildSubmenu, MenuItemDef[]> = {
   towers: [
-    { kind: 'construct', towerType: 'laser', label: 'LASER', tooltip: 'Build a laser tower', p1Key: 'Q', p2Key: 'I' },
-    { kind: 'construct', towerType: 'slow', label: 'SLOW', tooltip: 'Build a slow tower', p1Key: 'W', p2Key: 'O' },
-    { kind: 'action', action: 'place', label: 'PLACE', tooltip: 'Place tower at carrier position', p1Key: 'E', p2Key: 'P' },
+    { kind: 'construct', towerType: 'laser', label: 'LASER', tooltip: 'Select laser tower for fixed-site construction', p1Key: 'Q', p2Key: 'I' },
+    { kind: 'construct', towerType: 'slow', label: 'SLOW', tooltip: 'Select slow tower for fixed-site construction', p1Key: 'W', p2Key: 'O' },
+    { kind: 'action', action: 'buildPrev', label: '< SITE', tooltip: 'Select previous eligible tower site', p1Key: 'A', p2Key: 'K' },
+    { kind: 'action', action: 'buildNext', label: 'SITE >', tooltip: 'Select next eligible tower site', p1Key: 'S', p2Key: 'L' },
+    { kind: 'action', action: 'buildSelected', label: 'BUILD', tooltip: 'Build selected tower at selected eligible site', p1Key: 'E', p2Key: 'P' },
   ],
   particles: [],
 };
@@ -100,7 +107,7 @@ export function getConstructionSubmenuItems(buildSubmenu: BuildSubmenu): Readonl
   return CONSTRUCTION_SUBMENU_ITEMS[buildSubmenu];
 }
 
-export type ActionType = 'nuke' | 'place' | 'towerPrev' | 'towerNext' | 'towerUpgrade';
+export type ActionType = 'nuke' | 'buildPrev' | 'buildNext' | 'buildSelected' | 'towerPrev' | 'towerNext' | 'towerUpgrade';
 
 export type KeyPressResult =
   | { type: 'back' }
@@ -108,7 +115,7 @@ export type KeyPressResult =
   | { type: 'navigateBuildSubmenu'; buildSubmenu: BuildSubmenu }
   | { type: 'upgrade'; upgradeType: UpgradeType }
   | { type: 'action'; action: ActionType }
-  | { type: 'research'; towerType: TowerType }
+  | { type: 'research'; researchType: ResearchType }
   | { type: 'construct'; towerType: TowerType }
   | null;
 
@@ -117,6 +124,7 @@ export function resolveKeyPress(
   playerId: 0 | 1,
   currentCategory: MenuCategory | null,
   currentBuildSubmenu: BuildSubmenu | null = null,
+  constructionSiteSelectionActive: boolean = false,
 ): KeyPressResult {
   const upperKey = key.toUpperCase();
   const isBackspace = key === 'Backspace';
@@ -153,7 +161,11 @@ export function resolveKeyPress(
         return null;
       }
 
-      const submenuItems = getConstructionSubmenuItems(currentBuildSubmenu);
+      const submenuItems = currentBuildSubmenu === 'towers'
+        ? getConstructionSubmenuItems(currentBuildSubmenu).filter((item) =>
+          constructionSiteSelectionActive ? item.kind === 'action' : item.kind === 'construct'
+        )
+        : getConstructionSubmenuItems(currentBuildSubmenu);
       const item = submenuItems.find(i => {
         const itemKey = playerId === 0 ? i.p1Key : i.p2Key;
         return itemKey === upperKey;
@@ -174,7 +186,10 @@ export function resolveKeyPress(
 
     const catDef = MENU_CATEGORIES.find(c => c.id === currentCategory);
     if (catDef) {
-      const item = catDef.items.find(i => {
+      const items = currentCategory === 'construction'
+        ? catDef.items.filter((item) => constructionSiteSelectionActive ? item.kind === 'action' : item.kind === 'construct')
+        : catDef.items;
+      const item = items.find(i => {
         const itemKey = playerId === 0 ? i.p1Key : i.p2Key;
         return itemKey === upperKey;
       });
@@ -182,7 +197,7 @@ export function resolveKeyPress(
         if (item.kind === 'upgrade') {
           return { type: 'upgrade', upgradeType: item.type };
         } else if (item.kind === 'research') {
-          return { type: 'research', towerType: item.towerType };
+          return { type: 'research', researchType: item.researchType };
         } else if (item.kind === 'construct') {
           return { type: 'construct', towerType: item.towerType };
         } else {

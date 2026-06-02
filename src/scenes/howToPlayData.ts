@@ -1,4 +1,4 @@
-import { CONFIG, getUpgradeCost, getTowerResearchCost, getTowerConstructionCost, getTowerUpgradeCost, type UpgradeType } from '../config';
+import { CONFIG, getUpgradeCost, getTowerResearchCost, getTowerConstructionCost, getTowerUpgradeCost, getNukeResearchCost, type UpgradeType } from '../config';
 import { getLaserStats, getSlowStats } from '../particles/towers';
 import { computeMaxLevels, defaultPlayerConfig } from '../player';
 
@@ -76,6 +76,7 @@ function getOverviewSections(): ContentSection[] {
       title: 'Nuclear Weapon',
       lines: [
         'Instantly kills ALL enemy particles (including towers).',
+        `Must be researched first for ${getNukeResearchCost()}g.`,
         `First available at ${formatTime(CONFIG.NUCLEAR_FIRST_AVAILABLE_MS)}.`,
         `Cooldown: ${formatTime(CONFIG.NUCLEAR_COOLDOWN_MS)}.`,
         `Kills from nukes give only ${CONFIG.NUCLEAR_KILL_REWARD_FRACTION * 100}% gold reward.`,
@@ -97,21 +98,23 @@ function getTechTreeSections(): ContentSection[] {
   };
 
   const towerResearch: ContentSection = {
-    title: 'Tower Research (one-time unlock)',
+    title: 'Research (one-time unlocks)',
     lines: [
-      'You must research a tower type before you can build it.',
+      'You must research towers before building them,',
+      'and research nukes before launching them.',
       '',
       `  Laser Tower research:  ${getTowerResearchCost('laser')}g`,
       `  Slow Tower research:   ${getTowerResearchCost('slow')}g`,
+      `  Nuke research:         ${getNukeResearchCost()}g`,
     ],
   };
 
   const towerConstruction: ContentSection = {
     title: 'Tower Construction',
     lines: [
-      'Building a tower spawns a carrier particle from your base.',
-      `Carrier HP: ${CONFIG.TOWER_CARRIER_HP}  (can be killed before placement)`,
-      'Press PLACE to convert the carrier into a tower at its position.',
+      'Each map has 6 fixed tower pads marked as wall cells.',
+      'Select LASER or SLOW, cycle eligible pads, then press BUILD.',
+      'A pad is eligible only when you own every adjacent open cell.',
       `Max towers per player: ${CONFIG.TOWER_MAX_PER_PLAYER}`,
       '',
       `  Laser Tower build cost:  ${getTowerConstructionCost('laser')}g`,
