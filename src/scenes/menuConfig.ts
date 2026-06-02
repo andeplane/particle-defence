@@ -1,6 +1,7 @@
 import type { UpgradeType, TowerType } from '../config';
 
 export type MenuCategory = 'construction' | 'research' | 'upgrades' | 'abilities' | 'towers';
+export type BuildSubmenu = 'towers' | 'particles';
 
 export interface CategoryDef {
   id: MenuCategory;
@@ -18,6 +19,7 @@ export type MenuItemDef =
   | { kind: 'action'; action: 'nuke'; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'research'; researchType: ResearchType; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'construct'; towerType: TowerType; label: string; tooltip: string; p1Key: string; p2Key: string }
+  | { kind: 'buildSubmenu'; buildSubmenu: BuildSubmenu; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'action'; action: 'buildPrev'; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'action'; action: 'buildNext'; label: string; tooltip: string; p1Key: string; p2Key: string }
   | { kind: 'action'; action: 'buildSelected'; label: string; tooltip: string; p1Key: string; p2Key: string }
@@ -33,11 +35,8 @@ export const MENU_CATEGORIES: CategoryDef[] = [
     p1Key: 'Q',
     p2Key: 'I',
     items: [
-      { kind: 'construct', towerType: 'laser', label: 'LASER', tooltip: 'Select laser tower for fixed-site construction', p1Key: 'Q', p2Key: 'I' },
-      { kind: 'construct', towerType: 'slow', label: 'SLOW', tooltip: 'Select slow tower for fixed-site construction', p1Key: 'W', p2Key: 'O' },
-      { kind: 'action', action: 'buildPrev', label: '< SITE', tooltip: 'Select previous eligible tower site', p1Key: 'A', p2Key: 'K' },
-      { kind: 'action', action: 'buildNext', label: 'SITE >', tooltip: 'Select next eligible tower site', p1Key: 'S', p2Key: 'L' },
-      { kind: 'action', action: 'buildSelected', label: 'BUILD', tooltip: 'Build selected tower at selected eligible site', p1Key: 'E', p2Key: 'P' },
+      { kind: 'buildSubmenu', buildSubmenu: 'towers', label: 'TOWERS', tooltip: 'Build and place towers', p1Key: 'Q', p2Key: 'I' },
+      { kind: 'buildSubmenu', buildSubmenu: 'particles', label: 'PARTICLES', tooltip: 'Build combat particles (future)', p1Key: 'W', p2Key: 'O' },
     ],
   },
   {
@@ -93,11 +92,27 @@ export const MENU_CATEGORIES: CategoryDef[] = [
   },
 ];
 
+const CONSTRUCTION_SUBMENU_ITEMS: Record<BuildSubmenu, MenuItemDef[]> = {
+  towers: [
+    { kind: 'construct', towerType: 'laser', label: 'LASER', tooltip: 'Select laser tower for fixed-site construction', p1Key: 'Q', p2Key: 'I' },
+    { kind: 'construct', towerType: 'slow', label: 'SLOW', tooltip: 'Select slow tower for fixed-site construction', p1Key: 'W', p2Key: 'O' },
+    { kind: 'action', action: 'buildPrev', label: '< SITE', tooltip: 'Select previous eligible tower site', p1Key: 'A', p2Key: 'K' },
+    { kind: 'action', action: 'buildNext', label: 'SITE >', tooltip: 'Select next eligible tower site', p1Key: 'S', p2Key: 'L' },
+    { kind: 'action', action: 'buildSelected', label: 'BUILD', tooltip: 'Build selected tower at selected eligible site', p1Key: 'E', p2Key: 'P' },
+  ],
+  particles: [],
+};
+
+export function getConstructionSubmenuItems(buildSubmenu: BuildSubmenu): ReadonlyArray<MenuItemDef> {
+  return CONSTRUCTION_SUBMENU_ITEMS[buildSubmenu];
+}
+
 export type ActionType = 'nuke' | 'buildPrev' | 'buildNext' | 'buildSelected' | 'towerPrev' | 'towerNext' | 'towerUpgrade';
 
 export type KeyPressResult =
   | { type: 'back' }
   | { type: 'navigate'; category: MenuCategory }
+  | { type: 'navigateBuildSubmenu'; buildSubmenu: BuildSubmenu }
   | { type: 'upgrade'; upgradeType: UpgradeType }
   | { type: 'action'; action: ActionType }
   | { type: 'research'; researchType: ResearchType }
@@ -108,6 +123,7 @@ export function resolveKeyPress(
   key: string,
   playerId: 0 | 1,
   currentCategory: MenuCategory | null,
+  currentBuildSubmenu: BuildSubmenu | null = null,
   constructionSiteSelectionActive: boolean = false,
 ): KeyPressResult {
   const upperKey = key.toUpperCase();
@@ -131,6 +147,43 @@ export function resolveKeyPress(
   }
 
   if (currentCategory !== null) {
+    if (currentCategory === 'construction') {
+      if (currentBuildSubmenu === null) {
+        const catDef = MENU_CATEGORIES.find(c => c.id === currentCategory);
+        if (!catDef) return null;
+        const item = catDef.items.find(i => {
+          const itemKey = playerId === 0 ? i.p1Key : i.p2Key;
+          return itemKey === upperKey;
+        });
+        if (item?.kind === 'buildSubmenu') {
+          return { type: 'navigateBuildSubmenu', buildSubmenu: item.buildSubmenu };
+        }
+        return null;
+      }
+
+      const submenuItems = currentBuildSubmenu === 'towers'
+        ? getConstructionSubmenuItems(currentBuildSubmenu).filter((item) =>
+          constructionSiteSelectionActive ? item.kind === 'action' : item.kind === 'construct'
+        )
+        : getConstructionSubmenuItems(currentBuildSubmenu);
+      const item = submenuItems.find(i => {
+        const itemKey = playerId === 0 ? i.p1Key : i.p2Key;
+        return itemKey === upperKey;
+      });
+      if (item) {
+        if (item.kind === 'upgrade') {
+          return { type: 'upgrade', upgradeType: item.type };
+        } else if (item.kind === 'research') {
+          return { type: 'research', towerType: item.towerType };
+        } else if (item.kind === 'construct') {
+          return { type: 'construct', towerType: item.towerType };
+        } else {
+          return { type: 'action', action: item.action };
+        }
+      }
+      return null;
+    }
+
     const catDef = MENU_CATEGORIES.find(c => c.id === currentCategory);
     if (catDef) {
       const items = currentCategory === 'construction'

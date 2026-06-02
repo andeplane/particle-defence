@@ -62,11 +62,10 @@ describe('menuConfig', () => {
       }
     });
 
-    it('should have construction category with tower type selection and fixed-site build actions', () => {
+    it('should have construction category with nested build submenu items', () => {
       const cat = MENU_CATEGORIES.find(c => c.id === 'construction')!;
-      const actions = cat.items.filter(i => i.kind === 'action').map(i => (i as { action: string }).action);
-      expect(cat.items.some(i => i.kind === 'construct')).toBe(true);
-      expect(actions).toEqual(['buildPrev', 'buildNext', 'buildSelected']);
+      expect(cat.items.every(i => i.kind === 'buildSubmenu')).toBe(true);
+      expect(cat.items).toHaveLength(2);
     });
 
     it('should have research category with research items', () => {
@@ -177,12 +176,22 @@ describe('menuConfig', () => {
 
     describe('construction submenu dispatch before tower type selection', () => {
       it.each([
+        ['Q', 0, { type: 'navigateBuildSubmenu', buildSubmenu: 'towers' }],
+        ['W', 0, { type: 'navigateBuildSubmenu', buildSubmenu: 'particles' }],
+        ['I', 1, { type: 'navigateBuildSubmenu', buildSubmenu: 'towers' }],
+        ['O', 1, { type: 'navigateBuildSubmenu', buildSubmenu: 'particles' }],
+      ] as const)('P%d presses %s -> %o', (key, playerId, expected) => {
+        const result = resolveKeyPress(key, playerId, 'construction');
+        expect(result).toEqual(expected);
+      });
+
+      it.each([
         ['Q', 0, { type: 'construct', towerType: 'laser' }],
         ['W', 0, { type: 'construct', towerType: 'slow' }],
         ['I', 1, { type: 'construct', towerType: 'laser' }],
         ['O', 1, { type: 'construct', towerType: 'slow' }],
-      ] as const)('P%d presses %s -> %o', (key, playerId, expected) => {
-        const result = resolveKeyPress(key, playerId, 'construction');
+      ] as const)('P%d presses %s in build>TOWERS before site selection -> %o', (key, playerId, expected) => {
+        const result = resolveKeyPress(key, playerId, 'construction', 'towers', false);
         expect(result).toEqual(expected);
       });
 
@@ -193,14 +202,21 @@ describe('menuConfig', () => {
         ['K', 1, { type: 'action', action: 'buildPrev' }],
         ['L', 1, { type: 'action', action: 'buildNext' }],
         ['P', 1, { type: 'action', action: 'buildSelected' }],
-      ] as const)('P%d presses %s -> %o', (key, playerId, expected) => {
-        const result = resolveKeyPress(key, playerId, 'construction', true);
+      ] as const)('P%d presses %s in build>TOWERS after site selection -> %o', (key, playerId, expected) => {
+        const result = resolveKeyPress(key, playerId, 'construction', 'towers', true);
         expect(result).toEqual(expected);
       });
 
-      it('ignores site-selection keys before a tower type is selected', () => {
-        expect(resolveKeyPress('E', 0, 'construction')).toBeNull();
-        expect(resolveKeyPress('P', 1, 'construction')).toBeNull();
+      it.each([
+        ['Q', 0],
+        ['W', 0],
+        ['E', 0],
+        ['I', 1],
+        ['O', 1],
+        ['P', 1],
+      ] as const)('P%d key %s does nothing in build>PARTICLES for now', (key, playerId) => {
+        const result = resolveKeyPress(key, playerId, 'construction', 'particles');
+        expect(result).toBeNull();
       });
     });
 
