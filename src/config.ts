@@ -180,7 +180,7 @@ export const CONFIG = {
   } as Record<string, number>,
 
   /** Time (ms) to apply a particle stat upgrade after paying */
-  PARTICLE_UPGRADE_DURATION_MS: 3_000,
+  PARTICLE_UPGRADE_DURATION_MS: 500,
   /** Time (ms) to apply a tower upgrade after paying */
   TOWER_UPGRADE_DURATION_MS: 5_000,
 
