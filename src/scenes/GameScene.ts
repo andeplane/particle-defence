@@ -32,6 +32,8 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   private glowTextureP2Created = false;
   private effectsGfx!: Phaser.GameObjects.Graphics;
   private towerSiteGfx!: Phaser.GameObjects.Graphics;
+  private towerSiteZones: Phaser.GameObjects.Zone[] = [];
+  private towerSiteTooltip: Phaser.GameObjects.Text | null = null;
 
   get players() { return this.engine.players; }
   get particles() { return this.engine.particles; }
@@ -115,6 +117,8 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     this.effectsGfx.setDepth(3);
     this.towerSiteGfx = this.add.graphics();
     this.towerSiteGfx.setDepth(4);
+
+    this.createTowerSiteZones();
 
     this.scene.launch('UIScene', { viewModel: this as IGameViewModel, mode: this.mode });
   }
@@ -647,6 +651,45 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
         this.towerSiteGfx.fillStyle(0xffdd66, 0.08);
       }
       this.towerSiteGfx.fillRect(centerX - half, centerY - half, size, size);
+    }
+  }
+
+  private createTowerSiteZones(): void {
+    const grid = this.engine.grid;
+    for (const site of grid.towerSites) {
+      const centerX = (site.col + 0.5) * grid.cellW;
+      const centerY = (site.row + 0.5) * grid.cellH;
+      const size = Math.min(grid.cellW, grid.cellH) * 0.72;
+      const zone = this.add.zone(centerX, centerY, size, size).setInteractive();
+      zone.on('pointerover', () => this.showTowerSiteTooltip(centerX, centerY));
+      zone.on('pointerout', () => this.hideTowerSiteTooltip());
+      this.towerSiteZones.push(zone);
+    }
+  }
+
+  private showTowerSiteTooltip(x: number, y: number): void {
+    this.hideTowerSiteTooltip();
+    const text = 'Tower Slot\nResearch, then BUILD > TOWERS\nOwn adjacent cells to unlock';
+    const pad = CONFIG.UI_GAP * 2;
+    this.towerSiteTooltip = this.add.text(x, y - CONFIG.UI_GAP, text, {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`,
+      color: '#ffffff',
+      fontFamily: 'monospace',
+      backgroundColor: '#000000',
+      padding: { x: 6, y: 4 },
+    }).setOrigin(0.5, 1).setDepth(200);
+    const bounds = this.towerSiteTooltip.getBounds();
+    if (bounds.left < pad) {
+      this.towerSiteTooltip.setX(pad + bounds.width / 2);
+    } else if (bounds.right > CONFIG.GAME_WIDTH - pad) {
+      this.towerSiteTooltip.setX(CONFIG.GAME_WIDTH - pad - bounds.width / 2);
+    }
+  }
+
+  private hideTowerSiteTooltip(): void {
+    if (this.towerSiteTooltip) {
+      this.towerSiteTooltip.destroy();
+      this.towerSiteTooltip = null;
     }
   }
 
