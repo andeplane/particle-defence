@@ -114,6 +114,7 @@ export class UIScene extends Phaser.Scene {
   private backButtons: BackButton[] = [];
   private placeholderText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
   private tooltipText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
+  private hoveredUpgradeBtn: [{ type: UpgradeType; x: number; y: number } | null, { type: UpgradeType; x: number; y: number } | null] = [null, null];
   private selectedTowerIndex: [number, number] = [0, 0];
   private constructionMenuState: [ConstructionMenuState, ConstructionMenuState] = [
     createDefaultConstructionMenuState(),
@@ -641,10 +642,12 @@ export class UIScene extends Phaser.Scene {
     bg.on('pointerover', () => {
       bg.setFillStyle(0x222244, 0.9);
       const player = this.viewModel.players[playerId];
+      this.hoveredUpgradeBtn[playerId] = { type, x, y };
       this.showTooltip(this.buildUpgradeTooltip(type, player), x, y, playerId);
     });
     bg.on('pointerout', () => {
       bg.setFillStyle(0x111122, 0.85);
+      this.hoveredUpgradeBtn[playerId] = null;
       this.hideTooltip(playerId);
     });
     this.buttons.push({ bg, label: labelText, costText, keyText, type, playerId });
@@ -905,6 +908,13 @@ export class UIScene extends Phaser.Scene {
     const player = this.viewModel.players[playerId];
     const cost = player.getUpgradeCost(type);
     if (this.viewModel.purchaseUpgrade(playerId, type)) {
+      const hovered = this.hoveredUpgradeBtn[playerId];
+      if (hovered && hovered.type === type) {
+        this.showTooltip(
+          this.buildUpgradeTooltip(type, this.viewModel.players[playerId]),
+          hovered.x, hovered.y, playerId,
+        );
+      }
       if (btn) {
         this.tweens.add({
           targets: btn, scaleX: 1.15, scaleY: 1.15,
@@ -1099,8 +1109,8 @@ export class UIScene extends Phaser.Scene {
 
     const p1Count = this.viewModel.getParticleCount(0);
     const p2Count = this.viewModel.getParticleCount(1);
-    this.p1StatsText.setText(`HP:${p1.particleHealth} ATK:${p1.particleAttack} RAD:${p1.particleRadius} VEL:${p1.particleSpeed} DEF:${Math.round(p1.particleDefense * 100)}% INT:${(p1.goldInterestRate * 100).toFixed(2)}% Units:${p1Count}/${p1.maxParticles}`);
-    this.p2StatsText.setText(`HP:${p2.particleHealth} ATK:${p2.particleAttack} RAD:${p2.particleRadius} VEL:${p2.particleSpeed} DEF:${Math.round(p2.particleDefense * 100)}% INT:${(p2.goldInterestRate * 100).toFixed(2)}% Units:${p2Count}/${p2.maxParticles}`);
+    this.p1StatsText.setText(`HP:${p1.particleHealth.toFixed(1)} ATK:${p1.particleAttack.toFixed(1)} RAD:${p1.particleRadius.toFixed(1)} VEL:${p1.particleSpeed.toFixed(1)} DEF:${Math.round(p1.particleDefense * 100)}% INT:${(p1.goldInterestRate * 100).toFixed(2)}% Units:${p1Count}/${p1.maxParticles}`);
+    this.p2StatsText.setText(`HP:${p2.particleHealth.toFixed(1)} ATK:${p2.particleAttack.toFixed(1)} RAD:${p2.particleRadius.toFixed(1)} VEL:${p2.particleSpeed.toFixed(1)} DEF:${Math.round(p2.particleDefense * 100)}% INT:${(p2.goldInterestRate * 100).toFixed(2)}% Units:${p2Count}/${p2.maxParticles}`);
 
     for (const btn of this.buttons) {
       const player = this.viewModel.players[btn.playerId];
