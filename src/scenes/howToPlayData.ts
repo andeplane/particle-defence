@@ -1,5 +1,6 @@
 import { CONFIG, getUpgradeCost, getTowerResearchCost, getTowerConstructionCost, getTowerUpgradeCost, getNukeResearchCost, type UpgradeType } from '../config';
-import { getLaserStats, getSlowStats } from '../particles/towers';
+import { getLaserStatsAtLevel } from '../particles/LaserTowerParticle';
+import { getSlowStatsAtLevel } from '../particles/SlowTowerParticle';
 import { computeMaxLevels, defaultPlayerConfig } from '../player';
 
 export interface ContentSection {
@@ -122,10 +123,10 @@ function getTechTreeSections(): ContentSection[] {
     ],
   };
 
-  const laser0 = getLaserStats(0);
-  const laser1 = getLaserStats(1);
-  const slow0 = getSlowStats(0);
-  const slow1 = getSlowStats(1);
+  const laser0 = getLaserStatsAtLevel(0);
+  const laser1 = getLaserStatsAtLevel(1);
+  const slow0 = getSlowStatsAtLevel(0);
+  const slow1 = getSlowStatsAtLevel(1);
 
   const towerStats: ContentSection = {
     title: 'Tower Stats & Upgrades',
