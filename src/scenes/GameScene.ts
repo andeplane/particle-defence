@@ -13,6 +13,17 @@ import type { GameMode } from './MenuScene';
 import type { IGameViewModel, TowerSelectionForRender } from './UIScene';
 
 export class GameScene extends Phaser.Scene implements IGameViewModel {
+  static readonly TEXTURES = {
+    LASER_TOWER: 'laser-tower',
+    SLOW_TOWER: 'slow-tower',
+    SPAWNER_P1: 'spawner_p1',
+    SPAWNER_P2: 'spawner_p2',
+    PARTICLE_P1: 'particle_p1',
+    PARTICLE_P2: 'particle_p2',
+    TRAIL_DOT: 'trail_dot',
+    EXPLOSION_DOT: 'explosion_dot',
+  } as const;
+
   engine!: GameEngine;
   mode: GameMode = 'pvp';
   debugSpeedMultiplier: number = 1;
@@ -103,6 +114,11 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     this.engine = new GameEngine(grid, callbacks, {
       createAIController: this.mode === 'ai' ? (playerId: 0 | 1) => new AIController(playerId) : null,
     });
+  }
+
+  preload(): void {
+    this.load.image(GameScene.TEXTURES.LASER_TOWER, 'laser-tower.png');
+    this.load.image(GameScene.TEXTURES.SLOW_TOWER, 'slow-tower.png');
   }
 
   create(): void {
@@ -210,20 +226,23 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     const isSpawner = p.typeName === 'spawnerTower';
 
     let textureKey: string;
+    const T = GameScene.TEXTURES;
     if (isSpawner) {
-      textureKey = p.owner === 0 ? 'spawner_p1' : 'spawner_p2';
+      textureKey = p.owner === 0 ? T.SPAWNER_P1 : T.SPAWNER_P2;
     } else if (isTower || isCarrier) {
       const towerType = isTower
         ? (isLaserTower ? 'laser' : 'slow')
         : (p as unknown as { towerType: TowerType }).towerType;
-      const suffix = p.owner === 0 ? '_p1' : '_p2';
-      textureKey = towerType === 'laser' ? `laser${suffix}` : `slow${suffix}`;
+      textureKey = towerType === 'laser' ? T.LASER_TOWER : T.SLOW_TOWER;
     } else {
-      textureKey = p.owner === 0 ? 'particle_p1' : 'particle_p2';
+      textureKey = p.owner === 0 ? T.PARTICLE_P1 : T.PARTICLE_P2;
     }
 
     const sprite = this.add.image(p.x, p.y, textureKey);
-    const scale = (isTower || isCarrier || isSpawner) ? (p.radius * 2.5) / 64 : (p.radius * 2) / 64;
+    const TOWER_IMG_SIZE = 1024;
+    const scale = (isTower || isCarrier) ? (p.radius * 5) / TOWER_IMG_SIZE
+                : isSpawner             ? (p.radius * 2.5) / 64
+                : (p.radius * 2) / 64;
     sprite.setScale(scale);
     sprite.setDepth(isTower || isSpawner ? 6 : 5);
     sprite.setBlendMode(Phaser.BlendModes.ADD);
@@ -245,7 +264,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
     if (!isTower) {
       const color = p.owner === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
-      const trailEmitter = this.add.particles(0, 0, 'trail_dot', {
+      const trailEmitter = this.add.particles(0, 0, GameScene.TEXTURES.TRAIL_DOT, {
         follow: sprite,
         scale: { start: scale * 0.5, end: 0 },
         alpha: { start: 0.4, end: 0 },
@@ -261,24 +280,9 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   }
 
   private createTowerTextures(): void {
-    const keys = [
-      ['laser_p1', CONFIG.PLAYER1_COLOR],
-      ['laser_p2', CONFIG.PLAYER2_COLOR],
-      ['slow_p1', CONFIG.PLAYER1_COLOR],
-      ['slow_p2', CONFIG.PLAYER2_COLOR],
-    ] as const;
-    for (const [key, color] of keys) {
-      if (!this.textures.exists(key)) {
-        if (key.startsWith('laser')) {
-          this.createLaserTexture(key, color);
-        } else {
-          this.createSlowTexture(key, color);
-        }
-      }
-    }
-
-    if (!this.textures.exists('spawner_p1')) this.createSpawnerTexture('spawner_p1', CONFIG.PLAYER1_COLOR);
-    if (!this.textures.exists('spawner_p2')) this.createSpawnerTexture('spawner_p2', CONFIG.PLAYER2_COLOR);
+    const T = GameScene.TEXTURES;
+    if (!this.textures.exists(T.SPAWNER_P1)) this.createSpawnerTexture(T.SPAWNER_P1, CONFIG.PLAYER1_COLOR);
+    if (!this.textures.exists(T.SPAWNER_P2)) this.createSpawnerTexture(T.SPAWNER_P2, CONFIG.PLAYER2_COLOR);
   }
 
   private createSpawnerTexture(key: string, color: number): void {
@@ -319,64 +323,6 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     ctx.restore();
 
     if (this.textures.exists(key)) this.textures.remove(key);
-    this.textures.addCanvas(key, canvas);
-  }
-
-  private createLaserTexture(key: string, color: number): void {
-    const size = 64;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d')!;
-
-    const r = (color >> 16) & 0xff;
-    const g = (color >> 8) & 0xff;
-    const b = color & 0xff;
-
-    const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    gradient.addColorStop(0, `rgba(255, 255, 255, 1)`);
-    gradient.addColorStop(0.15, `rgba(${r}, ${g}, ${b}, 1)`);
-    gradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, 0.6)`);
-    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-
-    ctx.save();
-    ctx.translate(size / 2, size / 2);
-    ctx.rotate(Math.PI / 4);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(-size / 2, -size / 2, size, size);
-    ctx.restore();
-
-    if (this.textures.exists(key)) {
-      this.textures.remove(key);
-    }
-    this.textures.addCanvas(key, canvas);
-  }
-
-  private createSlowTexture(key: string, color: number): void {
-    const size = 64;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d')!;
-
-    const r = (color >> 16) & 0xff;
-    const g = (color >> 8) & 0xff;
-    const b = color & 0xff;
-
-    const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    gradient.addColorStop(0, `rgba(255, 255, 255, 1)`);
-    gradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, 0.9)`);
-    gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.5)`);
-    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-    ctx.fill();
-
-    if (this.textures.exists(key)) {
-      this.textures.remove(key);
-    }
     this.textures.addCanvas(key, canvas);
   }
 
@@ -469,7 +415,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   }
 
   private spawnExplosion(x: number, y: number, color: number): void {
-    const emitter = this.add.particles(x, y, 'explosion_dot', {
+    const emitter = this.add.particles(x, y, GameScene.TEXTURES.EXPLOSION_DOT, {
       speed: { min: 30, max: 80 },
       scale: { start: 0.8, end: 0 },
       alpha: { start: 1, end: 0 },
@@ -551,25 +497,25 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
   private createParticleTextures(): void {
     if (!this.glowTextureP1Created) {
-      this.createGlowTexture('particle_p1', CONFIG.PLAYER1_COLOR);
+      this.createGlowTexture(GameScene.TEXTURES.PARTICLE_P1, CONFIG.PLAYER1_COLOR);
       this.glowTextureP1Created = true;
     }
     if (!this.glowTextureP2Created) {
-      this.createGlowTexture('particle_p2', CONFIG.PLAYER2_COLOR);
+      this.createGlowTexture(GameScene.TEXTURES.PARTICLE_P2, CONFIG.PLAYER2_COLOR);
       this.glowTextureP2Created = true;
     }
-    if (!this.textures.exists('trail_dot')) {
+    if (!this.textures.exists(GameScene.TEXTURES.TRAIL_DOT)) {
       const gfx = this.make.graphics({ x: 0, y: 0 });
       gfx.fillStyle(0xffffff, 1);
       gfx.fillCircle(8, 8, 8);
-      gfx.generateTexture('trail_dot', 16, 16);
+      gfx.generateTexture(GameScene.TEXTURES.TRAIL_DOT, 16, 16);
       gfx.destroy();
     }
-    if (!this.textures.exists('explosion_dot')) {
+    if (!this.textures.exists(GameScene.TEXTURES.EXPLOSION_DOT)) {
       const gfx = this.make.graphics({ x: 0, y: 0 });
       gfx.fillStyle(0xffffff, 1);
       gfx.fillCircle(6, 6, 6);
-      gfx.generateTexture('explosion_dot', 12, 12);
+      gfx.generateTexture(GameScene.TEXTURES.EXPLOSION_DOT, 12, 12);
       gfx.destroy();
     }
   }
