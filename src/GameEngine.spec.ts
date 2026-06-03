@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { CONFIG } from './config';
+import { CONFIG, TOWER_TYPE } from './config';
 import { GameEngine, type GameEngineCallbacks } from './GameEngine';
 import { createPlayer, type IPlayer } from './player';
 import { createMockGrid } from './__mocks__/createMockGrid';
@@ -7,6 +7,7 @@ import { createMockParticle } from './__mocks__/createMockParticle';
 import { createMockCellEffectMap } from './__mocks__/createMockCellEffectMap';
 import type { ICellEffectMap } from './grid';
 import { ParticleSpawnerTower } from './particles/ParticleSpawnerTower';
+import { WeaknessTowerParticle } from './particles/WeaknessTowerParticle';
 
 const noopCallbacks: GameEngineCallbacks = {
   onKill: vi.fn(),
@@ -214,17 +215,17 @@ describe(GameEngine.name, () => {
 
     it('buyResearch starts a timer and marks tower as researched after duration', () => {
       const { engine } = createTowerEngine();
-      expect(engine.buyResearch(0, 'laser')).toBe(true);
-      expect(engine.players[0].hasResearched('laser')).toBe(false); // timer still running
+      expect(engine.buyResearch(0, TOWER_TYPE.LASER)).toBe(true);
+      expect(engine.players[0].hasResearched(TOWER_TYPE.LASER)).toBe(false); // timer still running
       engine.tick(CONFIG.TOWER_RESEARCH_DURATION_MS.laser + 1000);
-      expect(engine.players[0].hasResearched('laser')).toBe(true);
+      expect(engine.players[0].hasResearched(TOWER_TYPE.LASER)).toBe(true);
     });
 
     it('constructTower places tower at site after construction duration', () => {
       const { engine, callbacks } = createTowerEngine();
-      engine.buyResearch(0, 'laser');
+      engine.buyResearch(0, TOWER_TYPE.LASER);
       engine.tick(CONFIG.TOWER_RESEARCH_DURATION_MS.laser + 1000);
-      const result = engine.constructTower(0, 'laser', 0);
+      const result = engine.constructTower(0, TOWER_TYPE.LASER, 0);
 
       expect(result).toBe(true);
       expect(engine.towers[0]).toHaveLength(0); // pending, not placed yet
@@ -240,53 +241,53 @@ describe(GameEngine.name, () => {
 
     it('constructTower fails when not researched', () => {
       const { engine } = createTowerEngine();
-      expect(engine.constructTower(0, 'laser', 0)).toBe(false);
+      expect(engine.constructTower(0, TOWER_TYPE.LASER, 0)).toBe(false);
     });
 
     it('constructTower fails when tower cap reached (counts pending)', () => {
       const { engine } = createTowerEngine();
-      engine.buyResearch(0, 'laser');
+      engine.buyResearch(0, TOWER_TYPE.LASER);
       engine.tick(CONFIG.TOWER_RESEARCH_DURATION_MS.laser + 1000);
       for (let i = 0; i < CONFIG.TOWER_MAX_PER_PLAYER; i++) {
-        engine.constructTower(0, 'laser', i);
+        engine.constructTower(0, TOWER_TYPE.LASER, i);
       }
-      expect(engine.constructTower(0, 'laser', 5)).toBe(false);
+      expect(engine.constructTower(0, TOWER_TYPE.LASER, 5)).toBe(false);
     });
 
     it('constructTower fails when adjacent open cells are not all owned', () => {
       const cellEffects = createMockCellEffectMap({ getOwnerAt: vi.fn((): 1 => 1) });
       const { engine } = createTowerEngine({ cellEffects });
-      engine.buyResearch(0, 'laser');
+      engine.buyResearch(0, TOWER_TYPE.LASER);
       engine.tick(CONFIG.TOWER_RESEARCH_DURATION_MS.laser + 1000);
 
-      expect(engine.constructTower(0, 'laser', 0)).toBe(false);
+      expect(engine.constructTower(0, TOWER_TYPE.LASER, 0)).toBe(false);
       expect(engine.towers[0]).toHaveLength(0);
     });
 
     it('constructTower fails when the selected site is pending or occupied', () => {
       const { engine } = createTowerEngine();
-      engine.buyResearch(0, 'laser');
+      engine.buyResearch(0, TOWER_TYPE.LASER);
       engine.buyResearch(1, 'laser');
       skipTimers(engine); // complete both research timers
-      expect(engine.constructTower(0, 'laser', 0)).toBe(true);  // reserves site 0
+      expect(engine.constructTower(0, TOWER_TYPE.LASER, 0)).toBe(true);  // reserves site 0
       expect(engine.constructTower(1, 'laser', 0)).toBe(false); // site 0 pending
     });
 
-    it('constructTower creates slow tower at selected site', () => {
+    it('constructTower creates weakness tower at selected site', () => {
       const { engine } = createTowerEngine();
-      engine.buyResearch(0, 'slow');
+      engine.buyResearch(0, TOWER_TYPE.WEAKNESS);
       skipTimers(engine);
-      engine.constructTower(0, 'slow', 1);
+      engine.constructTower(0, TOWER_TYPE.WEAKNESS, 1);
       skipTimers(engine);
 
-      expect(engine.towers[0][0].typeName).toBe('slowTower');
+      expect(engine.towers[0][0].typeName).toBe(WeaknessTowerParticle.TYPE_NAME);
     });
 
     it('upgradeTower deducts gold and increases level after duration', () => {
       const { engine } = createTowerEngine();
-      engine.buyResearch(0, 'laser');
+      engine.buyResearch(0, TOWER_TYPE.LASER);
       skipTimers(engine);
-      engine.constructTower(0, 'laser', 0);
+      engine.constructTower(0, TOWER_TYPE.LASER, 0);
       skipTimers(engine);
 
       const goldBefore = engine.players[0].gold;
@@ -301,9 +302,9 @@ describe(GameEngine.name, () => {
 
     it('upgradeTower returns false while a previous upgrade is still pending', () => {
       const { engine } = createTowerEngine();
-      engine.buyResearch(0, 'laser');
+      engine.buyResearch(0, TOWER_TYPE.LASER);
       skipTimers(engine);
-      engine.constructTower(0, 'laser', 0);
+      engine.constructTower(0, TOWER_TYPE.LASER, 0);
       skipTimers(engine);
 
       expect(engine.upgradeTower(0, 0)).toBe(true);
@@ -312,9 +313,9 @@ describe(GameEngine.name, () => {
 
     it('upgradeTower fails when cannot afford', () => {
       const { engine } = createTowerEngine();
-      engine.buyResearch(0, 'laser');
+      engine.buyResearch(0, TOWER_TYPE.LASER);
       skipTimers(engine);
-      engine.constructTower(0, 'laser', 0);
+      engine.constructTower(0, TOWER_TYPE.LASER, 0);
       skipTimers(engine);
       engine.players[0].gold = 0;
 
@@ -329,9 +330,9 @@ describe(GameEngine.name, () => {
 
     it('cleanupDeadTowers removes dead towers from tracking', () => {
       const { engine } = createTowerEngine();
-      engine.buyResearch(0, 'laser');
+      engine.buyResearch(0, TOWER_TYPE.LASER);
       skipTimers(engine);
-      engine.constructTower(0, 'laser', 0);
+      engine.constructTower(0, TOWER_TYPE.LASER, 0);
       skipTimers(engine);
 
       expect(engine.towers[0]).toHaveLength(1);

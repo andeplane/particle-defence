@@ -2,7 +2,7 @@ import { CONFIG, TOWER_TYPE, type TowerType } from './config';
 import { AIController, type AIGameState } from './ai';
 import { BasicParticle, type IParticle, type GameContext, TowerCarrierParticle } from './particles';
 import { LaserTowerParticle } from './particles/LaserTowerParticle';
-import { SlowTowerParticle } from './particles/SlowTowerParticle';
+import { WeaknessTowerParticle } from './particles/WeaknessTowerParticle';
 import { ParticleSpawnerTower } from './particles/ParticleSpawnerTower';
 import { createPlayer, type IPlayer } from './player';
 import { SpatialHash, type ISpatialHash } from './spatial-hash';
@@ -77,7 +77,7 @@ export class GameEngine implements AIGameState {
   /** Active carrier per player (null if none). */
   carriers: [TowerCarrierParticle | null, TowerCarrierParticle | null] = [null, null];
   /** Placed towers per player. */
-  towers: [Array<LaserTowerParticle | SlowTowerParticle>, Array<LaserTowerParticle | SlowTowerParticle>] = [[], []];
+  towers: [Array<LaserTowerParticle | WeaknessTowerParticle>, Array<LaserTowerParticle | WeaknessTowerParticle>] = [[], []];
   /** Indestructible spawner towers per player. */
   spawnerTowers: [ParticleSpawnerTower[], ParticleSpawnerTower[]] = [[], []];
   /** Construction timers: gold already paid, tower will be placed when timer elapses. */
@@ -173,7 +173,7 @@ export class GameEngine implements AIGameState {
     this.tickParticleUpgrades();
     this.tickTowerUpgrades();
 
-    this.resetTowerSlowFactors();
+    this.resetParticleAuraFactors();
 
     const context = this.createContext();
 
@@ -381,10 +381,18 @@ export class GameEngine implements AIGameState {
     return this.players[playerId].startNukeResearch(this.gameTimeMs, CONFIG.NUKE_RESEARCH_DURATION_MS);
   }
 
-  private createTower(towerType: TowerType, x: number, y: number, playerId: 0 | 1): LaserTowerParticle | SlowTowerParticle {
+  purchaseResearchNode(playerId: 0 | 1, nodeId: string, isPath: boolean, durationMs: number): boolean {
+    if (this.gameOver) return false;
+    const player = this.players[playerId];
+    return isPath
+      ? player.startPathResearch(nodeId, this.gameTimeMs, durationMs)
+      : player.startUnlockResearch(nodeId, this.gameTimeMs, durationMs);
+  }
+
+  private createTower(towerType: TowerType, x: number, y: number, playerId: 0 | 1): LaserTowerParticle | WeaknessTowerParticle {
     return towerType === TOWER_TYPE.LASER
       ? new LaserTowerParticle(x, y, playerId)
-      : new SlowTowerParticle(x, y, playerId);
+      : new WeaknessTowerParticle(x, y, playerId);
   }
 
   private getAdjacentOpenCells(site: TowerSite): Array<{ col: number; row: number }> {
@@ -404,9 +412,11 @@ export class GameEngine implements AIGameState {
     ));
   }
 
-  private resetTowerSlowFactors(): void {
+  private resetParticleAuraFactors(): void {
     for (const p of this.particles) {
-      if (p.alive) p.towerSlowFactor = 1;
+      if (!p.alive) continue;
+      p.towerSlowFactor = 1;
+      p.attackFactor = p.stunnedUntilMs > this.gameTimeMs ? 0 : 1;
     }
   }
 

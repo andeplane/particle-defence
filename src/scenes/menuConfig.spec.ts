@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { TOWER_TYPE } from '../config';
 import { MENU_CATEGORIES, resolveKeyPress, type MenuCategory } from './menuConfig';
 
 describe('menuConfig', () => {
@@ -68,10 +69,12 @@ describe('menuConfig', () => {
       expect(cat.items).toHaveLength(2);
     });
 
-    it('should have research category with research items', () => {
+    it('should have research category (items now dynamically computed per player)', () => {
       const cat = MENU_CATEGORIES.find(c => c.id === 'research')!;
-      expect(cat.items.every(i => i.kind === 'research')).toBe(true);
-      expect(cat.items.length).toBeGreaterThanOrEqual(3);
+      expect(cat).toBeDefined();
+      expect(cat.id).toBe('research');
+      // Items are empty — dynamically populated in UIScene via getVisibleResearchNodes()
+      expect(cat.items).toHaveLength(0);
     });
 
     it('should have towers category with prev/next/upgrade items', () => {
@@ -162,15 +165,15 @@ describe('menuConfig', () => {
 
     describe('research submenu dispatch', () => {
       it.each([
-        ['Q', 0, 'laser'],
-        ['W', 0, 'slow'],
-        ['E', 0, 'nuke'],
-        ['I', 1, 'laser'],
-        ['O', 1, 'slow'],
-        ['P', 1, 'nuke'],
-      ] as const)('P%d presses %s -> research %s', (key, playerId, researchType) => {
+        ['Q', 0],
+        ['W', 0],
+        ['E', 0],
+        ['I', 1],
+        ['O', 1],
+        ['P', 1],
+      ] as const)('P%d presses %s -> researchKey result', (key, playerId) => {
         const result = resolveKeyPress(key, playerId, 'research');
-        expect(result).toEqual({ type: 'research', researchType });
+        expect(result).toEqual({ type: 'researchKey', key });
       });
     });
 
@@ -186,10 +189,10 @@ describe('menuConfig', () => {
       });
 
       it.each([
-        ['Q', 0, { type: 'construct', towerType: 'laser' }],
-        ['W', 0, { type: 'construct', towerType: 'slow' }],
-        ['I', 1, { type: 'construct', towerType: 'laser' }],
-        ['O', 1, { type: 'construct', towerType: 'slow' }],
+        ['Q', 0, { type: 'construct', towerType: TOWER_TYPE.LASER }],
+        ['W', 0, { type: 'construct', towerType: TOWER_TYPE.WEAKNESS }],
+        ['I', 1, { type: 'construct', towerType: TOWER_TYPE.LASER }],
+        ['O', 1, { type: 'construct', towerType: TOWER_TYPE.WEAKNESS }],
       ] as const)('P%d presses %s in build>TOWERS before site selection -> %o', (key, playerId, expected) => {
         const result = resolveKeyPress(key, playerId, 'construction', 'towers', false);
         expect(result).toEqual(expected);

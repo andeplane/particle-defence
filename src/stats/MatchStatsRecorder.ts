@@ -2,7 +2,7 @@ import type { UpgradeType } from '../config';
 import type { IParticle } from '../particles';
 import type { IPlayer } from '../player';
 import { LaserTowerParticle } from '../particles/LaserTowerParticle';
-import { SlowTowerParticle } from '../particles/SlowTowerParticle';
+import { WeaknessTowerParticle } from '../particles/WeaknessTowerParticle';
 import type { MatchEvent, MatchStats, PerPlayer, PerSecondSample } from './types';
 
 export interface MatchStatsRecorderDependencies {
@@ -142,8 +142,8 @@ export class MatchStatsRecorder {
     ];
 
     const towerCount: PerPlayer<number> = [
-      alive[0].filter(p => p.typeName === LaserTowerParticle.TYPE_NAME || p.typeName === SlowTowerParticle.TYPE_NAME).length,
-      alive[1].filter(p => p.typeName === LaserTowerParticle.TYPE_NAME || p.typeName === SlowTowerParticle.TYPE_NAME).length,
+      alive[0].filter(p => p.typeName === LaserTowerParticle.TYPE_NAME || p.typeName === WeaknessTowerParticle.TYPE_NAME).length,
+      alive[1].filter(p => p.typeName === LaserTowerParticle.TYPE_NAME || p.typeName === WeaknessTowerParticle.TYPE_NAME).length,
     ];
 
     const sample: PerSecondSample = {
