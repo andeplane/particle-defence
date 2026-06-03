@@ -315,6 +315,8 @@ function createParticle(
     leaveCurrentCell: () => {},
     defenseFactor: 0,
     towerSlowFactor: 1,
+    attackFactor: 1,
+    stunnedUntilMs: 0,
     destroy() {},
   };
 }
@@ -372,6 +374,8 @@ function createPlayers(overrides?: {
     getPathCost: () => Infinity,
     startTowerResearch: () => false,
     startNukeResearch: () => false,
+    startPathResearch: () => false,
+    startUnlockResearch: () => false,
     isResearching: () => false,
     getResearchProgress: () => -1,
     getResearchRemainingMs: () => 0,

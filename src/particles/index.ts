@@ -3,6 +3,6 @@ export type { IParticle, ParticleConfig, ParticleDependencies } from './Abstract
 export { BasicParticle } from './BasicParticle';
 export { TowerCarrierParticle } from './TowerCarrierParticle';
 export { LaserTowerParticle, getLaserStatsAtLevel } from './LaserTowerParticle';
-export { SlowTowerParticle, getSlowStatsAtLevel } from './SlowTowerParticle';
+export { WeaknessTowerParticle, getWeaknessStatsAtLevel } from './WeaknessTowerParticle';
 export { ParticleSpawnerTower } from './ParticleSpawnerTower';
 export type { GameContext } from './GameContext';

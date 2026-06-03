@@ -106,13 +106,13 @@ describe('Debug Everything Cheap', () => {
     setDebugEverythingCheap(true);
     expect(getTowerUpgradeCost('laser', 0)).toBe(1);
     expect(getTowerUpgradeCost('laser', 5)).toBe(1);
-    expect(getTowerUpgradeCost('slow', 3)).toBe(1);
+    expect(getTowerUpgradeCost('weakness', 3)).toBe(1);
   });
 
   it('getTowerResearchCost returns 1 when enabled', () => {
     setDebugEverythingCheap(true);
     expect(getTowerResearchCost('laser')).toBe(1);
-    expect(getTowerResearchCost('slow')).toBe(1);
+    expect(getTowerResearchCost('weakness')).toBe(1);
   });
 
   it('getNukeResearchCost returns 1 when enabled', () => {
@@ -123,7 +123,7 @@ describe('Debug Everything Cheap', () => {
   it('getTowerConstructionCost returns 1 when enabled', () => {
     setDebugEverythingCheap(true);
     expect(getTowerConstructionCost('laser')).toBe(1);
-    expect(getTowerConstructionCost('slow')).toBe(1);
+    expect(getTowerConstructionCost('weakness')).toBe(1);
   });
 
   it('costs return to normal when disabled', () => {

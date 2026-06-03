@@ -2,7 +2,7 @@ import { CONFIG, TOWER_TYPE, TOWER_TYPES, type UpgradeType, type TowerType } fro
 import type { IPlayer } from './player';
 import type { IParticle } from './particles';
 import type { LaserTowerParticle } from './particles/LaserTowerParticle';
-import type { SlowTowerParticle } from './particles/SlowTowerParticle';
+import type { WeaknessTowerParticle } from './particles/WeaknessTowerParticle';
 import type { TowerSite } from './grid';
 
 export interface AIGameState {
@@ -16,7 +16,7 @@ export interface AIGameState {
   constructTower(playerId: 0 | 1, towerType: TowerType, siteId: number): boolean;
   upgradeTower(playerId: 0 | 1, towerIndex: number): boolean;
   getEligibleTowerSites(playerId: 0 | 1): readonly TowerSite[];
-  readonly towers: readonly [ReadonlyArray<LaserTowerParticle | SlowTowerParticle>, ReadonlyArray<LaserTowerParticle | SlowTowerParticle>];
+  readonly towers: readonly [ReadonlyArray<LaserTowerParticle | WeaknessTowerParticle>, ReadonlyArray<LaserTowerParticle | WeaknessTowerParticle>];
 }
 
 export interface AIProfile {
@@ -131,7 +131,7 @@ export class AIController {
     if (towers.length < CONFIG.TOWER_MAX_PER_PLAYER) {
       if (eligibleSites.length === 0) return;
       const constructionReserve = highPriority ? 1.2 : 1.5;
-      const preferredType: TowerType = towers.length % 2 === 0 ? TOWER_TYPE.LASER : TOWER_TYPE.SLOW;
+      const preferredType: TowerType = towers.length % 2 === 0 ? TOWER_TYPE.LASER : TOWER_TYPE.WEAKNESS;
       const siteId = eligibleSites[0].id;
       if (ai.hasResearched(preferredType) && ai.canAffordConstruction(preferredType)) {
         const cost = ai.getConstructionCost(preferredType);

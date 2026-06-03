@@ -33,6 +33,10 @@ export interface IParticle {
   defenseFactor: number;
   /** Tower-based slow multiplier (0-1). Set by engine each tick. 1.0 = no slow. */
   towerSlowFactor: number;
+  /** Attack output multiplier (0-1). Set by engine each tick. 1.0 = full damage. Reduced by weakness towers. */
+  attackFactor: number;
+  /** Game time (ms) until which this particle is stunned (attackFactor forced to 0). Set by weakness towers. */
+  stunnedUntilMs: number;
   destroy(): void;
 }
 
@@ -106,6 +110,12 @@ export abstract class AbstractParticle implements IParticle {
 
   /** Tower-based slow multiplier (0-1). Set by engine each tick. 1.0 = no slow. */
   towerSlowFactor: number = 1;
+
+  /** Attack output multiplier (0-1). Set by engine each tick. 1.0 = full damage. Reduced by weakness towers. */
+  attackFactor: number = 1;
+
+  /** Game time (ms) until which this particle is stunned (attackFactor forced to 0). */
+  stunnedUntilMs: number = 0;
 
   protected readonly config: ParticleConfig;
 
@@ -216,7 +226,7 @@ export abstract class AbstractParticle implements IParticle {
     const hpScaling = other.attack > 0
       ? 1 + rawHpScaling * (1 - defenseReduction)
       : 1;
-    this.takeDamage(other.attack * speedMultiplier * hpScaling);
+    this.takeDamage(other.attack * other.attackFactor * speedMultiplier * hpScaling);
   }
 
   onDeath(_context: GameContext): void {}

@@ -74,6 +74,8 @@ function createMinimalMockPlayer(id: 0 | 1): IPlayer {
     getPathCost: vi.fn(() => Infinity),
     startTowerResearch: vi.fn(() => false),
     startNukeResearch: vi.fn(() => false),
+    startPathResearch: vi.fn(() => false),
+    startUnlockResearch: vi.fn(() => false),
     isResearching: vi.fn(() => false),
     getResearchProgress: vi.fn(() => -1),
     getResearchRemainingMs: vi.fn(() => 0),

@@ -159,24 +159,24 @@ export const CONFIG = {
 
   TOWER_RESEARCH_COSTS: {
     laser: 200,
-    slow: 200,
+    weakness: 200,
   } as Record<string, number>,
 
   /** Time (ms) to complete tower research after paying */
   TOWER_RESEARCH_DURATION_MS: {
     laser: 20_000,
-    slow: 20_000,
+    weakness: 20_000,
   } as Record<string, number>,
 
   TOWER_CONSTRUCTION_COSTS: {
     laser: 500,
-    slow: 500,
+    weakness: 500,
   } as Record<string, number>,
 
   /** Time (ms) to build a tower after paying construction cost */
   TOWER_CONSTRUCTION_DURATION_MS: {
     laser: 3_000,
-    slow: 3_000,
+    weakness: 3_000,
   } as Record<string, number>,
 
   /** Time (ms) to apply a particle stat upgrade after paying */
@@ -190,24 +190,60 @@ export const CONFIG = {
   TOWER_LASER_BASE_ATTACK_SPEED: 2.5,
   TOWER_LASER_UPGRADE_COST: 200,
   TOWER_LASER_DAMAGE_PER_LEVEL: 2,
-  TOWER_LASER_RANGE_PER_LEVEL: 15,
   TOWER_LASER_ATTACK_SPEED_PER_LEVEL: 0.4,
   TOWER_LASER_HP_PER_LEVEL: 10,
 
-  TOWER_SLOW_BASE_HP: 40,
-  TOWER_SLOW_BASE_FACTOR: 0.4,
-  TOWER_SLOW_BASE_RANGE: 140,
-  TOWER_SLOW_UPGRADE_COST: 200,
-  TOWER_SLOW_FACTOR_PER_LEVEL: 0.07,
-  TOWER_SLOW_RANGE_PER_LEVEL: 20,
-  TOWER_SLOW_HP_PER_LEVEL: 8,
+  TOWER_WEAKNESS_BASE_HP: 40,
+  /** Base HP drained per second from enemies in range */
+  TOWER_WEAKNESS_BASE_DRAIN_DPS: 1.5,
+  /** Base attack reduction applied to enemies in range (0.25 = 25% less damage) */
+  TOWER_WEAKNESS_BASE_ATTACK_REDUCTION: 0.25,
+  TOWER_WEAKNESS_BASE_RANGE: 140,
+  TOWER_WEAKNESS_UPGRADE_COST: 200,
+  /** Per-level increase to both drain DPS and attack reduction */
+  TOWER_WEAKNESS_FACTOR_PER_LEVEL: 0.07,
+  TOWER_WEAKNESS_HP_PER_LEVEL: 8,
+
+  // Tier-2 research: universal tower researches
+  TOWER_REGEN_COST_PER_LEVEL: 300,
+  TOWER_REGEN_DURATION_MS: 10_000,
+  /** HP/sec gained per regen research level */
+  TOWER_REGEN_HP_PER_SEC_PER_LEVEL: 0.5,
+
+  TOWER_RANGE_COST_PER_LEVEL: 250,
+  TOWER_RANGE_DURATION_MS: 10_000,
+  /** Extra range (pixels) per range research level */
+  TOWER_RANGE_BONUS_PER_LEVEL: 25,
+
+  // Tier-2 research: laser-specific
+  LASER_BOUNCE_COST_PER_LEVEL: 400,
+  LASER_BOUNCE_DURATION_MS: 15_000,
+
+  LASER_OVERCHARGE_COST_PER_LEVEL: 350,
+  LASER_OVERCHARGE_DURATION_MS: 12_000,
+  /** Level 0 = no overcharge; level 1 = every 8th shot, decreasing by 1 per level */
+  LASER_OVERCHARGE_BASE_INTERVAL: 8,
+
+  // Tier-2 research: weakness-specific
+  WEAKNESS_SLOW_COST_PER_LEVEL: 300,
+  WEAKNESS_SLOW_DURATION_MS: 10_000,
+  /** Slow factor applied per weakness slow research level */
+  WEAKNESS_SLOW_FACTOR_PER_LEVEL: 0.12,
+
+  WEAKNESS_STUN_COST_PER_LEVEL: 500,
+  WEAKNESS_STUN_DURATION_MS: 20_000,
+  /** Stun fires every N ms; decreases by 1500ms per level */
+  WEAKNESS_STUN_BASE_INTERVAL_MS: 10_000,
+  WEAKNESS_STUN_INTERVAL_REDUCTION_PER_LEVEL: 1_500,
+  /** How long (ms) the stun effect lasts on target */
+  WEAKNESS_STUN_EFFECT_DURATION_MS: 1_000,
 } as const;
 
-export type TowerType = 'laser' | 'slow';
-export const TOWER_TYPES: readonly TowerType[] = ['laser', 'slow'] as const;
+export type TowerType = 'laser' | 'weakness';
+export const TOWER_TYPES: readonly TowerType[] = ['laser', 'weakness'] as const;
 export const TOWER_TYPE = {
   LASER: 'laser',
-  SLOW: 'slow',
+  WEAKNESS: 'weakness',
 } as const satisfies Record<string, TowerType>;
 
 export type UpgradeType = keyof typeof CONFIG.UPGRADE_COSTS;
@@ -220,7 +256,7 @@ export function getUpgradeCost(type: UpgradeType, level: number): number {
 
 export function getTowerUpgradeCost(towerType: TowerType, level: number): number {
   if (DEBUG_EVERYTHING_CHEAP) return 1;
-  const base = towerType === TOWER_TYPE.LASER ? CONFIG.TOWER_LASER_UPGRADE_COST : CONFIG.TOWER_SLOW_UPGRADE_COST;
+  const base = towerType === TOWER_TYPE.LASER ? CONFIG.TOWER_LASER_UPGRADE_COST : CONFIG.TOWER_WEAKNESS_UPGRADE_COST;
   return Math.floor(base * Math.pow(CONFIG.TOWER_UPGRADE_COST_MULTIPLIER, level));
 }
 

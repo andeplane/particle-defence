@@ -112,7 +112,7 @@ describe(LaserTowerParticle.name, () => {
     expect(t.currentTargetId).toBe(2);
   });
 
-  it('upgrade increases stats', () => {
+  it('upgrade increases damage, attack speed, and hp (range now from global research)', () => {
     const t = new LaserTowerParticle(100, 100, 0, createDeps());
     const origDamage = t.damage;
     const origRange = t.range;
@@ -122,7 +122,7 @@ describe(LaserTowerParticle.name, () => {
 
     expect(t.level).toBe(1);
     expect(t.damage).toBeGreaterThan(origDamage);
-    expect(t.range).toBeGreaterThan(origRange);
+    expect(t.range).toBe(origRange); // range does not increase per upgrade
     expect(t.attackSpeed).toBeGreaterThan(origSpeed);
   });
 });

@@ -1,6 +1,6 @@
 import { CONFIG, getUpgradeCost, getTowerResearchCost, getTowerConstructionCost, getTowerUpgradeCost, getNukeResearchCost, type UpgradeType } from '../config';
 import { getLaserStatsAtLevel } from '../particles/LaserTowerParticle';
-import { getSlowStatsAtLevel } from '../particles/SlowTowerParticle';
+import { getWeaknessStatsAtLevel } from '../particles/WeaknessTowerParticle';
 import { computeMaxLevels, defaultPlayerConfig } from '../player';
 
 export interface ContentSection {
@@ -105,7 +105,7 @@ function getTechTreeSections(): ContentSection[] {
       'and research nukes before launching them.',
       '',
       `  Laser Tower research:  ${getTowerResearchCost('laser')}g`,
-      `  Slow Tower research:   ${getTowerResearchCost('slow')}g`,
+      `  Weakness Tower research: ${getTowerResearchCost('weakness')}g`,
       `  Nuke research:         ${getNukeResearchCost()}g`,
     ],
   };
@@ -117,7 +117,7 @@ function getTechTreeSections(): ContentSection[] {
       'A slot is eligible when you own all its adjacent open cells.',
       '',
       '1. RESEARCH a tower type (one-time unlock).',
-      '2. Open BUILD > TOWERS, select LASER or SLOW.',
+      '2. Open BUILD > TOWERS, select LASER or WEAKNESS.',
       '3. Cycle to an eligible slot with < SITE / SITE >.',
       '4. Press BUILD — a carrier particle heads to that slot.',
       '   The carrier has high HP but cannot fight. Protect it!',
@@ -125,34 +125,36 @@ function getTechTreeSections(): ContentSection[] {
       '',
       `Max towers per player: ${CONFIG.TOWER_MAX_PER_PLAYER}`,
       `  Laser Tower build cost:  ${getTowerConstructionCost('laser')}g`,
-      `  Slow Tower build cost:   ${getTowerConstructionCost('slow')}g`,
+      `  Weakness Tower build cost: ${getTowerConstructionCost('weakness')}g`,
     ],
   };
 
   const laser0 = getLaserStatsAtLevel(0);
   const laser1 = getLaserStatsAtLevel(1);
-  const slow0 = getSlowStatsAtLevel(0);
-  const slow1 = getSlowStatsAtLevel(1);
+  const weak0 = getWeaknessStatsAtLevel(0);
+  const weak1 = getWeaknessStatsAtLevel(1);
 
   const towerStats: ContentSection = {
     title: 'Tower Stats & Upgrades',
     lines: [
       `Towers take ${pct(CONFIG.TOWER_DAMAGE_REDUCTION)} reduced damage.`,
       `Tower upgrade cost scales: base x ${CONFIG.TOWER_UPGRADE_COST_MULTIPLIER} per level`,
+      `Global range research adds +${CONFIG.TOWER_RANGE_BONUS_PER_LEVEL}px/lvl to all towers.`,
       '',
       '--- Laser Tower ---',
       `  HP: ${laser0.hp}  (+${laser1.hp - laser0.hp}/lvl)`,
       `  Damage: ${laser0.damage}  (+${laser1.damage - laser0.damage}/lvl)`,
       `  Attack speed: ${laser0.attackSpeed}/s  (+${(laser1.attackSpeed - laser0.attackSpeed).toFixed(1)}/lvl)`,
       `  DPS: ${(laser0.damage * laser0.attackSpeed).toFixed(1)}  at base level`,
-      `  Range: ${laser0.range}  (+${laser1.range - laser0.range}/lvl)`,
+      `  Base range: ${CONFIG.TOWER_LASER_BASE_RANGE}px (global research adds more)`,
       `  Upgrade cost: ${getTowerUpgradeCost('laser', 0)}g / ${getTowerUpgradeCost('laser', 1)}g / ${getTowerUpgradeCost('laser', 2)}g`,
       '',
-      '--- Slow Tower ---',
-      `  HP: ${slow0.hp}  (+${slow1.hp - slow0.hp}/lvl)`,
-      `  Slow: ${pct(slow0.slowFactor)}  (+${pct(slow1.slowFactor - slow0.slowFactor)}/lvl, max ${pct(0.9)})`,
-      `  Range: ${slow0.range}  (+${slow1.range - slow0.range}/lvl)`,
-      `  Upgrade cost: ${getTowerUpgradeCost('slow', 0)}g / ${getTowerUpgradeCost('slow', 1)}g / ${getTowerUpgradeCost('slow', 2)}g`,
+      '--- Weakness Tower ---',
+      `  HP: ${weak0.hp}  (+${weak1.hp - weak0.hp}/lvl)`,
+      `  HP drain: ${weak0.drainDps}/s  (+${(weak1.drainDps - weak0.drainDps).toFixed(2)}/lvl)`,
+      `  Attack reduction: ${pct(weak0.attackReduction)}  (+${pct(weak1.attackReduction - weak0.attackReduction)}/lvl)`,
+      `  Base range: ${CONFIG.TOWER_WEAKNESS_BASE_RANGE}px`,
+      `  Upgrade cost: ${getTowerUpgradeCost('weakness', 0)}g / ${getTowerUpgradeCost('weakness', 1)}g / ${getTowerUpgradeCost('weakness', 2)}g`,
     ],
   };
 

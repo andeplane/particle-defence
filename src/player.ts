@@ -55,6 +55,10 @@ export interface IPlayer {
   // Timer-based research (used by GameEngine.buyResearch — deducts gold and starts timer)
   startTowerResearch(towerType: TowerType, gameTimeMs: number, durationMs: number): boolean;
   startNukeResearch(gameTimeMs: number, durationMs: number): boolean;
+  /** Start a timer-based multi-level path research. Deducts cost for next level and starts timer. */
+  startPathResearch(pathId: string, gameTimeMs: number, durationMs: number): boolean;
+  /** Start a timer-based one-time unlock research for any arbitrary nodeId. */
+  startUnlockResearch(nodeId: string, gameTimeMs: number, durationMs: number): boolean;
   isResearching(nodeId: string): boolean;
   getResearchProgress(nodeId: string, gameTimeMs: number): number;
   getResearchRemainingMs(nodeId: string, gameTimeMs: number): number;
@@ -389,11 +393,34 @@ export class Player implements IPlayer {
     return Math.max(0, timer.startedAtMs + timer.durationMs - gameTimeMs);
   }
 
+  startPathResearch(pathId: string, gameTimeMs: number, durationMs: number): boolean {
+    if (this._researchTimers.has(pathId)) return false;
+    if (!this.canPurchasePath(pathId)) return false;
+    const cost = this.getPathCost(pathId);
+    this.gold -= (getDebugEverythingCheap() ? 1 : cost);
+    this._researchTimers.set(pathId, { startedAtMs: gameTimeMs, durationMs });
+    return true;
+  }
+
+  startUnlockResearch(nodeId: string, gameTimeMs: number, durationMs: number): boolean {
+    if (this.hasUnlocked(nodeId)) return false;
+    if (this._researchTimers.has(nodeId)) return false;
+    if (!this.canPurchaseUnlock(nodeId)) return false;
+    this.gold -= this.getUnlockCost(nodeId);
+    this._researchTimers.set(nodeId, { startedAtMs: gameTimeMs, durationMs });
+    return true;
+  }
+
   tickResearch(gameTimeMs: number): string[] {
     const completed: string[] = [];
     for (const [nodeId, timer] of this._researchTimers) {
       if (gameTimeMs - timer.startedAtMs >= timer.durationMs) {
-        this._purchased.set(nodeId, 1);
+        if (ResearchRegistry.findPath(nodeId)) {
+          const currentLevel = this._purchased.get(nodeId) ?? 0;
+          this._purchased.set(nodeId, currentLevel + 1);
+        } else {
+          this._purchased.set(nodeId, 1);
+        }
         this._researchTimers.delete(nodeId);
         completed.push(nodeId);
       }

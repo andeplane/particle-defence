@@ -12,7 +12,8 @@ export interface CategoryDef {
   items: MenuItemDef[];
 }
 
-export type ResearchType = TowerType | 'nuke';
+/** Legacy: only used for nuke action now that tower research is dynamic. */
+export type ResearchType = 'nuke';
 
 export type MenuItemDef =
   | { kind: 'upgrade'; type: UpgradeType; label: string; tooltip: string; p1Key: string; p2Key: string }
@@ -45,11 +46,8 @@ export const MENU_CATEGORIES: CategoryDef[] = [
     tooltip: 'Research new technologies',
     p1Key: 'W',
     p2Key: 'O',
-    items: [
-      { kind: 'research', researchType: TOWER_TYPE.LASER, label: 'LASER', tooltip: 'Unlock laser tower construction', p1Key: 'Q', p2Key: 'I' },
-      { kind: 'research', researchType: TOWER_TYPE.SLOW, label: 'SLOW', tooltip: 'Unlock slow tower construction', p1Key: 'W', p2Key: 'O' },
-      { kind: 'research', researchType: 'nuke', label: 'NUKE', tooltip: 'Unlock nuclear weapon launch', p1Key: 'E', p2Key: 'P' },
-    ],
+    // Items are computed dynamically in UIScene via getVisibleResearchNodes()
+    items: [],
   },
   {
     id: 'upgrades',
@@ -95,7 +93,7 @@ export const MENU_CATEGORIES: CategoryDef[] = [
 const CONSTRUCTION_SUBMENU_ITEMS: Record<BuildSubmenu, MenuItemDef[]> = {
   towers: [
     { kind: 'construct', towerType: TOWER_TYPE.LASER, label: 'LASER', tooltip: 'Select laser tower for fixed-site construction', p1Key: 'Q', p2Key: 'I' },
-    { kind: 'construct', towerType: TOWER_TYPE.SLOW, label: 'SLOW', tooltip: 'Select slow tower for fixed-site construction', p1Key: 'W', p2Key: 'O' },
+    { kind: 'construct', towerType: TOWER_TYPE.WEAKNESS, label: 'WEAKNESS', tooltip: 'Select weakness tower for fixed-site construction', p1Key: 'W', p2Key: 'O' },
     { kind: 'action', action: 'buildPrev', label: '< SITE', tooltip: 'Select previous eligible tower site', p1Key: 'A', p2Key: 'K' },
     { kind: 'action', action: 'buildNext', label: 'SITE >', tooltip: 'Select next eligible tower site', p1Key: 'S', p2Key: 'L' },
     { kind: 'action', action: 'buildSelected', label: 'BUILD', tooltip: 'Build selected tower at selected eligible site', p1Key: 'E', p2Key: 'P' },
@@ -116,6 +114,8 @@ export type KeyPressResult =
   | { type: 'upgrade'; upgradeType: UpgradeType }
   | { type: 'action'; action: ActionType }
   | { type: 'research'; researchType: ResearchType }
+  /** Dynamic research: UIScene maps the key to a visible research node. */
+  | { type: 'researchKey'; key: string }
   | { type: 'construct'; towerType: TowerType }
   | null;
 
@@ -182,6 +182,10 @@ export function resolveKeyPress(
         }
       }
       return null;
+    }
+
+    if (currentCategory === 'research') {
+      return { type: 'researchKey', key: upperKey };
     }
 
     const catDef = MENU_CATEGORIES.find(c => c.id === currentCategory);

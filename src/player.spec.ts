@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CONFIG } from './config';
+import { CONFIG, TOWER_TYPE } from './config';
 import { Player, createPlayer, computeMaxLevels, type PlayerConfig } from './player';
 import type { UpgradeType, TowerType } from './config';
 
@@ -285,11 +285,11 @@ describe(Player.name, () => {
 
   describe('tower research', () => {
     it('hasResearched returns false initially', () => {
-      expect(player.hasResearched('laser')).toBe(false);
-      expect(player.hasResearched('slow')).toBe(false);
+      expect(player.hasResearched(TOWER_TYPE.LASER)).toBe(false);
+      expect(player.hasResearched(TOWER_TYPE.WEAKNESS)).toBe(false);
     });
 
-    it.each(['laser', 'slow'] as TowerType[])('canResearchTower %s returns true when affordable', (type) => {
+    it.each([TOWER_TYPE.LASER, TOWER_TYPE.WEAKNESS] as TowerType[])('canResearchTower %s returns true when affordable', (type) => {
       player.gold = 9999;
       expect(player.canResearchTower(type)).toBe(true);
     });

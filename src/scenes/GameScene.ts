@@ -6,7 +6,7 @@ import type { CellEffect } from '../grid/CellEffect';
 import type { TowerSite } from '../grid';
 import type { IParticle } from '../particles';
 import { LaserTowerParticle } from '../particles/LaserTowerParticle';
-import { SlowTowerParticle } from '../particles/SlowTowerParticle';
+import { WeaknessTowerParticle } from '../particles/WeaknessTowerParticle';
 import { TowerCarrierParticle } from '../particles/TowerCarrierParticle';
 import { ParticleSpawnerTower } from '../particles/ParticleSpawnerTower';
 import { GameEngine, type GameEngineCallbacks } from '../GameEngine';
@@ -18,7 +18,7 @@ import { SCENE_KEYS } from './SceneKeys';
 export class GameScene extends Phaser.Scene implements IGameViewModel {
   static readonly TEXTURES = {
     LASER_TOWER: 'laser-tower',
-    SLOW_TOWER: 'slow-tower',
+    WEAKNESS_TOWER: 'weakness-tower',
     SPAWNER_P1: 'spawner_p1',
     SPAWNER_P2: 'spawner_p2',
     PARTICLE_P1: 'particle_p1',
@@ -122,7 +122,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   preload(): void {
     const base = import.meta.env.BASE_URL;
     this.load.image(GameScene.TEXTURES.LASER_TOWER, `${base}laser-tower.png`);
-    this.load.image(GameScene.TEXTURES.SLOW_TOWER, `${base}slow-tower.png`);
+    this.load.image(GameScene.TEXTURES.WEAKNESS_TOWER, `${base}weakness-tower.png`);
   }
 
   create(): void {
@@ -181,6 +181,10 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     return this.engine.buyNukeResearch(playerId);
   }
 
+  purchaseResearchNode(playerId: 0 | 1, nodeId: string, isPath: boolean, durationMs: number): boolean {
+    return this.engine.purchaseResearchNode(playerId, nodeId, isPath, durationMs);
+  }
+
   constructTower(playerId: 0 | 1, towerType: TowerType, siteId: number): boolean {
     return this.engine.constructTower(playerId, towerType, siteId);
   }
@@ -209,7 +213,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     return this.engine.getPendingConstruction(playerId);
   }
 
-  getTowers(playerId: 0 | 1): ReadonlyArray<LaserTowerParticle | SlowTowerParticle> {
+  getTowers(playerId: 0 | 1): ReadonlyArray<LaserTowerParticle | WeaknessTowerParticle> {
     return this.engine.towers[playerId];
   }
 
@@ -224,8 +228,8 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
   private attachVisuals(p: IParticle): void {
     const isLaserTower = p.typeName === LaserTowerParticle.TYPE_NAME;
-    const isSlowTower = p.typeName === SlowTowerParticle.TYPE_NAME;
-    const isTower = isLaserTower || isSlowTower;
+    const isWeaknessTower = p.typeName === WeaknessTowerParticle.TYPE_NAME;
+    const isTower = isLaserTower || isWeaknessTower;
     const isCarrier = p.typeName === TowerCarrierParticle.TYPE_NAME;
     const isSpawner = p.typeName === ParticleSpawnerTower.TYPE_NAME;
 
@@ -235,9 +239,9 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
       textureKey = p.owner === 0 ? T.SPAWNER_P1 : T.SPAWNER_P2;
     } else if (isTower || isCarrier) {
       const towerType = isTower
-        ? (isLaserTower ? TOWER_TYPE.LASER : TOWER_TYPE.SLOW)
+        ? (isLaserTower ? TOWER_TYPE.LASER : TOWER_TYPE.WEAKNESS)
         : (p as unknown as { towerType: TowerType }).towerType;
-      textureKey = towerType === TOWER_TYPE.LASER ? T.LASER_TOWER : T.SLOW_TOWER;
+      textureKey = towerType === TOWER_TYPE.LASER ? T.LASER_TOWER : T.WEAKNESS_TOWER;
     } else {
       textureKey = p.owner === 0 ? T.PARTICLE_P1 : T.PARTICLE_P2;
     }
@@ -340,7 +344,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     rangeGfx.setDepth(3);
     this.towerRangeGfx.push(rangeGfx);
 
-    const towerObj = tower as LaserTowerParticle | SlowTowerParticle;
+    const towerObj = tower as LaserTowerParticle | WeaknessTowerParticle;
     const range = towerObj.range;
     rangeGfx.fillStyle(color, 0.06);
     rangeGfx.fillCircle(tower.x, tower.y, range);
@@ -372,16 +376,18 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
         const towerAny = tower as unknown as { _rangeGfx?: Phaser.GameObjects.Graphics };
         if (towerAny._rangeGfx) {
           towerAny._rangeGfx.clear();
+          const rangeBonus = this.engine.players[tower.owner].getPathLevel('tower_range') * CONFIG.TOWER_RANGE_BONUS_PER_LEVEL;
+          const effectiveRange = tower.range + rangeBonus;
           if (tower.towerType === TOWER_TYPE.LASER) {
             towerAny._rangeGfx.fillStyle(color, 0.04);
-            towerAny._rangeGfx.fillCircle(tower.x, tower.y, tower.range);
+            towerAny._rangeGfx.fillCircle(tower.x, tower.y, effectiveRange);
             towerAny._rangeGfx.lineStyle(1, color, 0.2);
-            towerAny._rangeGfx.strokeCircle(tower.x, tower.y, tower.range);
+            towerAny._rangeGfx.strokeCircle(tower.x, tower.y, effectiveRange);
           } else {
             towerAny._rangeGfx.fillStyle(color, 0.1);
-            towerAny._rangeGfx.fillCircle(tower.x, tower.y, tower.range);
+            towerAny._rangeGfx.fillCircle(tower.x, tower.y, effectiveRange);
             towerAny._rangeGfx.lineStyle(2, color, 0.35);
-            towerAny._rangeGfx.strokeCircle(tower.x, tower.y, tower.range);
+            towerAny._rangeGfx.strokeCircle(tower.x, tower.y, effectiveRange);
           }
         }
 
