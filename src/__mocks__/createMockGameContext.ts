@@ -73,5 +73,16 @@ function createMinimalMockPlayer(id: 0 | 1): IPlayer {
     canPurchasePath: vi.fn(() => false),
     purchasePath: vi.fn(() => false),
     getPathCost: vi.fn(() => Infinity),
+    startTowerResearch: vi.fn(() => false),
+    startNukeResearch: vi.fn(() => false),
+    isResearching: vi.fn(() => false),
+    getResearchProgress: vi.fn(() => -1),
+    getResearchRemainingMs: vi.fn(() => 0),
+    tickResearch: vi.fn(() => []),
+    startUpgrade: vi.fn(() => false),
+    isUpgradePending: vi.fn(() => false),
+    getUpgradeProgress: vi.fn(() => -1),
+    getUpgradeRemainingMs: vi.fn(() => 0),
+    tickUpgrades: vi.fn(() => []),
   };
 }

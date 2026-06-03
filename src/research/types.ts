@@ -3,6 +3,7 @@ export type ResearchNodeMeta = {
   name: string;
   description: string;
   cost: number;
+  durationMs: number;
   requires?: string[];
 };
 

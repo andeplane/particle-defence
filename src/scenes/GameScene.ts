@@ -130,12 +130,16 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   purchaseUpgrade(playerId: 0 | 1, type: UpgradeType): boolean {
     if (this.engine.gameOver) return false;
     const cost = this.engine.players[playerId].getUpgradeCost(type);
-    const success = this.engine.players[playerId].buyUpgrade(type);
+    const success = this.engine.players[playerId].startUpgrade(type, this.engine.gameTimeMs, CONFIG.PARTICLE_UPGRADE_DURATION_MS);
     if (success) {
       this.statsRecorder.recordGoldSpent(playerId, cost);
       this.statsRecorder.recordUpgrade(playerId, type);
     }
     return success;
+  }
+
+  getPendingTowerUpgrade(playerId: 0 | 1, towerIndex: number): { progress: number; remainingMs: number } | null {
+    return this.engine.getPendingTowerUpgrade(playerId, towerIndex);
   }
 
   launchNuke(playerId: 0 | 1): boolean {
@@ -179,6 +183,10 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
   isTowerSiteOccupied(siteId: number): boolean {
     return this.engine.isTowerSiteOccupied(siteId);
+  }
+
+  getPendingConstruction(playerId: 0 | 1): { towerType: TowerType; progress: number; remainingMs: number } | null {
+    return this.engine.getPendingConstruction(playerId);
   }
 
   getTowers(playerId: 0 | 1): ReadonlyArray<LaserTowerParticle | SlowTowerParticle> {

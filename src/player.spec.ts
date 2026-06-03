@@ -299,6 +299,76 @@ describe(Player.name, () => {
     });
   });
 
+  describe('research timers (startTowerResearch / tickResearch)', () => {
+    it('startTowerResearch deducts gold and starts timer without completing', () => {
+      player.gold = 9999;
+      const cost = player.getResearchCost('laser');
+      const goldBefore = player.gold;
+      expect(player.startTowerResearch('laser', 0, 20_000)).toBe(true);
+      expect(player.gold).toBe(goldBefore - cost);
+      expect(player.hasResearched('laser')).toBe(false); // not yet done
+      expect(player.isResearching('unlock_laser')).toBe(true);
+    });
+
+    it('startTowerResearch returns false when cannot afford', () => {
+      player.gold = 0;
+      expect(player.startTowerResearch('laser', 0, 20_000)).toBe(false);
+      expect(player.isResearching('unlock_laser')).toBe(false);
+    });
+
+    it('startTowerResearch returns false when already researched', () => {
+      player.gold = 9999;
+      player.researchTower('laser'); // instant via legacy path
+      expect(player.startTowerResearch('laser', 0, 20_000)).toBe(false);
+    });
+
+    it('startTowerResearch returns false while already in progress', () => {
+      player.gold = 9999;
+      expect(player.startTowerResearch('laser', 0, 20_000)).toBe(true);
+      expect(player.startTowerResearch('laser', 0, 20_000)).toBe(false);
+    });
+
+    it('tickResearch completes research after duration elapses', () => {
+      player.gold = 9999;
+      player.startTowerResearch('laser', 0, 20_000);
+      expect(player.hasResearched('laser')).toBe(false);
+      const completed = player.tickResearch(20_001);
+      expect(completed).toContain('unlock_laser');
+      expect(player.hasResearched('laser')).toBe(true);
+      expect(player.isResearching('unlock_laser')).toBe(false);
+    });
+
+    it('tickResearch does not complete before duration', () => {
+      player.gold = 9999;
+      player.startTowerResearch('laser', 0, 20_000);
+      const completed = player.tickResearch(10_000);
+      expect(completed).toHaveLength(0);
+      expect(player.hasResearched('laser')).toBe(false);
+    });
+
+    it('getResearchProgress returns -1 before start, 0–1 during, 1 after', () => {
+      player.gold = 9999;
+      expect(player.getResearchProgress('unlock_laser', 0)).toBe(-1);
+      player.startTowerResearch('laser', 0, 20_000);
+      expect(player.getResearchProgress('unlock_laser', 10_000)).toBeCloseTo(0.5);
+      player.tickResearch(20_001);
+      expect(player.getResearchProgress('unlock_laser', 20_001)).toBe(1);
+    });
+
+    it('getResearchRemainingMs returns ms until completion', () => {
+      player.gold = 9999;
+      player.startTowerResearch('laser', 0, 20_000);
+      expect(player.getResearchRemainingMs('unlock_laser', 5_000)).toBe(15_000);
+      expect(player.getResearchRemainingMs('unlock_laser', 25_000)).toBe(0);
+    });
+
+    it('canResearchTower returns false while research timer is running', () => {
+      player.gold = 9999;
+      player.startTowerResearch('laser', 0, 20_000);
+      expect(player.canResearchTower('laser')).toBe(false);
+    });
+  });
+
   describe('tower construction cost', () => {
     it('canAffordConstruction returns true when affordable', () => {
       player.gold = 9999;
