@@ -3,7 +3,7 @@ import { CONFIG } from '../config.js';
 import { SignalingClient } from '../multiplayer/SignalingClient.js';
 import { createMenuButton } from './createMenuButton.js';
 
-type LobbyState = 'idle' | 'creating' | 'waiting_for_peer' | 'joining' | 'connected' | 'error';
+type LobbyState = 'idle' | 'creating' | 'waiting_for_peer' | 'joining' | 'negotiating' | 'connected' | 'error';
 
 export class MultiplayerLobbyScene extends Phaser.Scene {
   private signalingClient!: SignalingClient;
@@ -118,16 +118,17 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
     });
 
     this.signalingClient.on('peer_joined', () => {
-      this.state = 'connected';
-      this.setStatus('Opponent joined — starting game…');
-      this.time.delayedCall(500, () => {
-        this.launchGame('multiplayer-host');
-      });
+      // Host: guest joined — begin WebRTC negotiation immediately
+      this.state = 'negotiating';
+      this.setStatus('Opponent joined — establishing connection…');
+      this.startNegotiation('multiplayer-host');
     });
 
     this.signalingClient.on('joined', () => {
-      this.state = 'waiting_for_peer';
-      this.setStatus('Waiting for game to start…');
+      // Guest: accepted — begin WebRTC negotiation immediately (host will send offer)
+      this.state = 'negotiating';
+      this.setStatus('Accepted — establishing connection…');
+      this.startNegotiation('multiplayer-guest');
     });
 
     this.signalingClient.on('room_not_found', () => {
@@ -199,6 +200,45 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
       this.setStatus('Could not reach signaling server');
       this.state = 'idle';
     }
+  }
+
+  /** Called once signaling tells us a peer is present. Creates PeerConnection and begins ICE. */
+  private startNegotiation(_role: 'multiplayer-host' | 'multiplayer-guest'): void {
+    // PeerConnection wiring is added in T014/T019/T020.
+    // This method is a hook so the lobby can hand off to the game scene once onConnected fires.
+  }
+
+  /** Called by PeerConnection.onConnected after DataChannels are open. */
+  onPeerConnected(role: 'multiplayer-host' | 'multiplayer-guest'): void {
+    this.state = 'connected';
+    this.setStatus('Connected — starting game…');
+    this.time.delayedCall(300, () => {
+      this.launchGame(role);
+    });
+  }
+
+  /** Called by PeerConnection.onDisconnected during ICE phase (before game starts). */
+  onIceFailed(): void {
+    this.state = 'error';
+    this.setStatus('Could not establish direct connection — try again or check your network');
+    // Show retry option
+    this.addRetryButton();
+  }
+
+  private retryButton: Phaser.GameObjects.Rectangle | null = null;
+
+  private addRetryButton(): void {
+    if (this.retryButton) return;
+    const cx = CONFIG.GAME_WIDTH / 2;
+    const cy = CONFIG.GAME_HEIGHT / 2;
+    this.retryButton = createMenuButton(this, cx, cy + 90, 160, 44,
+      'Retry', 0x44aaff, () => {
+        this.retryButton?.destroy();
+        this.retryButton = null;
+        this.signalingClient.disconnect();
+        this.state = 'idle';
+        this.setStatus('');
+      });
   }
 
   private launchGame(role: 'multiplayer-host' | 'multiplayer-guest'): void {
