@@ -11,13 +11,26 @@ import { GameEngine, type GameEngineCallbacks } from '../GameEngine';
 import { MatchStatsRecorder } from '../stats';
 import type { GameMode } from './MenuScene';
 import type { IGameViewModel, TowerSelectionForRender } from './UIScene';
+import type { SignalingClient } from '../multiplayer/SignalingClient.js';
+import { PeerConnection } from '../multiplayer/PeerConnection.js';
+import { MultiplayerHost } from '../multiplayer/MultiplayerHost.js';
+import { MultiplayerGuest, type GuestSceneInterface } from '../multiplayer/MultiplayerGuest.js';
+import type { EncodedParticle, GameStateSnapshotHeader, GridSeedMessage } from '../multiplayer/types.js';
 
-export class GameScene extends Phaser.Scene implements IGameViewModel {
+export type MultiplayerMode = 'multiplayer-host' | 'multiplayer-guest';
+export type ExtendedGameMode = GameMode | MultiplayerMode;
+
+export class GameScene extends Phaser.Scene implements IGameViewModel, GuestSceneInterface {
   engine!: GameEngine;
-  mode: GameMode = 'pvp';
+  mode: ExtendedGameMode = 'pvp';
   debugSpeedMultiplier: number = 1;
   debugEverythingCheap: boolean = false;
   private statsRecorder!: MatchStatsRecorder;
+  private multiplayerHost: MultiplayerHost | null = null;
+  private multiplayerGuest: MultiplayerGuest | null = null;
+  private peerConnection: PeerConnection | null = null;
+  /** Map from particle id → sprite for guest-side rendering */
+  private guestSpriteMap = new Map<number, Phaser.GameObjects.Image>();
 
   setDebugSpeedMultiplier(speed: number): void {
     this.debugSpeedMultiplier = speed;
@@ -47,8 +60,16 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     super({ key: 'GameScene' });
   }
 
-  init(data: { mode?: GameMode; gridType?: GridType }): void {
+  init(data: {
+    mode?: ExtendedGameMode;
+    gridType?: GridType;
+    signalingClient?: SignalingClient;
+    peerConnection?: PeerConnection;
+  }): void {
     this.mode = data.mode ?? 'pvp';
+
+    const isMultiplayer = this.mode === 'multiplayer-host' || this.mode === 'multiplayer-guest';
+
     const gridType = data.gridType ?? 'random';
     const grid = generateGrid(gridType);
 
@@ -101,10 +122,44 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     this.engine = new GameEngine(grid, callbacks, {
       createAIController: this.mode === 'ai' ? (playerId: 0 | 1) => new AIController(playerId) : null,
     });
+
+    // Accept pre-established PeerConnection from MultiplayerLobbyScene (T020)
+    if (isMultiplayer && data.peerConnection) {
+      this.peerConnection = data.peerConnection;
+      this.peerConnection.onDisconnected = () => this.handleMultiplayerDisconnect();
+
+      const isHost = this.mode === 'multiplayer-host';
+      if (isHost) {
+        this.multiplayerHost = new MultiplayerHost(this.engine, this.peerConnection);
+        // Signal the guest to start (seed=0 placeholder — deterministic grids are a future enhancement)
+        const seedMsg: GridSeedMessage = { type: 'grid_seed', seed: 0 };
+        data.signalingClient?.send(seedMsg);
+      } else {
+        this.multiplayerGuest = new MultiplayerGuest(this.peerConnection, this);
+      }
+    } else if (isMultiplayer && data.signalingClient) {
+      // Fallback: create PeerConnection from signalingClient (e.g. direct navigation)
+      const isHost = this.mode === 'multiplayer-host';
+      this.peerConnection = new PeerConnection({
+        isPolite: !isHost,
+        signalingClient: data.signalingClient,
+        onMessage: () => {},
+        onInputMessage: () => {},
+        onConnected: () => {},
+        onDisconnected: () => this.handleMultiplayerDisconnect(),
+      });
+      if (isHost) {
+        this.multiplayerHost = new MultiplayerHost(this.engine, this.peerConnection);
+      } else {
+        this.multiplayerGuest = new MultiplayerGuest(this.peerConnection, this);
+      }
+    }
   }
 
   create(): void {
-    this.engine.init(this.mode === 'ai');
+    const isAI = this.mode === 'ai';
+    const isGuest = this.mode === 'multiplayer-guest';
+    this.engine.init(isAI ? 'single' : 'none');
 
     this.renderMaze();
     this.renderBases();
@@ -116,6 +171,10 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     this.towerSiteGfx = this.add.graphics();
     this.towerSiteGfx.setDepth(4);
 
+    if (isGuest) {
+      // Guest rendering is driven by MultiplayerGuest; skip UIScene for now
+      // (full UI integration is a future enhancement)
+    }
     this.scene.launch('UIScene', { viewModel: this as IGameViewModel, mode: this.mode });
   }
 
@@ -183,11 +242,93 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
   update(_time: number, delta: number): void {
     const spedDelta = delta * this.debugSpeedMultiplier;
+
+    if (this.mode === 'multiplayer-guest') {
+      // Guest: don't run physics — render from received snapshots
+      this.multiplayerGuest?.renderAtDelay();
+      this.renderCellEffects();
+      this.renderTowerSites();
+      this.renderTowerEffects();
+      return;
+    }
+
     this.engine.tick(spedDelta);
     this.statsRecorder.tick(spedDelta, this.engine.particles, this.engine.players);
+
+    if (this.mode === 'multiplayer-host') {
+      this.multiplayerHost?.sendSnapshot();
+    }
+
     this.renderCellEffects();
     this.renderTowerSites();
     this.renderTowerEffects();
+  }
+
+  // --- GuestSceneInterface implementation ---
+
+  updateParticleSprites(particles: EncodedParticle[]): void {
+    for (const p of particles) {
+      let sprite = this.guestSpriteMap.get(p.id);
+      if (!sprite) {
+        // Create new sprite — we don't know owner; use a generic texture
+        sprite = this.add.image(p.x, p.y, 'particle_p2');
+        sprite.setDepth(5);
+        sprite.setBlendMode(Phaser.BlendModes.ADD);
+        this.guestSpriteMap.set(p.id, sprite);
+      }
+      sprite.setPosition(p.x, p.y);
+    }
+  }
+
+  updatePlayerStats(_header: GameStateSnapshotHeader): void {
+    // HP bars and gold are updated by UIScene which reads from engine.players;
+    // for the guest, the UIScene needs to be wired to read from the snapshot header.
+    // Full UI integration is a future enhancement.
+  }
+
+  removeDeadParticles(aliveIds: Set<number>): void {
+    for (const [id, sprite] of this.guestSpriteMap) {
+      if (!aliveIds.has(id)) {
+        sprite.destroy();
+        this.guestSpriteMap.delete(id);
+      }
+    }
+  }
+
+  private handleMultiplayerDisconnect(): void {
+    if (this.engine.gameOver) return;
+
+    // Show overlay and return to menu after 3s
+    const cx = CONFIG.GAME_WIDTH / 2;
+    const cy = CONFIG.GAME_HEIGHT / 2;
+    this.add.rectangle(cx, cy, 500, 120, 0x000000, 0.85).setDepth(100);
+    this.add.text(cx, cy - 20, 'Opponent disconnected', {
+      fontSize: '28px',
+      color: '#ff4444',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(101);
+
+    let countdown = 3;
+    const countText = this.add.text(cx, cy + 20, `Returning to menu in ${countdown}…`, {
+      fontSize: '18px',
+      color: '#aaaaaa',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(101);
+
+    const timer = this.time.addEvent({
+      delay: 1000,
+      repeat: 2,
+      callback: () => {
+        countdown--;
+        countText.setText(countdown > 0 ? `Returning to menu in ${countdown}…` : 'Returning…');
+        if (countdown <= 0) {
+          timer.remove();
+          this.peerConnection?.disconnect();
+          this.scene.stop('UIScene');
+          this.scene.start('MenuScene');
+        }
+      },
+    });
   }
 
   private attachVisuals(p: IParticle): void {
