@@ -40,9 +40,17 @@ export class MenuScene extends Phaser.Scene {
         '2 Player', CONFIG.PLAYER2_COLOR, () => this.startGame('pvp'));
     }
 
-    const howToPlayY = mobile
+    const multiplayerY = mobile
       ? centerY + gap + btnH - 20
       : centerY + 2 * (gap + btnH) - 20;
+    if (!mobile) {
+      createMenuButton(this, centerX, multiplayerY, btnW, btnH,
+        'Multiplayer', 0x44aaff, () => this.scene.start('MultiplayerLobbyScene'));
+    }
+
+    const howToPlayY = mobile
+      ? centerY + gap + btnH - 20
+      : centerY + 3 * (gap + btnH) - 20;
     createMenuButton(this, centerX, howToPlayY, btnW, btnH,
       'How to Play', 0x88aa88, () => this.scene.start('HowToPlayScene'));
 
@@ -51,10 +59,11 @@ export class MenuScene extends Phaser.Scene {
         const key = event.key.toUpperCase();
         if (key === '1') this.startGame('ai');
         if (key === '2') this.startGame('pvp');
-        if (key === 'H' || key === '3') this.scene.start('HowToPlayScene');
+        if (key === 'M' || key === '3') this.scene.start('MultiplayerLobbyScene');
+        if (key === 'H' || key === '4') this.scene.start('HowToPlayScene');
       });
 
-      this.add.text(centerX, centerY + 180, '[1] vs AI  [2] 2 Player  [H] How to Play', {
+      this.add.text(centerX, centerY + 280, '[1] vs AI  [2] 2 Player  [M] Multiplayer  [H] How to Play', {
         fontSize: `${CONFIG.UI_FONT_SMALL}px`,
         color: '#666666',
         fontFamily: 'monospace',

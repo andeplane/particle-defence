@@ -12,7 +12,6 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
   private statusText!: Phaser.GameObjects.Text;
   private roomCodeText!: Phaser.GameObjects.Text;
   private joinInput!: HTMLInputElement;
-  private joinInputEl: Phaser.GameObjects.DOMElement | null = null;
   private joinErrorText!: Phaser.GameObjects.Text;
 
   constructor() {
@@ -77,7 +76,7 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
       this.joinInput.value = this.joinInput.value.toUpperCase();
     });
 
-    this.joinInputEl = this.add.dom(cx + 200, cy - 80, this.joinInput);
+    this.add.dom(cx + 200, cy - 80, this.joinInput);
 
     createMenuButton(this, cx + 200, cy, 220, 50,
       'Join Room', CONFIG.PLAYER2_COLOR, () => this.joinRoom());

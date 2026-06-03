@@ -14,7 +14,8 @@ export type SignalingEventMap = {
 };
 
 type Handler<T> = (payload: T) => void;
-type HandlerMap = { [K in keyof SignalingEventMap]?: Handler<SignalingEventMap[K]>[] };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type HandlerMap = { [K in keyof SignalingEventMap]?: Handler<any>[] };
 
 export class SignalingClient {
   private ws: WebSocket | null = null;
@@ -22,8 +23,8 @@ export class SignalingClient {
 
   connect(url: string): void {
     this.ws = new WebSocket(url);
-    this.ws.addEventListener('open', () => this.emit('open', {} as never));
-    this.ws.addEventListener('close', () => this.emit('close', {} as never));
+    this.ws.addEventListener('open', () => this.emit('open', {}));
+    this.ws.addEventListener('close', () => this.emit('close', {}));
     this.ws.addEventListener('message', (ev: MessageEvent<string>) => {
       let msg: { type: keyof SignalingEventMap } & Record<string, unknown>;
       try {
@@ -31,7 +32,7 @@ export class SignalingClient {
       } catch {
         return;
       }
-      this.emit(msg.type, msg as never);
+      this.emit(msg.type, msg);
     });
   }
 
@@ -45,13 +46,13 @@ export class SignalingClient {
 
   on<K extends keyof SignalingEventMap>(type: K, handler: Handler<SignalingEventMap[K]>): void {
     if (!this.handlers[type]) this.handlers[type] = [];
-    (this.handlers[type] as Handler<SignalingEventMap[K]>[]).push(handler);
+    this.handlers[type]!.push(handler);
   }
 
   off<K extends keyof SignalingEventMap>(type: K, handler: Handler<SignalingEventMap[K]>): void {
-    const list = this.handlers[type] as Handler<SignalingEventMap[K]>[] | undefined;
+    const list = this.handlers[type];
     if (list) {
-      this.handlers[type] = list.filter(h => h !== handler) as typeof list;
+      this.handlers[type] = list.filter(h => h !== handler);
     }
   }
 
@@ -66,7 +67,7 @@ export class SignalingClient {
     this.ws = null;
   }
 
-  private emit<K extends keyof SignalingEventMap>(type: K, payload: SignalingEventMap[K]): void {
+  private emit(type: keyof SignalingEventMap, payload: unknown): void {
     const list = this.handlers[type];
     if (list) {
       for (const h of list) {
