@@ -60,7 +60,12 @@ export class GameScene extends Phaser.Scene implements IGameViewModel, GuestScen
     super({ key: 'GameScene' });
   }
 
-  init(data: { mode?: ExtendedGameMode; gridType?: GridType; signalingClient?: SignalingClient; gridSeed?: number }): void {
+  init(data: {
+    mode?: ExtendedGameMode;
+    gridType?: GridType;
+    signalingClient?: SignalingClient;
+    peerConnection?: PeerConnection;
+  }): void {
     this.mode = data.mode ?? 'pvp';
 
     const isMultiplayer = this.mode === 'multiplayer-host' || this.mode === 'multiplayer-guest';
@@ -118,8 +123,22 @@ export class GameScene extends Phaser.Scene implements IGameViewModel, GuestScen
       createAIController: this.mode === 'ai' ? (playerId: 0 | 1) => new AIController(playerId) : null,
     });
 
-    // Set up PeerConnection for multiplayer modes
-    if (isMultiplayer && data.signalingClient) {
+    // Accept pre-established PeerConnection from MultiplayerLobbyScene (T020)
+    if (isMultiplayer && data.peerConnection) {
+      this.peerConnection = data.peerConnection;
+      this.peerConnection.onDisconnected = () => this.handleMultiplayerDisconnect();
+
+      const isHost = this.mode === 'multiplayer-host';
+      if (isHost) {
+        this.multiplayerHost = new MultiplayerHost(this.engine, this.peerConnection);
+        // Signal the guest to start (seed=0 placeholder — deterministic grids are a future enhancement)
+        const seedMsg: GridSeedMessage = { type: 'grid_seed', seed: 0 };
+        data.signalingClient?.send(seedMsg);
+      } else {
+        this.multiplayerGuest = new MultiplayerGuest(this.peerConnection, this);
+      }
+    } else if (isMultiplayer && data.signalingClient) {
+      // Fallback: create PeerConnection from signalingClient (e.g. direct navigation)
       const isHost = this.mode === 'multiplayer-host';
       this.peerConnection = new PeerConnection({
         isPolite: !isHost,
@@ -129,13 +148,8 @@ export class GameScene extends Phaser.Scene implements IGameViewModel, GuestScen
         onConnected: () => {},
         onDisconnected: () => this.handleMultiplayerDisconnect(),
       });
-
       if (isHost) {
         this.multiplayerHost = new MultiplayerHost(this.engine, this.peerConnection);
-        // Signal the guest to start via a grid_seed message (seed=0 placeholder until
-        // generateGrid supports deterministic seeds).
-        const seedMsg: GridSeedMessage = { type: 'grid_seed', seed: 0 };
-        data.signalingClient.send(seedMsg);
       } else {
         this.multiplayerGuest = new MultiplayerGuest(this.peerConnection, this);
       }

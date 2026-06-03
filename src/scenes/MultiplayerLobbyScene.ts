@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
 import { CONFIG } from '../config.js';
 import { SignalingClient } from '../multiplayer/SignalingClient.js';
+import { PeerConnection } from '../multiplayer/PeerConnection.js';
 import { createMenuButton } from './createMenuButton.js';
 
 type LobbyState = 'idle' | 'creating' | 'waiting_for_peer' | 'joining' | 'negotiating' | 'connected' | 'error';
 
 export class MultiplayerLobbyScene extends Phaser.Scene {
   private signalingClient!: SignalingClient;
+  private peerConnection: PeerConnection | null = null;
   private state: LobbyState = 'idle';
 
   private statusText!: Phaser.GameObjects.Text;
@@ -203,9 +205,17 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
   }
 
   /** Called once signaling tells us a peer is present. Creates PeerConnection and begins ICE. */
-  private startNegotiation(_role: 'multiplayer-host' | 'multiplayer-guest'): void {
-    // PeerConnection wiring is added in T014/T019/T020.
-    // This method is a hook so the lobby can hand off to the game scene once onConnected fires.
+  private startNegotiation(role: 'multiplayer-host' | 'multiplayer-guest'): void {
+    const isPolite = role === 'multiplayer-guest';
+
+    this.peerConnection = new PeerConnection({
+      isPolite,
+      signalingClient: this.signalingClient,
+      onMessage: () => {},
+      onInputMessage: () => {},
+      onConnected: () => this.onPeerConnected(role),
+      onDisconnected: () => this.onIceFailed(),
+    });
   }
 
   /** Called by PeerConnection.onConnected after DataChannels are open. */
@@ -242,9 +252,16 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
   }
 
   private launchGame(role: 'multiplayer-host' | 'multiplayer-guest'): void {
-    // Clean up DOM input before navigating
     this.joinInput.remove();
-    this.scene.start('GameScene', { mode: role, signalingClient: this.signalingClient });
+    // Pass the already-established PeerConnection to GameScene.
+    // GameScene takes ownership; lobby clears its reference.
+    const pc = this.peerConnection;
+    this.peerConnection = null;
+    this.scene.start('GameScene', {
+      mode: role,
+      signalingClient: this.signalingClient,
+      peerConnection: pc,
+    });
   }
 
   private goBack(): void {
