@@ -1,5 +1,11 @@
 # Tower Defence Game - Agent Documentation
 
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
+
+
 ## Overview
 A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players spawn particles from their bases that navigate through procedurally generated mazes to attack the enemy base. The game features an upgrade system, nuclear weapons, and real-time particle combat. Supports **1 Player vs AI** and **2 Player** modes selected from the main menu.
 
