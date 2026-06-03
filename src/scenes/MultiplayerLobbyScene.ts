@@ -149,7 +149,9 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
     });
 
     this.signalingClient.on('peer_left', () => {
-      if (this.state === 'waiting_for_peer') {
+      if (this.state === 'waiting_for_peer' || this.state === 'negotiating') {
+        this.peerConnection?.disconnect();
+        this.peerConnection = null;
         this.setStatus('Room closed — opponent left');
         this.state = 'idle';
         this.roomCodeText.setText('');
