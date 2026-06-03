@@ -161,6 +161,31 @@ npm run build
 
 ---
 
+## Load Testing (≥50 Concurrent Rooms)
+
+The signaling server is designed to handle at least 50 concurrent rooms.
+A Node.js load test script is included in `server/load-test.js`.
+
+```bash
+# Start the signaling server first
+cd server && npm run dev
+
+# In another terminal, run the load test (50 rooms, default)
+node server/load-test.js
+
+# Custom: 100 rooms on a deployed server
+node server/load-test.js 100 wss://your-server.example.com
+```
+
+Results are printed to stdout and written to `server/LOAD-TEST-RESULTS.md`.
+
+Expected results on a local server:
+- All 50 rooms registered within 1–2 seconds
+- Zero timeouts
+- All room codes are unique (6-char alphanumeric)
+
+---
+
 ## Running Tests
 
 ```bash
