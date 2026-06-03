@@ -33,6 +33,24 @@ export function getTabContent(tabId: TabId): ContentSection[] {
 function getOverviewSections(): ContentSection[] {
   return [
     {
+      title: 'Multiplayer (Online)',
+      lines: [
+        'Play against another player online using WebRTC P2P.',
+        '',
+        'HOST: Click Multiplayer → Create Room.',
+        '  A 6-character room code appears. Share it with your opponent.',
+        '',
+        'GUEST: Click Multiplayer → Join Room.',
+        '  Enter the room code. Click Join Room.',
+        '',
+        'Once both players connect, the game starts automatically.',
+        'The host runs the authoritative simulation; the guest renders',
+        'a synchronized view sent from the host.',
+        '',
+        'If your opponent disconnects, you will be returned to the menu.',
+      ],
+    },
+    {
       title: 'How to Win',
       lines: [
         'Each player has a base with ' + CONFIG.BASE_HP + ' HP.',
