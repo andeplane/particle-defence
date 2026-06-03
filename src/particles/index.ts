@@ -4,4 +4,5 @@ export { BasicParticle } from './BasicParticle';
 export { TowerCarrierParticle } from './TowerCarrierParticle';
 export { LaserTowerParticle, getLaserStatsAtLevel } from './LaserTowerParticle';
 export { SlowTowerParticle, getSlowStatsAtLevel } from './SlowTowerParticle';
+export { ParticleSpawnerTower } from './ParticleSpawnerTower';
 export type { GameContext } from './GameContext';

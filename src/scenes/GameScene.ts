@@ -195,9 +195,12 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     const isSlowTower = p.typeName === 'slowTower';
     const isTower = isLaserTower || isSlowTower;
     const isCarrier = p.typeName === 'towerCarrier';
+    const isSpawner = p.typeName === 'spawnerTower';
 
     let textureKey: string;
-    if (isTower || isCarrier) {
+    if (isSpawner) {
+      textureKey = p.owner === 0 ? 'spawner_p1' : 'spawner_p2';
+    } else if (isTower || isCarrier) {
       const towerType = isTower
         ? (isLaserTower ? 'laser' : 'slow')
         : (p as unknown as { towerType: TowerType }).towerType;
@@ -208,11 +211,18 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     }
 
     const sprite = this.add.image(p.x, p.y, textureKey);
-    const scale = (isTower || isCarrier) ? (p.radius * 2.5) / 64 : (p.radius * 2) / 64;
+    const scale = (isTower || isCarrier || isSpawner) ? (p.radius * 2.5) / 64 : (p.radius * 2) / 64;
     sprite.setScale(scale);
-    sprite.setDepth(isTower ? 6 : 5);
+    sprite.setDepth(isTower || isSpawner ? 6 : 5);
     sprite.setBlendMode(Phaser.BlendModes.ADD);
     p.sprite = sprite;
+
+    if (isSpawner) {
+      this.tweens.add({
+        targets: sprite, alpha: { from: 0.5, to: 1 },
+        duration: 800, yoyo: true, repeat: -1, ease: 'Sine.inOut',
+      });
+    }
 
     if (isCarrier) {
       this.tweens.add({
@@ -254,6 +264,50 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
         }
       }
     }
+
+    if (!this.textures.exists('spawner_p1')) this.createSpawnerTexture('spawner_p1', CONFIG.PLAYER1_COLOR);
+    if (!this.textures.exists('spawner_p2')) this.createSpawnerTexture('spawner_p2', CONFIG.PLAYER2_COLOR);
+  }
+
+  private createSpawnerTexture(key: string, color: number): void {
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+
+    const r = (color >> 16) & 0xff;
+    const g = (color >> 8) & 0xff;
+    const b = color & 0xff;
+    const cx = size / 2;
+    const cy = size / 2;
+
+    // Outer glow
+    const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, size / 2);
+    gradient.addColorStop(0, `rgba(255, 255, 255, 1)`);
+    gradient.addColorStop(0.18, `rgba(${r}, ${g}, ${b}, 1)`);
+    gradient.addColorStop(0.45, `rgba(${r}, ${g}, ${b}, 0.45)`);
+    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Star rays
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 1)`;
+    for (let i = 0; i < 6; i++) {
+      ctx.save();
+      ctx.rotate((i * Math.PI) / 3);
+      ctx.fillRect(-1.5, -size * 0.42, 3, size * 0.22);
+      ctx.restore();
+    }
+    ctx.restore();
+
+    if (this.textures.exists(key)) this.textures.remove(key);
+    this.textures.addCanvas(key, canvas);
   }
 
   private createLaserTexture(key: string, color: number): void {
@@ -467,7 +521,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     base2.strokeRect(CONFIG.GAME_WIDTH - baseW, 0, baseW, CONFIG.GAME_HEIGHT);
     base2.setDepth(1);
 
-    this.add.text(baseW / 2, CONFIG.GAME_HEIGHT / 2, 'P1\nBASE', {
+    this.add.text(baseW / 2, CONFIG.GAME_HEIGHT / 2 - 96, 'P1\nBASE', {
       fontSize: '28px',
       color: CONFIG.PLAYER1_COLOR_STR,
       align: 'center',
@@ -475,7 +529,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     }).setOrigin(0.5).setAlpha(0.5).setDepth(2);
 
     const p2Label = this.mode === 'ai' ? 'AI\nBASE' : 'P2\nBASE';
-    this.add.text(CONFIG.GAME_WIDTH - baseW / 2, CONFIG.GAME_HEIGHT / 2, p2Label, {
+    this.add.text(CONFIG.GAME_WIDTH - baseW / 2, CONFIG.GAME_HEIGHT / 2 - 96, p2Label, {
       fontSize: '28px',
       color: CONFIG.PLAYER2_COLOR_STR,
       align: 'center',

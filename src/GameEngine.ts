@@ -3,6 +3,7 @@ import { AIController, type AIGameState } from './ai';
 import { BasicParticle, type IParticle, type GameContext, TowerCarrierParticle } from './particles';
 import { LaserTowerParticle } from './particles/LaserTowerParticle';
 import { SlowTowerParticle } from './particles/SlowTowerParticle';
+import { ParticleSpawnerTower } from './particles/ParticleSpawnerTower';
 import { createPlayer, type IPlayer } from './player';
 import { SpatialHash, type ISpatialHash } from './spatial-hash';
 import { resolveCollisions, type CollisionResult } from './collision';
@@ -67,6 +68,8 @@ export class GameEngine implements AIGameState {
   carriers: [TowerCarrierParticle | null, TowerCarrierParticle | null] = [null, null];
   /** Placed towers per player. */
   towers: [Array<LaserTowerParticle | SlowTowerParticle>, Array<LaserTowerParticle | SlowTowerParticle>] = [[], []];
+  /** Indestructible spawner towers per player. */
+  spawnerTowers: [ParticleSpawnerTower[], ParticleSpawnerTower[]] = [[], []];
 
   private readonly deps: GameEngineDependencies;
   private readonly callbacks: GameEngineCallbacks;
@@ -96,6 +99,16 @@ export class GameEngine implements AIGameState {
     this.gameTimeMs = 0;
     this.carriers = [null, null];
     this.towers = [[], []];
+    this.spawnerTowers = [[], []];
+
+    for (const slot of this.grid.spawnerSlots) {
+      const x = (slot.col + 0.5) * this.grid.cellW;
+      const y = (slot.row + 0.5) * this.grid.cellH;
+      const spawner = new ParticleSpawnerTower(x, y, slot.playerId);
+      this.spawnerTowers[slot.playerId].push(spawner);
+      this.particles.push(spawner);
+      this.callbacks.onParticleSpawned(spawner);
+    }
 
     this.aiControllers = [];
     if (aiMode === 'none') return;
@@ -179,22 +192,31 @@ export class GameEngine implements AIGameState {
     const totalAlive = this.particles.filter(p => p.alive).length;
     if (count >= player.maxParticles || totalAlive >= this.deps.maxParticlesTotal) return;
 
-    const baseW = this.grid.baseWidthCells * this.grid.cellW;
-    let x = owner === 0 ? baseW / 2 : CONFIG.GAME_WIDTH - baseW / 2;
-    let y = CONFIG.GAME_HEIGHT / 2;
-    const maxAttempts = 50;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      if (owner === 0) {
-        x = baseW * 0.2 + Math.random() * baseW * 0.6;
-      } else {
-        x = CONFIG.GAME_WIDTH - baseW + baseW * 0.2 + Math.random() * baseW * 0.6;
-      }
-      y = CONFIG.GAME_HEIGHT * 0.2 + Math.random() * CONFIG.GAME_HEIGHT * 0.6;
-      if (!this.grid.isWall(x, y)) break;
-    }
-    if (this.grid.isWall(x, y)) {
+    const spawners = this.spawnerTowers[owner];
+    let x: number;
+    let y: number;
+
+    if (spawners.length > 0) {
+      const spawner = spawners[Math.floor(Math.random() * spawners.length)];
+      x = spawner.x;
+      y = spawner.y;
+    } else {
+      const baseW = this.grid.baseWidthCells * this.grid.cellW;
       x = owner === 0 ? baseW / 2 : CONFIG.GAME_WIDTH - baseW / 2;
       y = CONFIG.GAME_HEIGHT / 2;
+      for (let attempt = 0; attempt < 50; attempt++) {
+        if (owner === 0) {
+          x = baseW * 0.2 + Math.random() * baseW * 0.6;
+        } else {
+          x = CONFIG.GAME_WIDTH - baseW + baseW * 0.2 + Math.random() * baseW * 0.6;
+        }
+        y = CONFIG.GAME_HEIGHT * 0.2 + Math.random() * CONFIG.GAME_HEIGHT * 0.6;
+        if (!this.grid.isWall(x, y)) break;
+      }
+      if (this.grid.isWall(x, y)) {
+        x = owner === 0 ? baseW / 2 : CONFIG.GAME_WIDTH - baseW / 2;
+        y = CONFIG.GAME_HEIGHT / 2;
+      }
     }
 
     const p = this.deps.createParticle(
@@ -220,7 +242,7 @@ export class GameEngine implements AIGameState {
     let killCount = 0;
     for (const p of this.particles) {
       if (!p.alive) continue;
-      if (p.owner === enemyId) {
+      if (p.owner === enemyId && p.typeName !== 'spawnerTower') {
         p.leaveCurrentCell(context);
         p.destroy();
         killCount++;

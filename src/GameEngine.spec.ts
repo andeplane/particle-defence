@@ -310,4 +310,102 @@ describe(GameEngine.name, () => {
       expect(mockP.towerSlowFactor).toBe(1);
     });
   });
+
+  describe('spawner towers', () => {
+    const spawnerSlots = [
+      { playerId: 0 as const, col: 2, row: 2 },
+      { playerId: 0 as const, col: 2, row: 4 },
+      { playerId: 0 as const, col: 2, row: 6 },
+      { playerId: 1 as const, col: 13, row: 2 },
+      { playerId: 1 as const, col: 13, row: 4 },
+      { playerId: 1 as const, col: 13, row: 6 },
+    ];
+
+    function createSpawnerEngine() {
+      const callbacks = { ...noopCallbacks, onParticleSpawned: vi.fn() };
+      const engine = new GameEngine(
+        createMockGrid({ spawnerSlots }),
+        callbacks,
+        { createPlayer: (id) => createPlayer(id, { ...noSpawnConfig, startingGold: 100 }) },
+      );
+      engine.init(false);
+      return { engine, callbacks };
+    }
+
+    it('creates 3 spawner towers per player after init', () => {
+      const { engine } = createSpawnerEngine();
+      expect(engine.spawnerTowers[0]).toHaveLength(3);
+      expect(engine.spawnerTowers[1]).toHaveLength(3);
+    });
+
+    it('spawner towers are positioned at slot pixel centers', () => {
+      const { engine } = createSpawnerEngine();
+      expect(engine.spawnerTowers[0][0].x).toBe((2 + 0.5) * 32);
+      expect(engine.spawnerTowers[0][0].y).toBe((2 + 0.5) * 32);
+    });
+
+    it('spawner towers are added to particles', () => {
+      const { engine, callbacks } = createSpawnerEngine();
+      expect(engine.particles.filter(p => p.typeName === 'spawnerTower')).toHaveLength(6);
+      expect(callbacks.onParticleSpawned).toHaveBeenCalledTimes(6);
+    });
+
+    it('spawnParticle uses a spawner tower position', () => {
+      const spawnedPositions: Array<{ x: number; y: number }> = [];
+      const engine = new GameEngine(
+        createMockGrid({ spawnerSlots }),
+        { ...noopCallbacks, onParticleSpawned: vi.fn() },
+        {
+          createPlayer: (id) => createPlayer(id, { ...noSpawnConfig, maxParticlesPerPlayer: 10, startingGold: 100 }),
+          createParticle: (x, y) => {
+            spawnedPositions.push({ x, y });
+            return createMockParticle({ alive: true, owner: 0 });
+          },
+        },
+      );
+      engine.init(false);
+      spawnedPositions.length = 0;
+
+      engine.spawnParticle(0);
+
+      expect(spawnedPositions).toHaveLength(1);
+      const spawnerXs = spawnerSlots.filter(s => s.playerId === 0).map(s => (s.col + 0.5) * 32);
+      const spawnerYs = spawnerSlots.filter(s => s.playerId === 0).map(s => (s.row + 0.5) * 32);
+      expect(spawnerXs).toContain(spawnedPositions[0].x);
+      expect(spawnerYs).toContain(spawnedPositions[0].y);
+    });
+
+    it('spawnParticle falls back to random base when spawner array is empty', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.5);
+      const spawnedPositions: Array<{ x: number; y: number }> = [];
+      const engine = new GameEngine(
+        createMockGrid(),
+        { ...noopCallbacks, onParticleSpawned: vi.fn() },
+        {
+          createPlayer: (id) => createPlayer(id, { ...noSpawnConfig, maxParticlesPerPlayer: 10, startingGold: 100 }),
+          createParticle: (x, y) => {
+            spawnedPositions.push({ x, y });
+            return createMockParticle({ alive: true, owner: 0 });
+          },
+        },
+      );
+      engine.init(false);
+      spawnedPositions.length = 0;
+
+      engine.spawnParticle(0);
+
+      expect(spawnedPositions).toHaveLength(1);
+      vi.restoreAllMocks();
+    });
+
+    it('launchNuke does not kill spawner towers', () => {
+      const { engine } = createSpawnerEngine();
+      engine.buyNukeResearch(0);
+      engine.tick(CONFIG.NUCLEAR_FIRST_AVAILABLE_MS + 1);
+
+      engine.launchNuke(0);
+
+      expect(engine.spawnerTowers[1].every(t => t.alive)).toBe(true);
+    });
+  });
 });

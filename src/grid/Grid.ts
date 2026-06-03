@@ -1,4 +1,7 @@
 import { CONFIG } from '../config';
+import type { BaseTowerSlot } from './baseTowerSites';
+
+export type { BaseTowerSlot };
 
 export interface TowerSite {
   readonly id: number;
@@ -12,6 +15,7 @@ export interface IGrid {
   readonly baseWidthCells: number;
   readonly cells: boolean[][];
   readonly towerSites: readonly TowerSite[];
+  readonly spawnerSlots: readonly BaseTowerSlot[];
   readonly cellW: number;
   readonly cellH: number;
   isWall(px: number, py: number): boolean;
@@ -25,6 +29,7 @@ export class Grid implements IGrid {
   readonly baseWidthCells: number;
   readonly cells: boolean[][];
   readonly towerSites: readonly TowerSite[];
+  readonly spawnerSlots: readonly BaseTowerSlot[];
   private readonly gameWidth: number;
   private readonly gameHeight: number;
 
@@ -36,6 +41,7 @@ export class Grid implements IGrid {
     gameWidth: number = CONFIG.GAME_WIDTH,
     gameHeight: number = CONFIG.GAME_HEIGHT,
     towerSites: readonly TowerSite[] = [],
+    spawnerSlots: readonly BaseTowerSlot[] = [],
   ) {
     this.cols = cols;
     this.rows = rows;
@@ -44,6 +50,7 @@ export class Grid implements IGrid {
     this.gameWidth = gameWidth;
     this.gameHeight = gameHeight;
     this.towerSites = towerSites;
+    this.spawnerSlots = spawnerSlots;
   }
 
   get cellW(): number {

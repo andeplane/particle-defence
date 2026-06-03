@@ -1,6 +1,7 @@
 import { CONFIG } from '../../config';
 import { Grid } from '../Grid';
 import { applyTowerSites } from '../towerSites';
+import { createBaseTowerSlots } from '../baseTowerSites';
 import { ensurePathExists } from './ensurePath';
 
 export type RoomsGridParams = {
@@ -31,7 +32,8 @@ export function generateRoomsGrid(overrides?: Partial<RoomsGridParams>): Grid {
   const cells = createRoomsCells(p.cols, p.rows, p.baseWidth);
   ensurePathExists(cells, p.cols, p.rows, p.baseWidth);
   const towerSites = applyTowerSites(cells, p.cols, p.rows, p.baseWidth);
-  return new Grid(p.cols, p.rows, p.baseWidth, cells, p.gameWidth, p.gameHeight, towerSites);
+  const spawnerSlots = createBaseTowerSlots(p.cols, p.rows, p.baseWidth);
+  return new Grid(p.cols, p.rows, p.baseWidth, cells, p.gameWidth, p.gameHeight, towerSites, spawnerSlots);
 }
 
 function createRoomsCells(cols: number, rows: number, baseWidth: number): boolean[][] {
