@@ -588,26 +588,22 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     }
 
     for (const site of grid.towerSites) {
+      const occupied = this.engine.isTowerSiteOccupied(site.id);
+      if (occupied) continue;
+
       const centerX = (site.col + 0.5) * grid.cellW;
       const centerY = (site.row + 0.5) * grid.cellH;
       const size = Math.min(grid.cellW, grid.cellH) * 0.72;
       const half = size / 2;
-      const occupied = this.engine.isTowerSiteOccupied(site.id);
       const selected = selectedSiteIds.has(site.id);
 
       this.towerSiteGfx.lineStyle(selected ? 4 : 2, selected ? 0xffffff : 0xffdd66, selected ? 0.95 : 0.65);
       this.towerSiteGfx.strokeRect(centerX - half, centerY - half, size, size);
-      this.towerSiteGfx.lineStyle(2, occupied ? 0x66ff66 : 0xffdd66, occupied ? 0.9 : 0.5);
+      this.towerSiteGfx.lineStyle(2, 0xffdd66, 0.5);
       this.towerSiteGfx.lineBetween(centerX - half * 0.6, centerY, centerX + half * 0.6, centerY);
       this.towerSiteGfx.lineBetween(centerX, centerY - half * 0.6, centerX, centerY + half * 0.6);
 
-      if (occupied) {
-        this.towerSiteGfx.fillStyle(0x66ff66, 0.18);
-      } else if (selected) {
-        this.towerSiteGfx.fillStyle(0xffffff, 0.14);
-      } else {
-        this.towerSiteGfx.fillStyle(0xffdd66, 0.08);
-      }
+      this.towerSiteGfx.fillStyle(selected ? 0xffffff : 0xffdd66, selected ? 0.14 : 0.08);
       this.towerSiteGfx.fillRect(centerX - half, centerY - half, size, size);
     }
   }
