@@ -120,8 +120,9 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   }
 
   preload(): void {
-    this.load.image(GameScene.TEXTURES.LASER_TOWER, 'laser-tower.png');
-    this.load.image(GameScene.TEXTURES.SLOW_TOWER, 'slow-tower.png');
+    const base = import.meta.env.BASE_URL;
+    this.load.image(GameScene.TEXTURES.LASER_TOWER, `${base}laser-tower.png`);
+    this.load.image(GameScene.TEXTURES.SLOW_TOWER, `${base}slow-tower.png`);
   }
 
   create(): void {
