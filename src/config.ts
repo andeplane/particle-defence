@@ -34,18 +34,18 @@ export const CONFIG = {
   PARTICLE_BASE_ATTACK: 2,
   /** HP gained per health upgrade level (< 1.0 gives diminishing returns vs attack) */
   HEALTH_PER_LEVEL: 0.8,
-  /** Damage gained per attack upgrade level (> 1.0 makes attack scale faster than health) */
+  /** Damage gained per attack upgrade level */
   ATTACK_PER_LEVEL: 1.2,
   /** % max HP bonus scales attack multiplicatively: dmg = atk * (1 + scale * targetHP/baseHP) */
   PERCENT_HP_DAMAGE_SCALING: 0.05,
   /** Bonus damage multiplier per 100% speed advantage over target (speed combat mechanic) */
-  SPEED_COMBAT_BONUS: 0.4,
+  SPEED_COMBAT_BONUS: 0.3,
   /** How strongly defense reduces HP scaling penalty (defense * factor reduces the HP scaling bonus) */
   DEFENSE_HP_SCALING_REDUCTION: 4.5,
   /** Per-level defense bonus applied globally (outside owned cells). Much smaller than cell-based. */
   GLOBAL_DEFENSE_PER_LEVEL: 0.018,
   /** Max global defense bonus (outside owned cells) */
-  GLOBAL_DEFENSE_MAX: 0.18,
+  GLOBAL_DEFENSE_MAX: 0.25,
   PARTICLE_BASE_RADIUS: 3,
   PARTICLE_SPEED: 180,
   SPAWN_INTERVAL_MS: 200,
@@ -141,7 +141,7 @@ export const CONFIG = {
   /** Per-level defense bonus increase from upgrade */
   OWNERSHIP_DEFENSE_PER_LEVEL: 0.02,
   /** Max total defense bonus (base + upgrade) */
-  OWNERSHIP_DEFENSE_MAX: 0.30,
+  OWNERSHIP_DEFENSE_MAX: 0.40,
   /** Duration (ms) of capture flash overlay */
   OWNERSHIP_CAPTURE_FLASH_MS: 300,
   /** Alpha for subtle owned-cell tint */
@@ -155,11 +155,11 @@ export const CONFIG = {
   TOWER_DAMAGE_REDUCTION: 0.5,
   /** Visual and collision radius for placed towers (laser/slow) */
   TOWER_VISUAL_RADIUS: 14,
-  TOWER_UPGRADE_COST_MULTIPLIER: 1.4,
+  TOWER_UPGRADE_COST_MULTIPLIER: 1.3,
 
   TOWER_RESEARCH_COSTS: {
-    laser: 200,
-    weakness: 200,
+    laser: 60,
+    weakness: 60,
   } as Record<string, number>,
 
   /** Time (ms) to complete tower research after paying */
@@ -169,8 +169,8 @@ export const CONFIG = {
   } as Record<string, number>,
 
   TOWER_CONSTRUCTION_COSTS: {
-    laser: 500,
-    weakness: 500,
+    laser: 150,
+    weakness: 150,
   } as Record<string, number>,
 
   /** Time (ms) to build a tower after paying construction cost */
@@ -188,7 +188,7 @@ export const CONFIG = {
   TOWER_LASER_BASE_DAMAGE: 5,
   TOWER_LASER_BASE_RANGE: 150,
   TOWER_LASER_BASE_ATTACK_SPEED: 2.5,
-  TOWER_LASER_UPGRADE_COST: 200,
+  TOWER_LASER_UPGRADE_COST: 60,
   TOWER_LASER_DAMAGE_PER_LEVEL: 2,
   TOWER_LASER_ATTACK_SPEED_PER_LEVEL: 0.4,
   TOWER_LASER_HP_PER_LEVEL: 10,
@@ -199,44 +199,54 @@ export const CONFIG = {
   /** Base attack reduction applied to enemies in range (0.25 = 25% less damage) */
   TOWER_WEAKNESS_BASE_ATTACK_REDUCTION: 0.25,
   TOWER_WEAKNESS_BASE_RANGE: 140,
-  TOWER_WEAKNESS_UPGRADE_COST: 200,
+  TOWER_WEAKNESS_UPGRADE_COST: 60,
   /** Per-level increase to both drain DPS and attack reduction */
   TOWER_WEAKNESS_FACTOR_PER_LEVEL: 0.07,
   TOWER_WEAKNESS_HP_PER_LEVEL: 8,
 
   // Tier-2 research: universal tower researches
-  TOWER_REGEN_COST_PER_LEVEL: 300,
+  TOWER_REGEN_COST_PER_LEVEL: 100,
   TOWER_REGEN_DURATION_MS: 10_000,
   /** HP/sec gained per regen research level */
   TOWER_REGEN_HP_PER_SEC_PER_LEVEL: 0.5,
 
-  TOWER_RANGE_COST_PER_LEVEL: 250,
+  TOWER_RANGE_COST_PER_LEVEL: 80,
   TOWER_RANGE_DURATION_MS: 10_000,
   /** Extra range (pixels) per range research level */
   TOWER_RANGE_BONUS_PER_LEVEL: 25,
 
   // Tier-2 research: laser-specific
-  LASER_BOUNCE_COST_PER_LEVEL: 400,
+  LASER_BOUNCE_COST_PER_LEVEL: 130,
   LASER_BOUNCE_DURATION_MS: 15_000,
 
-  LASER_OVERCHARGE_COST_PER_LEVEL: 350,
+  LASER_OVERCHARGE_COST_PER_LEVEL: 120,
   LASER_OVERCHARGE_DURATION_MS: 12_000,
   /** Level 0 = no overcharge; level 1 = every 8th shot, decreasing by 1 per level */
   LASER_OVERCHARGE_BASE_INTERVAL: 8,
 
   // Tier-2 research: weakness-specific
-  WEAKNESS_SLOW_COST_PER_LEVEL: 300,
+  WEAKNESS_SLOW_COST_PER_LEVEL: 100,
   WEAKNESS_SLOW_DURATION_MS: 10_000,
   /** Slow factor applied per weakness slow research level */
   WEAKNESS_SLOW_FACTOR_PER_LEVEL: 0.12,
 
-  WEAKNESS_STUN_COST_PER_LEVEL: 500,
+  WEAKNESS_STUN_COST_PER_LEVEL: 150,
   WEAKNESS_STUN_DURATION_MS: 20_000,
   /** Stun fires every N ms; decreases by 1500ms per level */
   WEAKNESS_STUN_BASE_INTERVAL_MS: 10_000,
   WEAKNESS_STUN_INTERVAL_REDUCTION_PER_LEVEL: 1_500,
   /** How long (ms) the stun effect lasts on target */
   WEAKNESS_STUN_EFFECT_DURATION_MS: 1_000,
+
+  /** Duration (ms) for each tier-2 path research level, keyed by pathId */
+  TIER2_PATH_DURATIONS: {
+    tower_regen: 10_000,
+    tower_range: 10_000,
+    laser_bounce: 15_000,
+    laser_overcharge: 12_000,
+    weakness_slow: 10_000,
+    weakness_stun: 20_000,
+  } as Record<string, number>,
 } as const;
 
 export type TowerType = 'laser' | 'weakness';

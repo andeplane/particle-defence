@@ -381,6 +381,12 @@ export class GameEngine implements AIGameState {
     return this.players[playerId].startNukeResearch(this.gameTimeMs, CONFIG.NUKE_RESEARCH_DURATION_MS);
   }
 
+  buyPathResearch(playerId: 0 | 1, pathId: string): boolean {
+    if (this.gameOver) return false;
+    const durationMs = CONFIG.TIER2_PATH_DURATIONS[pathId] ?? 10_000;
+    return this.players[playerId].startPathResearch(pathId, this.gameTimeMs, durationMs);
+  }
+
   purchaseResearchNode(playerId: 0 | 1, nodeId: string, isPath: boolean, durationMs: number): boolean {
     if (this.gameOver) return false;
     const player = this.players[playerId];
