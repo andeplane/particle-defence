@@ -9,22 +9,22 @@ import type { EncodedParticle, GameStateSnapshotHeader } from '../types.js';
 
 function makeNoOpCallbacks(): GameEngineCallbacks {
   return {
+    onKill: () => {},
+    onBaseDamage: () => {},
     onParticleSpawned: () => {},
-    onParticleDied: () => {},
-    onBaseHit: () => {},
-    onNukeLaunched: () => {},
-    onUpgradePurchased: () => {},
-    onGoldEarned: () => {},
-    onGoldSpent: () => {},
-    onInterestApplied: () => {},
+    onNuke: () => {},
+    onGameOver: () => {},
+    onStuckRespawn: () => {},
+    onInterest: () => {},
     onTowerPlaced: () => {},
     onTowerDeath: () => {},
+    spawnExplosion: () => {},
   };
 }
 
 function makeEngine(): GameEngine {
   const grid = generateGrid('random');
-  const engine = new GameEngine(grid, makeNoOpCallbacks(), { createAIController: () => ({ tick: () => {} } as never) });
+  const engine = new GameEngine(grid, makeNoOpCallbacks(), { createAIController: null });
   engine.init('none');
   return engine;
 }

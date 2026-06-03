@@ -33,7 +33,7 @@ export interface TowerSelectionForRender {
 
 export interface IGameViewModel {
   readonly players: readonly [IPlayer, IPlayer];
-  readonly mode: GameMode;
+  readonly mode: string;
   readonly gameTimeMs: number;
   readonly gameOver: boolean;
   getParticleCount(owner: 0 | 1): number;
