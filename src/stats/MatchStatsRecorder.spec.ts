@@ -70,6 +70,17 @@ describe(MatchStatsRecorder.name, () => {
 
       expect(s.aliveUnits).toEqual([0, 1]);
     });
+
+    it('powerCurve is finite even when spawner towers (Infinity health) are in the particle list', () => {
+      const spawner = createParticle(0, 0, 0, { health: Infinity, attack: 0, speed: 0, radius: 14 });
+      const normal = createParticle(0, 0, 0, { health: 5, attack: 2, speed: 180, radius: 3 });
+      recorder.tick(1000, [spawner, normal], createPlayers());
+      const s = recorder.finalize(0).samples[0];
+
+      expect(isFinite(s.powerCurve[0])).toBe(true);
+      const expectedPower = 5 * 0.6 + 2 * 1.2 + 180 * 0.4 + 3 * 0.2;
+      expect(s.powerCurve[0]).toBeCloseTo(expectedPower, 1);
+    });
   });
 
   describe('computePower', () => {
@@ -90,6 +101,18 @@ describe(MatchStatsRecorder.name, () => {
       },
     ])('$desc', ({ units, expected }) => {
       expect(MatchStatsRecorder.computePower(units)).toBeCloseTo(expected, 1);
+    });
+
+    it('ignores units with Infinity health (e.g. indestructible spawner towers)', () => {
+      const spawner = createParticle(0, 0, 0, { health: Infinity, attack: 0, speed: 0, radius: 14 });
+      expect(MatchStatsRecorder.computePower([spawner])).toBe(0);
+    });
+
+    it('sums only finite-health units when mixed with Infinity-health units', () => {
+      const spawner = createParticle(0, 0, 0, { health: Infinity, attack: 0, speed: 0, radius: 14 });
+      const normal = createParticle(0, 0, 0, { health: 10, attack: 2, speed: 50, radius: 3 });
+      const expected = 10 * 0.6 + 2 * 1.2 + 50 * 0.4 + 3 * 0.2;
+      expect(MatchStatsRecorder.computePower([spawner, normal])).toBeCloseTo(expected, 1);
     });
   });
 

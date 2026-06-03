@@ -179,6 +179,7 @@ export class MatchStatsRecorder {
   static computePower(units: readonly IParticle[]): number {
     let total = 0;
     for (const u of units) {
+      if (!isFinite(u.health)) continue;
       total += u.health * 0.6 + u.attack * 1.2 + u.speed * 0.4 + u.radius * 0.2;
     }
     return Math.round(total * 100) / 100;
