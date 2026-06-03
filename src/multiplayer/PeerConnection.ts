@@ -35,10 +35,14 @@ export class PeerConnection {
 
   private readonly isPolite: boolean;
   private readonly signalingClient: SignalingClient;
-  private readonly onMessage: (buffer: ArrayBuffer) => void;
-  private readonly onInputMessage: (msg: PlayerInputMessage) => void;
-  private readonly onConnected: () => void;
-  private readonly onDisconnected: () => void;
+  /** Settable after construction — called when a game-state ArrayBuffer arrives. */
+  onMessage: (buffer: ArrayBuffer) => void;
+  /** Settable after construction — called when a guest input message arrives. */
+  onInputMessage: (msg: PlayerInputMessage) => void;
+  /** Settable after construction — called when both DataChannels are open. */
+  onConnected: () => void;
+  /** Settable after construction — called on hard disconnect. */
+  onDisconnected: () => void;
 
   constructor(opts: PeerConnectionOptions) {
     this.isPolite = opts.isPolite;
