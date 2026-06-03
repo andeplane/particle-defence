@@ -1,19 +1,20 @@
 import Phaser from 'phaser';
 import { CONFIG } from '../config';
 import { isMobile } from '../mobile';
-import type { GameMode } from './MenuScene';
+import { GAME_MODE, type GameMode } from './MenuScene';
 import type { GridType } from '../grid';
 import { createMenuButton } from './createMenuButton';
+import { SCENE_KEYS } from './SceneKeys';
 
 export class MapSelectScene extends Phaser.Scene {
-  private mode: GameMode = 'pvp';
+  private mode: GameMode = GAME_MODE.PVP;
 
   constructor() {
-    super({ key: 'MapSelectScene' });
+    super({ key: SCENE_KEYS.MAP_SELECT });
   }
 
   init(data: { mode?: GameMode }): void {
-    this.mode = data.mode ?? 'pvp';
+    this.mode = data.mode ?? GAME_MODE.PVP;
   }
 
   create(): void {
@@ -81,6 +82,6 @@ export class MapSelectScene extends Phaser.Scene {
   }
 
   private startGame(gridType: GridType): void {
-    this.scene.start('GameScene', { mode: this.mode, gridType });
+    this.scene.start(SCENE_KEYS.GAME, { mode: this.mode, gridType });
   }
 }

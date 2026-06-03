@@ -1,4 +1,4 @@
-import { CONFIG, type TowerType } from './config';
+import { CONFIG, TOWER_TYPE, type TowerType } from './config';
 import { AIController, type AIGameState } from './ai';
 import { BasicParticle, type IParticle, type GameContext, TowerCarrierParticle } from './particles';
 import { LaserTowerParticle } from './particles/LaserTowerParticle';
@@ -382,7 +382,7 @@ export class GameEngine implements AIGameState {
   }
 
   private createTower(towerType: TowerType, x: number, y: number, playerId: 0 | 1): LaserTowerParticle | SlowTowerParticle {
-    return towerType === 'laser'
+    return towerType === TOWER_TYPE.LASER
       ? new LaserTowerParticle(x, y, playerId)
       : new SlowTowerParticle(x, y, playerId);
   }

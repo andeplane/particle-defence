@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
-import { CONFIG, DEBUG_MODE, getTowerUpgradeCost, setDebugEverythingCheap, type UpgradeType, type TowerType } from '../config';
+import { CONFIG, DEBUG_MODE, TOWER_TYPE, getTowerUpgradeCost, setDebugEverythingCheap, type UpgradeType, type TowerType } from '../config';
 import { isMobile } from '../mobile';
 import type { IPlayer } from '../player';
-import type { GameMode } from './MenuScene';
+import { GAME_MODE, type GameMode } from './MenuScene';
 import {
   MENU_CATEGORIES,
   getConstructionSubmenuItems,
@@ -23,6 +23,7 @@ import {
 import { LaserTowerParticle, getLaserStatsAtLevel } from '../particles/LaserTowerParticle';
 import { SlowTowerParticle, getSlowStatsAtLevel } from '../particles/SlowTowerParticle';
 import type { TowerSite } from '../grid';
+import { SCENE_KEYS } from './SceneKeys';
 
 export interface TowerSelectionForRender {
   active: boolean;
@@ -149,7 +150,7 @@ export class UIScene extends Phaser.Scene {
   private readonly _mobile = isMobile();
 
   constructor() {
-    super({ key: 'UIScene' });
+    super({ key: SCENE_KEYS.UI });
   }
 
   init(data: { viewModel?: IGameViewModel; gameScene?: IGameViewModel; mode?: GameMode }): void {
@@ -198,7 +199,7 @@ export class UIScene extends Phaser.Scene {
     this.createGoldDisplay();
     this.createStatsDisplay();
     this.renderMenuForPlayer(0);
-    if (this.viewModel.mode === 'pvp') {
+    if (this.viewModel.mode === GAME_MODE.PVP) {
       this.renderMenuForPlayer(1);
     }
     this.setupKeyboard();
@@ -981,7 +982,7 @@ export class UIScene extends Phaser.Scene {
       }
 
       this.dispatchKeyForPlayer(0, key, event);
-      if (this.viewModel.mode === 'pvp') {
+      if (this.viewModel.mode === GAME_MODE.PVP) {
         this.dispatchKeyForPlayer(1, key, event);
       }
     });
@@ -1176,7 +1177,7 @@ export class UIScene extends Phaser.Scene {
     this.p2HPText.setText(`${p2.baseHP}/${CONFIG.BASE_HP}`);
 
     this.p1GoldText.setText(`Gold: $${p1.gold}  Kills: ${p1.kills}`);
-    const p2Prefix = this.viewModel.mode === 'ai' ? 'AI ' : '';
+    const p2Prefix = this.viewModel.mode === GAME_MODE.AI ? 'AI ' : '';
     this.p2GoldText.setText(`${p2Prefix}Gold: $${p2.gold}  Kills: ${p2.kills}`);
 
     const p1Count = this.viewModel.getParticleCount(0);
@@ -1397,7 +1398,7 @@ export class UIScene extends Phaser.Scene {
     const canAfford = player.gold >= cost;
 
     let statsLine: string;
-    if (tower.towerType === 'laser') {
+    if (tower.towerType === TOWER_TYPE.LASER) {
       const nxt = getLaserStatsAtLevel(tower.level + 1);
       statsLine = `DMG:${tower.damage}->${nxt.damage}  RNG:${tower.range}->${nxt.range}  SPD:${tower.attackSpeed.toFixed(1)}->${nxt.attackSpeed.toFixed(1)}`;
     } else {

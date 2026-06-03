@@ -1,4 +1,4 @@
-import { CONFIG, type UpgradeType, type TowerType, TOWER_TYPES } from './config';
+import { CONFIG, TOWER_TYPE, TOWER_TYPES, type UpgradeType, type TowerType } from './config';
 import type { IPlayer } from './player';
 import type { IParticle } from './particles';
 import type { LaserTowerParticle } from './particles/LaserTowerParticle';
@@ -131,7 +131,7 @@ export class AIController {
     if (towers.length < CONFIG.TOWER_MAX_PER_PLAYER) {
       if (eligibleSites.length === 0) return;
       const constructionReserve = highPriority ? 1.2 : 1.5;
-      const preferredType: TowerType = towers.length % 2 === 0 ? 'laser' : 'slow';
+      const preferredType: TowerType = towers.length % 2 === 0 ? TOWER_TYPE.LASER : TOWER_TYPE.SLOW;
       const siteId = eligibleSites[0].id;
       if (ai.hasResearched(preferredType) && ai.canAffordConstruction(preferredType)) {
         const cost = ai.getConstructionCost(preferredType);

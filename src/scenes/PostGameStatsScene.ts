@@ -3,7 +3,8 @@ import { CONFIG } from '../config';
 import type { UpgradeType } from '../config';
 import { MatchStatsRecorder } from '../stats';
 import type { MatchStats, PerSecondSample } from '../stats';
-import type { GameMode } from './MenuScene';
+import { GAME_MODE, type GameMode } from './MenuScene';
+import { SCENE_KEYS } from './SceneKeys';
 
 interface ChartSeries {
   data: (number | null)[];
@@ -52,7 +53,7 @@ export class PostGameStatsScene extends Phaser.Scene {
   ) => void;
 
   constructor() {
-    super({ key: 'PostGameStatsScene' });
+    super({ key: SCENE_KEYS.POST_GAME_STATS });
   }
 
   init(data: { stats: MatchStats; mode: GameMode }): void {
@@ -118,7 +119,7 @@ export class PostGameStatsScene extends Phaser.Scene {
   private drawHeader(): void {
     const { winner, durationSec } = this.stats;
     const winnerColor = winner === 0 ? CONFIG.PLAYER1_COLOR_STR : CONFIG.PLAYER2_COLOR_STR;
-    const winnerLabel = winner === 1 && this.mode === 'ai' ? 'AI WINS!' : `PLAYER ${winner + 1} WINS!`;
+    const winnerLabel = winner === 1 && this.mode === GAME_MODE.AI ? 'AI WINS!' : `PLAYER ${winner + 1} WINS!`;
     const mins = Math.floor(durationSec / 60);
     const secs = durationSec % 60;
 
@@ -137,7 +138,7 @@ export class PostGameStatsScene extends Phaser.Scene {
     const p1c = CONFIG.PLAYER1_COLOR;
     const p2c = CONFIG.PLAYER2_COLOR;
     const p1Label = 'P1';
-    const p2Label = this.mode === 'ai' ? 'AI' : 'P2';
+    const p2Label = this.mode === GAME_MODE.AI ? 'AI' : 'P2';
 
     const upgradeTypes: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles'];
     const kpmData = MatchStatsRecorder.rollingKPM(samples, 30);
@@ -453,6 +454,6 @@ export class PostGameStatsScene extends Phaser.Scene {
 
     btn.on('pointerover', () => btn.setColor('#ffffff'));
     btn.on('pointerout', () => btn.setColor('#666666'));
-    btn.on('pointerdown', () => this.scene.start('MenuScene'));
+    btn.on('pointerdown', () => this.scene.start(SCENE_KEYS.MENU));
   }
 }

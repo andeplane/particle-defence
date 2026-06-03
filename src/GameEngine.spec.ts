@@ -6,6 +6,7 @@ import { createMockGrid } from './__mocks__/createMockGrid';
 import { createMockParticle } from './__mocks__/createMockParticle';
 import { createMockCellEffectMap } from './__mocks__/createMockCellEffectMap';
 import type { ICellEffectMap } from './grid';
+import { ParticleSpawnerTower } from './particles/ParticleSpawnerTower';
 
 const noopCallbacks: GameEngineCallbacks = {
   onKill: vi.fn(),
@@ -387,7 +388,7 @@ describe(GameEngine.name, () => {
 
     it('spawner towers are added to particles', () => {
       const { engine, callbacks } = createSpawnerEngine();
-      expect(engine.particles.filter(p => p.typeName === 'spawnerTower')).toHaveLength(6);
+      expect(engine.particles.filter(p => p.typeName === ParticleSpawnerTower.TYPE_NAME)).toHaveLength(6);
       expect(callbacks.onParticleSpawned).toHaveBeenCalledTimes(6);
     });
 

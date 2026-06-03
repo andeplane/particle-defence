@@ -1,4 +1,4 @@
-import { CONFIG, getTowerUpgradeCost, getDebugEverythingCheap } from '../config';
+import { CONFIG, TOWER_TYPE, getTowerUpgradeCost, getDebugEverythingCheap } from '../config';
 import type { GameObjectMeta, ResearchLevel } from '../research/types';
 import { AbstractParticle, type IParticle, type ParticleDependencies } from './AbstractParticle';
 import type { GameContext } from './GameContext';
@@ -12,7 +12,7 @@ type LaserEffect = {
 
 function buildLaserLevels(count = 20): ResearchLevel<LaserEffect>[] {
   return Array.from({ length: count }, (_, i) => ({
-    cost: getTowerUpgradeCost('laser', i),
+    cost: getTowerUpgradeCost(TOWER_TYPE.LASER, i),
     effect: {
       damage: CONFIG.TOWER_LASER_BASE_DAMAGE + (i + 1) * CONFIG.TOWER_LASER_DAMAGE_PER_LEVEL,
       range: CONFIG.TOWER_LASER_BASE_RANGE + (i + 1) * CONFIG.TOWER_LASER_RANGE_PER_LEVEL,
@@ -36,8 +36,10 @@ export function getLaserStatsAtLevel(level: number): LaserEffect {
 }
 
 export class LaserTowerParticle extends AbstractParticle {
+  static readonly TYPE_NAME = 'laserTower' as const;
+
   static readonly meta: GameObjectMeta<LaserEffect> = {
-    typeName: 'laserTower',
+    typeName: LaserTowerParticle.TYPE_NAME,
     category: 'tower',
     unlock: {
       id: 'unlock_laser',
@@ -55,8 +57,8 @@ export class LaserTowerParticle extends AbstractParticle {
     }],
   };
 
-  readonly typeName = 'laserTower';
-  readonly towerType = 'laser' as const;
+  readonly typeName = LaserTowerParticle.TYPE_NAME;
+  readonly towerType = TOWER_TYPE.LASER;
 
   pendingUpgrade: { startedAtMs: number; durationMs: number } | null = null;
   level: number = 0;

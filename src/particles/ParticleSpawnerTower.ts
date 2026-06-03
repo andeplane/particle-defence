@@ -1,7 +1,8 @@
 import { AbstractParticle, type ParticleDependencies } from './AbstractParticle';
 
 export class ParticleSpawnerTower extends AbstractParticle {
-  readonly typeName = 'spawnerTower';
+  static readonly TYPE_NAME = 'spawnerTower' as const;
+  readonly typeName = ParticleSpawnerTower.TYPE_NAME;
 
   get canMove(): boolean {
     return false;

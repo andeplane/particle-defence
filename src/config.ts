@@ -205,6 +205,10 @@ export const CONFIG = {
 
 export type TowerType = 'laser' | 'slow';
 export const TOWER_TYPES: readonly TowerType[] = ['laser', 'slow'] as const;
+export const TOWER_TYPE = {
+  LASER: 'laser',
+  SLOW: 'slow',
+} as const satisfies Record<string, TowerType>;
 
 export type UpgradeType = keyof typeof CONFIG.UPGRADE_COSTS;
 
@@ -216,7 +220,7 @@ export function getUpgradeCost(type: UpgradeType, level: number): number {
 
 export function getTowerUpgradeCost(towerType: TowerType, level: number): number {
   if (DEBUG_EVERYTHING_CHEAP) return 1;
-  const base = towerType === 'laser' ? CONFIG.TOWER_LASER_UPGRADE_COST : CONFIG.TOWER_SLOW_UPGRADE_COST;
+  const base = towerType === TOWER_TYPE.LASER ? CONFIG.TOWER_LASER_UPGRADE_COST : CONFIG.TOWER_SLOW_UPGRADE_COST;
   return Math.floor(base * Math.pow(CONFIG.TOWER_UPGRADE_COST_MULTIPLIER, level));
 }
 

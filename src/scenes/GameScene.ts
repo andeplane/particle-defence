@@ -1,16 +1,19 @@
 import Phaser from 'phaser';
 import { AIController } from '../ai';
-import { CONFIG, setDebugEverythingCheap, type UpgradeType, type TowerType } from '../config';
+import { CONFIG, TOWER_TYPE, setDebugEverythingCheap, type UpgradeType, type TowerType } from '../config';
 import { generateGrid, type GridType } from '../grid';
 import type { CellEffect } from '../grid/CellEffect';
 import type { TowerSite } from '../grid';
 import type { IParticle } from '../particles';
-import type { LaserTowerParticle } from '../particles/LaserTowerParticle';
-import type { SlowTowerParticle } from '../particles/SlowTowerParticle';
+import { LaserTowerParticle } from '../particles/LaserTowerParticle';
+import { SlowTowerParticle } from '../particles/SlowTowerParticle';
+import { TowerCarrierParticle } from '../particles/TowerCarrierParticle';
+import { ParticleSpawnerTower } from '../particles/ParticleSpawnerTower';
 import { GameEngine, type GameEngineCallbacks } from '../GameEngine';
 import { MatchStatsRecorder } from '../stats';
-import type { GameMode } from './MenuScene';
+import { GAME_MODE, type GameMode } from './MenuScene';
 import type { IGameViewModel, TowerSelectionForRender } from './UIScene';
+import { SCENE_KEYS } from './SceneKeys';
 
 export class GameScene extends Phaser.Scene implements IGameViewModel {
   static readonly TEXTURES = {
@@ -25,7 +28,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   } as const;
 
   engine!: GameEngine;
-  mode: GameMode = 'pvp';
+  mode: GameMode = GAME_MODE.PVP;
   debugSpeedMultiplier: number = 1;
   debugEverythingCheap: boolean = false;
   private statsRecorder!: MatchStatsRecorder;
@@ -57,11 +60,11 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   ];
 
   constructor() {
-    super({ key: 'GameScene' });
+    super({ key: SCENE_KEYS.GAME });
   }
 
   init(data: { mode?: GameMode; gridType?: GridType }): void {
-    this.mode = data.mode ?? 'pvp';
+    this.mode = data.mode ?? GAME_MODE.PVP;
     const gridType = data.gridType ?? 'random';
     const grid = generateGrid(gridType);
 
@@ -105,14 +108,14 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
       },
       onStuckRespawn: () => {},
       onInterest: (playerId, amount) => {
-        const uiScene = this.scene.get('UIScene') as { showInterestPopup?: (id: 0 | 1, amt: number) => void };
+        const uiScene = this.scene.get(SCENE_KEYS.UI) as { showInterestPopup?: (id: 0 | 1, amt: number) => void };
         uiScene?.showInterestPopup?.(playerId, amount);
       },
       spawnExplosion: (x, y, color) => this.spawnExplosion(x, y, color),
     };
 
     this.engine = new GameEngine(grid, callbacks, {
-      createAIController: this.mode === 'ai' ? (playerId: 0 | 1) => new AIController(playerId) : null,
+      createAIController: this.mode === GAME_MODE.AI ? (playerId: 0 | 1) => new AIController(playerId) : null,
     });
   }
 
@@ -122,7 +125,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   }
 
   create(): void {
-    this.engine.init(this.mode === 'ai');
+    this.engine.init(this.mode === GAME_MODE.AI);
 
     this.renderMaze();
     this.renderBases();
@@ -136,7 +139,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
     this.createTowerSiteZones();
 
-    this.scene.launch('UIScene', { viewModel: this as IGameViewModel, mode: this.mode });
+    this.scene.launch(SCENE_KEYS.UI, { viewModel: this as IGameViewModel, mode: this.mode });
   }
 
   getParticleCount(owner: 0 | 1): number {
@@ -219,11 +222,11 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   }
 
   private attachVisuals(p: IParticle): void {
-    const isLaserTower = p.typeName === 'laserTower';
-    const isSlowTower = p.typeName === 'slowTower';
+    const isLaserTower = p.typeName === LaserTowerParticle.TYPE_NAME;
+    const isSlowTower = p.typeName === SlowTowerParticle.TYPE_NAME;
     const isTower = isLaserTower || isSlowTower;
-    const isCarrier = p.typeName === 'towerCarrier';
-    const isSpawner = p.typeName === 'spawnerTower';
+    const isCarrier = p.typeName === TowerCarrierParticle.TYPE_NAME;
+    const isSpawner = p.typeName === ParticleSpawnerTower.TYPE_NAME;
 
     let textureKey: string;
     const T = GameScene.TEXTURES;
@@ -231,9 +234,9 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
       textureKey = p.owner === 0 ? T.SPAWNER_P1 : T.SPAWNER_P2;
     } else if (isTower || isCarrier) {
       const towerType = isTower
-        ? (isLaserTower ? 'laser' : 'slow')
+        ? (isLaserTower ? TOWER_TYPE.LASER : TOWER_TYPE.SLOW)
         : (p as unknown as { towerType: TowerType }).towerType;
-      textureKey = towerType === 'laser' ? T.LASER_TOWER : T.SLOW_TOWER;
+      textureKey = towerType === TOWER_TYPE.LASER ? T.LASER_TOWER : T.SLOW_TOWER;
     } else {
       textureKey = p.owner === 0 ? T.PARTICLE_P1 : T.PARTICLE_P2;
     }
@@ -368,7 +371,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
         const towerAny = tower as unknown as { _rangeGfx?: Phaser.GameObjects.Graphics };
         if (towerAny._rangeGfx) {
           towerAny._rangeGfx.clear();
-          if (tower.towerType === 'laser') {
+          if (tower.towerType === TOWER_TYPE.LASER) {
             towerAny._rangeGfx.fillStyle(color, 0.04);
             towerAny._rangeGfx.fillCircle(tower.x, tower.y, tower.range);
             towerAny._rangeGfx.lineStyle(1, color, 0.2);
@@ -381,7 +384,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
           }
         }
 
-        if (tower.towerType === 'laser') {
+        if (tower.towerType === TOWER_TYPE.LASER) {
           const laser = tower as LaserTowerParticle;
           if (laser.currentTargetId >= 0) {
             const target = this.engine.particles.find(p => p.alive && p.id === laser.currentTargetId);
@@ -486,7 +489,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
       fontFamily: 'monospace',
     }).setOrigin(0.5).setAlpha(0.5).setDepth(2);
 
-    const p2Label = this.mode === 'ai' ? 'AI\nBASE' : 'P2\nBASE';
+    const p2Label = this.mode === GAME_MODE.AI ? 'AI\nBASE' : 'P2\nBASE';
     this.add.text(CONFIG.GAME_WIDTH - baseW / 2, CONFIG.GAME_HEIGHT / 2 - 96, p2Label, {
       fontSize: '28px',
       color: CONFIG.PLAYER2_COLOR_STR,
@@ -709,7 +712,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   private showGameOver(winner: number): void {
     const matchStats = this.statsRecorder.finalize(winner as 0 | 1);
     const winnerColor = winner === 0 ? CONFIG.PLAYER1_COLOR_STR : CONFIG.PLAYER2_COLOR_STR;
-    const winnerLabel = winner === 1 && this.mode === 'ai' ? 'AI WINS!' : `PLAYER ${winner + 1} WINS!`;
+    const winnerLabel = winner === 1 && this.mode === GAME_MODE.AI ? 'AI WINS!' : `PLAYER ${winner + 1} WINS!`;
     const overlay = this.add.rectangle(
       CONFIG.GAME_WIDTH / 2, CONFIG.GAME_HEIGHT / 2,
       CONFIG.GAME_WIDTH, CONFIG.GAME_HEIGHT,
@@ -757,8 +760,8 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
     this.time.delayedCall(1000, () => {
       this.input.once('pointerdown', () => {
-        this.scene.stop('UIScene');
-        this.scene.start('PostGameStatsScene', { stats: matchStats, mode: this.mode });
+        this.scene.stop(SCENE_KEYS.UI);
+        this.scene.start(SCENE_KEYS.POST_GAME_STATS, { stats: matchStats, mode: this.mode });
       });
     });
   }

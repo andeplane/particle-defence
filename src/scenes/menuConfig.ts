@@ -1,4 +1,4 @@
-import type { UpgradeType, TowerType } from '../config';
+import { TOWER_TYPE, type UpgradeType, type TowerType } from '../config';
 
 export type MenuCategory = 'construction' | 'research' | 'upgrades' | 'abilities' | 'towers';
 export type BuildSubmenu = 'towers' | 'particles';
@@ -46,8 +46,8 @@ export const MENU_CATEGORIES: CategoryDef[] = [
     p1Key: 'W',
     p2Key: 'O',
     items: [
-      { kind: 'research', researchType: 'laser', label: 'LASER', tooltip: 'Unlock laser tower construction', p1Key: 'Q', p2Key: 'I' },
-      { kind: 'research', researchType: 'slow', label: 'SLOW', tooltip: 'Unlock slow tower construction', p1Key: 'W', p2Key: 'O' },
+      { kind: 'research', researchType: TOWER_TYPE.LASER, label: 'LASER', tooltip: 'Unlock laser tower construction', p1Key: 'Q', p2Key: 'I' },
+      { kind: 'research', researchType: TOWER_TYPE.SLOW, label: 'SLOW', tooltip: 'Unlock slow tower construction', p1Key: 'W', p2Key: 'O' },
       { kind: 'research', researchType: 'nuke', label: 'NUKE', tooltip: 'Unlock nuclear weapon launch', p1Key: 'E', p2Key: 'P' },
     ],
   },
@@ -94,8 +94,8 @@ export const MENU_CATEGORIES: CategoryDef[] = [
 
 const CONSTRUCTION_SUBMENU_ITEMS: Record<BuildSubmenu, MenuItemDef[]> = {
   towers: [
-    { kind: 'construct', towerType: 'laser', label: 'LASER', tooltip: 'Select laser tower for fixed-site construction', p1Key: 'Q', p2Key: 'I' },
-    { kind: 'construct', towerType: 'slow', label: 'SLOW', tooltip: 'Select slow tower for fixed-site construction', p1Key: 'W', p2Key: 'O' },
+    { kind: 'construct', towerType: TOWER_TYPE.LASER, label: 'LASER', tooltip: 'Select laser tower for fixed-site construction', p1Key: 'Q', p2Key: 'I' },
+    { kind: 'construct', towerType: TOWER_TYPE.SLOW, label: 'SLOW', tooltip: 'Select slow tower for fixed-site construction', p1Key: 'W', p2Key: 'O' },
     { kind: 'action', action: 'buildPrev', label: '< SITE', tooltip: 'Select previous eligible tower site', p1Key: 'A', p2Key: 'K' },
     { kind: 'action', action: 'buildNext', label: 'SITE >', tooltip: 'Select next eligible tower site', p1Key: 'S', p2Key: 'L' },
     { kind: 'action', action: 'buildSelected', label: 'BUILD', tooltip: 'Build selected tower at selected eligible site', p1Key: 'E', p2Key: 'P' },

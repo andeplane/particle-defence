@@ -1,4 +1,4 @@
-import { CONFIG, getTowerUpgradeCost, getDebugEverythingCheap } from '../config';
+import { CONFIG, TOWER_TYPE, getTowerUpgradeCost, getDebugEverythingCheap } from '../config';
 import type { GameObjectMeta, ResearchLevel } from '../research/types';
 import { AbstractParticle, type IParticle, type ParticleDependencies } from './AbstractParticle';
 import type { GameContext } from './GameContext';
@@ -11,7 +11,7 @@ type SlowEffect = {
 
 function buildSlowLevels(count = 20): ResearchLevel<SlowEffect>[] {
   return Array.from({ length: count }, (_, i) => ({
-    cost: getTowerUpgradeCost('slow', i),
+    cost: getTowerUpgradeCost(TOWER_TYPE.SLOW, i),
     effect: {
       slowFactor: Math.min(0.9, CONFIG.TOWER_SLOW_BASE_FACTOR + (i + 1) * CONFIG.TOWER_SLOW_FACTOR_PER_LEVEL),
       range: CONFIG.TOWER_SLOW_BASE_RANGE + (i + 1) * CONFIG.TOWER_SLOW_RANGE_PER_LEVEL,
@@ -33,8 +33,10 @@ export function getSlowStatsAtLevel(level: number): SlowEffect {
 }
 
 export class SlowTowerParticle extends AbstractParticle {
+  static readonly TYPE_NAME = 'slowTower' as const;
+
   static readonly meta: GameObjectMeta<SlowEffect> = {
-    typeName: 'slowTower',
+    typeName: SlowTowerParticle.TYPE_NAME,
     category: 'tower',
     unlock: {
       id: 'unlock_slow',
@@ -52,8 +54,8 @@ export class SlowTowerParticle extends AbstractParticle {
     }],
   };
 
-  readonly typeName = 'slowTower';
-  readonly towerType = 'slow' as const;
+  readonly typeName = SlowTowerParticle.TYPE_NAME;
+  readonly towerType = TOWER_TYPE.SLOW;
 
   pendingUpgrade: { startedAtMs: number; durationMs: number } | null = null;
   level: number = 0;

@@ -2,7 +2,8 @@ import type { TowerType } from '../config';
 import { AbstractParticle, type ParticleDependencies } from './AbstractParticle';
 
 export class TowerCarrierParticle extends AbstractParticle {
-  readonly typeName = 'towerCarrier';
+  static readonly TYPE_NAME = 'towerCarrier' as const;
+  readonly typeName = TowerCarrierParticle.TYPE_NAME;
   readonly towerType: TowerType;
 
   constructor(
