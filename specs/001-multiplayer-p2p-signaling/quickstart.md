@@ -112,6 +112,9 @@ This confirms that TCP-level disconnects (tab crash, network drop) are detected 
 | `HEARTBEAT_TIMEOUT_MS` | `10000` | Terminate if no pong within this window |
 | `ROOM_TIMEOUT_MS` | `300000` | Delete waiting rooms after 5 minutes |
 | `VITE_SIGNALING_URL` | `ws://localhost:8080` | Signaling server URL for the game client |
+| `VITE_TURN_URL` | _(unset)_ | TURN server URL, e.g. `turn:your-server.example.com:3478` |
+| `VITE_TURN_USERNAME` | _(unset)_ | TURN server username |
+| `VITE_TURN_CREDENTIAL` | _(unset)_ | TURN server credential |
 
 ---
 
@@ -124,6 +127,16 @@ The signaling server is a stateless Node.js WebSocket server. Deploy on any Node
 - **No database, no persistent storage needed.**
 
 For production multiplayer (users on different networks), you also need a TURN server for NAT traversal (~15–20% of users require it). See `research.md` section 6 for options.
+
+To enable TURN, set the env vars at build time:
+```bash
+VITE_TURN_URL=turn:your-turn-server.example.com:3478 \
+VITE_TURN_USERNAME=myuser \
+VITE_TURN_CREDENTIAL=mypassword \
+npm run build
+```
+
+`PeerConnection.ts` appends the TURN entry to `ICE_SERVERS` when `VITE_TURN_URL` is set.
 
 ---
 
