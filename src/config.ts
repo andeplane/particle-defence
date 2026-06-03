@@ -175,8 +175,8 @@ export const CONFIG = {
 
   /** Time (ms) to build a tower after paying construction cost */
   TOWER_CONSTRUCTION_DURATION_MS: {
-    laser: 10_000,
-    slow: 10_000,
+    laser: 3_000,
+    slow: 3_000,
   } as Record<string, number>,
 
   /** Time (ms) to apply a particle stat upgrade after paying */
