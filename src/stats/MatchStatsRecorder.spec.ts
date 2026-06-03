@@ -322,7 +322,6 @@ function createPlayers(overrides?: {
     getUpgradeLevel: (type) => upgrades[type] ?? 0,
     getUpgradeCost: () => 5,
     canAfford: () => true,
-    buyUpgrade: () => true,
     canUseNuke: () => false,
     useNuke: () => {},
     getNukeCooldownRemainingMs: () => 0,
@@ -348,6 +347,17 @@ function createPlayers(overrides?: {
     canPurchasePath: () => false,
     purchasePath: () => false,
     getPathCost: () => Infinity,
+    startTowerResearch: () => false,
+    startNukeResearch: () => false,
+    isResearching: () => false,
+    getResearchProgress: () => -1,
+    getResearchRemainingMs: () => 0,
+    tickResearch: () => [],
+    startUpgrade: () => false,
+    isUpgradePending: () => false,
+    getUpgradeProgress: () => -1,
+    getUpgradeRemainingMs: () => 0,
+    tickUpgrades: () => [],
   });
 
   const p1Upgrades = { ...defaultUpgrades, ...(overrides?.p1UpgradeLevels ?? {}) };

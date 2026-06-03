@@ -77,8 +77,9 @@ export const CONFIG = {
   /** Fraction of KILL_REWARD awarded per nuke kill (1/4) */
   NUCLEAR_KILL_REWARD_FRACTION: 0.25,
   NUKE_RESEARCH_COST: 2000,
-  NUCLEAR_FIRST_AVAILABLE_MS: 300_000,  // 5 minutes
-  NUCLEAR_COOLDOWN_MS: 300_000,        // 5 minutes
+  NUKE_RESEARCH_DURATION_MS: 300_000,   // 5 min to complete nuke research
+  NUCLEAR_FIRST_AVAILABLE_MS: 0,        // immediately usable once research completes
+  NUCLEAR_COOLDOWN_MS: 600_000,         // 10 min cooldown after each use
   /** Interval (ms) between gold interest payouts */
   INTEREST_INTERVAL_MS: 30_000,
   /** Interest rate per upgrade level (e.g. 0.0025 = +0.25%) */
@@ -161,10 +162,27 @@ export const CONFIG = {
     slow: 200,
   } as Record<string, number>,
 
+  /** Time (ms) to complete tower research after paying */
+  TOWER_RESEARCH_DURATION_MS: {
+    laser: 20_000,
+    slow: 20_000,
+  } as Record<string, number>,
+
   TOWER_CONSTRUCTION_COSTS: {
     laser: 500,
     slow: 500,
   } as Record<string, number>,
+
+  /** Time (ms) to build a tower after paying construction cost */
+  TOWER_CONSTRUCTION_DURATION_MS: {
+    laser: 3_000,
+    slow: 3_000,
+  } as Record<string, number>,
+
+  /** Time (ms) to apply a particle stat upgrade after paying */
+  PARTICLE_UPGRADE_DURATION_MS: 3_000,
+  /** Time (ms) to apply a tower upgrade after paying */
+  TOWER_UPGRADE_DURATION_MS: 5_000,
 
   TOWER_LASER_BASE_HP: 50,
   TOWER_LASER_BASE_DAMAGE: 5,

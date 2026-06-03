@@ -46,6 +46,8 @@ export interface IGameViewModel {
   getTowerSites(): readonly TowerSite[];
   isTowerSiteOccupied(siteId: number): boolean;
   getTowers(playerId: 0 | 1): ReadonlyArray<LaserTowerParticle | SlowTowerParticle>;
+  getPendingConstruction(playerId: 0 | 1): { towerType: TowerType; progress: number; remainingMs: number } | null;
+  getPendingTowerUpgrade(playerId: 0 | 1, towerIndex: number): { progress: number; remainingMs: number } | null;
   /** Mutable; UIScene updates each frame for in-world selection ring rendering */
   towerSelectionForRender?: [TowerSelectionForRender, TowerSelectionForRender];
   debugSpeedMultiplier?: number;
@@ -61,6 +63,7 @@ interface UpgradeButton {
   label: Phaser.GameObjects.Text;
   costText: Phaser.GameObjects.Text;
   keyText: Phaser.GameObjects.Text;
+  clockGfx: Phaser.GameObjects.Graphics;
   type: UpgradeType;
   playerId: 0 | 1;
 }
@@ -70,13 +73,20 @@ interface NukeButton {
   labelText: Phaser.GameObjects.Text;
   statusText: Phaser.GameObjects.Text;
   keyText: Phaser.GameObjects.Text;
+  clockGfx: Phaser.GameObjects.Graphics;
   playerId: 0 | 1;
 }
 
 type BuildAction = 'buildPrev' | 'buildNext' | 'buildSelected';
 
-interface BuildActionButton extends NukeButton {
+interface BuildActionButton {
+  bg: Phaser.GameObjects.Rectangle;
+  labelText: Phaser.GameObjects.Text;
+  statusText: Phaser.GameObjects.Text;
+  keyText: Phaser.GameObjects.Text;
+  clockGfx?: Phaser.GameObjects.Graphics;
   action: BuildAction;
+  playerId: 0 | 1;
 }
 
 interface CategoryButton {
@@ -121,8 +131,8 @@ export class UIScene extends Phaser.Scene {
     createDefaultConstructionMenuState(),
   ];
   private selectedBuildSiteId: [number, number] = [0, 0];
-  private researchButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; researchType: ResearchType; playerId: 0 | 1 }[] = [];
-  private constructButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; towerType: TowerType; playerId: 0 | 1 }[] = [];
+  private researchButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; clockGfx: Phaser.GameObjects.Graphics; researchType: ResearchType; playerId: 0 | 1 }[] = [];
+  private constructButtons: { bg: Phaser.GameObjects.Rectangle; labelText: Phaser.GameObjects.Text; costText: Phaser.GameObjects.Text; keyText: Phaser.GameObjects.Text; clockGfx: Phaser.GameObjects.Graphics; towerType: TowerType; playerId: 0 | 1 }[] = [];
   private buildActionButtons: BuildActionButton[] = [];
   private towerInfoText: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
   private popups: Phaser.GameObjects.Text[] = [];
@@ -357,12 +367,12 @@ export class UIScene extends Phaser.Scene {
   private destroyPlayerPanel(playerId: 0 | 1): void {
     this.buttons = this.buttons.filter(btn => {
       if (btn.playerId !== playerId) return true;
-      btn.bg.destroy(); btn.label.destroy(); btn.costText.destroy(); btn.keyText.destroy();
+      btn.bg.destroy(); btn.label.destroy(); btn.costText.destroy(); btn.keyText.destroy(); btn.clockGfx.destroy();
       return false;
     });
     this.nukeButtons = this.nukeButtons.filter(btn => {
       if (btn.playerId !== playerId) return true;
-      btn.bg.destroy(); btn.labelText.destroy(); btn.statusText.destroy(); btn.keyText.destroy();
+      btn.bg.destroy(); btn.labelText.destroy(); btn.statusText.destroy(); btn.keyText.destroy(); btn.clockGfx.destroy();
       return false;
     });
     this.categoryButtons = this.categoryButtons.filter(btn => {
@@ -372,17 +382,17 @@ export class UIScene extends Phaser.Scene {
     });
     this.researchButtons = this.researchButtons.filter(btn => {
       if (btn.playerId !== playerId) return true;
-      btn.bg.destroy(); btn.labelText.destroy(); btn.costText.destroy(); btn.keyText.destroy();
+      btn.bg.destroy(); btn.labelText.destroy(); btn.costText.destroy(); btn.keyText.destroy(); btn.clockGfx.destroy();
       return false;
     });
     this.constructButtons = this.constructButtons.filter(btn => {
       if (btn.playerId !== playerId) return true;
-      btn.bg.destroy(); btn.labelText.destroy(); btn.costText.destroy(); btn.keyText.destroy();
+      btn.bg.destroy(); btn.labelText.destroy(); btn.costText.destroy(); btn.keyText.destroy(); btn.clockGfx.destroy();
       return false;
     });
     this.buildActionButtons = this.buildActionButtons.filter(btn => {
       if (btn.playerId !== playerId) return true;
-      btn.bg.destroy(); btn.labelText.destroy(); btn.statusText.destroy(); btn.keyText.destroy();
+      btn.bg.destroy(); btn.labelText.destroy(); btn.statusText.destroy(); btn.keyText.destroy(); btn.clockGfx?.destroy();
       return false;
     });
     const title = this.categoryTitle[playerId];
@@ -638,6 +648,8 @@ export class UIScene extends Phaser.Scene {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5).setVisible(!this._mobile);
 
+    const clockGfx = this.add.graphics().setDepth(10);
+
     bg.on('pointerdown', () => this.handleUpgrade(playerId, type, bg));
     bg.on('pointerover', () => {
       bg.setFillStyle(0x222244, 0.9);
@@ -650,7 +662,7 @@ export class UIScene extends Phaser.Scene {
       this.hoveredUpgradeBtn[playerId] = null;
       this.hideTooltip(playerId);
     });
-    this.buttons.push({ bg, label: labelText, costText, keyText, type, playerId });
+    this.buttons.push({ bg, label: labelText, costText, keyText, clockGfx, type, playerId });
   }
 
   private createActionButton(
@@ -671,6 +683,8 @@ export class UIScene extends Phaser.Scene {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5).setVisible(!this._mobile);
 
+    const clockGfx = this.add.graphics().setDepth(10);
+
     bg.on('pointerdown', () => this.handleNuke(playerId, bg));
     bg.on('pointerover', () => {
       bg.setFillStyle(0x332222, 0.9);
@@ -680,7 +694,7 @@ export class UIScene extends Phaser.Scene {
       bg.setFillStyle(0x221111, 0.85);
       this.hideTooltip(playerId);
     });
-    this.nukeButtons.push({ bg, labelText, statusText, keyText, playerId });
+    this.nukeButtons.push({ bg, labelText, statusText, keyText, clockGfx, playerId });
   }
 
   private createResearchButton(
@@ -701,10 +715,12 @@ export class UIScene extends Phaser.Scene {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5).setVisible(!this._mobile);
 
+    const clockGfx = this.add.graphics().setDepth(10);
+
     bg.on('pointerdown', () => this.handleResearch(playerId, researchType, bg));
     bg.on('pointerover', () => { bg.setFillStyle(0x224422, 0.9); this.showTooltip(tooltip, x, y, playerId); });
     bg.on('pointerout', () => { bg.setFillStyle(0x112211, 0.85); this.hideTooltip(playerId); });
-    this.researchButtons.push({ bg, labelText, costText, keyText, researchType, playerId });
+    this.researchButtons.push({ bg, labelText, costText, keyText, clockGfx, researchType, playerId });
   }
 
   private createConstructButton(
@@ -725,10 +741,12 @@ export class UIScene extends Phaser.Scene {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5).setVisible(!this._mobile);
 
+    const clockGfx = this.add.graphics().setDepth(10);
+
     bg.on('pointerdown', () => this.handleConstruct(playerId, towerType, bg));
     bg.on('pointerover', () => { bg.setFillStyle(0x222244, 0.9); this.showTooltip(tooltip, x, y, playerId); });
     bg.on('pointerout', () => { bg.setFillStyle(0x111122, 0.85); this.hideTooltip(playerId); });
-    this.constructButtons.push({ bg, labelText, costText, keyText, towerType, playerId });
+    this.constructButtons.push({ bg, labelText, costText, keyText, clockGfx, towerType, playerId });
   }
 
   private createBuildActionButton(
@@ -749,10 +767,12 @@ export class UIScene extends Phaser.Scene {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5).setVisible(!this._mobile);
 
+    const clockGfx = action === 'buildSelected' ? this.add.graphics().setDepth(10) : undefined;
+
     bg.on('pointerdown', () => this.handleBuildAction(playerId, action, bg));
     bg.on('pointerover', () => { bg.setFillStyle(0x333322, 0.9); this.showTooltip(tooltip, x, y, playerId); });
     bg.on('pointerout', () => { bg.setFillStyle(0x222211, 0.85); this.hideTooltip(playerId); });
-    this.buildActionButtons.push({ bg, labelText, statusText, keyText, action, playerId });
+    this.buildActionButtons.push({ bg, labelText, statusText, keyText, clockGfx, action, playerId });
   }
 
   private createTowerMgmtButton(
@@ -1059,6 +1079,58 @@ export class UIScene extends Phaser.Scene {
     });
   }
 
+  // ── Clock overlay (shared by all button types) ────────────────────
+
+  private drawClockOverlay(gfx: Phaser.GameObjects.Graphics, cx: number, cy: number, w: number, h: number, progress: number): void {
+    gfx.clear();
+    if (progress >= 1) return;
+
+    const hw = w / 2, hh = h / 2;
+    const startAngle = -Math.PI / 2;
+
+    const edgePt = (angle: number): [number, number] => {
+      const dx = Math.cos(angle), dy = Math.sin(angle);
+      const tx = dx !== 0 ? hw / Math.abs(dx) : Infinity;
+      const ty = dy !== 0 ? hh / Math.abs(dy) : Infinity;
+      const t = Math.min(tx, ty);
+      return [cx + dx * t, cy + dy * t];
+    };
+
+    const normCW = (a: number) =>
+      ((a - startAngle) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+
+    gfx.fillStyle(0x000000, 0.75);
+
+    if (progress <= 0) {
+      gfx.fillRect(cx - hw, cy - hh, w, h);
+    } else {
+      const progressAngle = startAngle + progress * 2 * Math.PI;
+      const progressCW = normCW(progressAngle);
+      const corners: [number, number][] = [
+        [cx + hw, cy - hh], [cx + hw, cy + hh],
+        [cx - hw, cy + hh], [cx - hw, cy - hh],
+      ];
+      const [px, py] = edgePt(progressAngle);
+      const [sx, sy] = edgePt(startAngle);
+      gfx.beginPath();
+      gfx.moveTo(cx, cy);
+      gfx.lineTo(px, py);
+      for (const corner of corners) {
+        if (normCW(Math.atan2(corner[1] - cy, corner[0] - cx)) > progressCW)
+          gfx.lineTo(corner[0], corner[1]);
+      }
+      gfx.lineTo(sx, sy);
+      gfx.closePath();
+      gfx.fillPath();
+
+      gfx.lineStyle(2, 0xffffff, 0.9);
+      gfx.beginPath();
+      gfx.moveTo(cx, cy);
+      gfx.lineTo(px, py);
+      gfx.strokePath();
+    }
+  }
+
   // ── Update loop ────────────────────────────────────────────────────
 
   update(): void {
@@ -1112,53 +1184,97 @@ export class UIScene extends Phaser.Scene {
     this.p1StatsText.setText(`HP:${p1.particleHealth.toFixed(1)} ATK:${p1.particleAttack.toFixed(1)} RAD:${p1.particleRadius.toFixed(1)} VEL:${p1.particleSpeed.toFixed(1)} DEF:${Math.round(p1.particleDefense * 100)}% INT:${(p1.goldInterestRate * 100).toFixed(2)}% Units:${p1Count}/${p1.maxParticles}`);
     this.p2StatsText.setText(`HP:${p2.particleHealth.toFixed(1)} ATK:${p2.particleAttack.toFixed(1)} RAD:${p2.particleRadius.toFixed(1)} VEL:${p2.particleSpeed.toFixed(1)} DEF:${Math.round(p2.particleDefense * 100)}% INT:${(p2.goldInterestRate * 100).toFixed(2)}% Units:${p2Count}/${p2.maxParticles}`);
 
+    const gameTimeMs = this.viewModel.gameTimeMs;
+
     for (const btn of this.buttons) {
       const player = this.viewModel.players[btn.playerId];
-      const canAfford = player.canAfford(btn.type);
-      const isAtMax = player.isUpgradeAtMax(btn.type);
-      btn.bg.setAlpha(canAfford && !isAtMax ? 1 : 0.4);
-      btn.costText.setText(`$${player.getUpgradeCost(btn.type)}`);
+      const progress = player.getUpgradeProgress(btn.type, gameTimeMs);
+      if (progress >= 0 && progress < 1) {
+        btn.bg.setAlpha(0.8);
+        btn.costText.setText(`${Math.ceil(player.getUpgradeRemainingMs(btn.type, gameTimeMs) / 1000)}s`);
+        btn.costText.setColor('#ffffff');
+        this.drawClockOverlay(btn.clockGfx, btn.bg.x, btn.bg.y, btn.bg.width, btn.bg.height, progress);
+      } else {
+        btn.clockGfx.clear();
+        const canAfford = player.canAfford(btn.type);
+        const isAtMax = player.isUpgradeAtMax(btn.type);
+        btn.bg.setAlpha(canAfford && !isAtMax ? 1 : 0.4);
+        btn.costText.setText(`$${player.getUpgradeCost(btn.type)}`);
+        btn.costText.setColor('#ffd700');
+      }
     }
 
     for (const btn of this.researchButtons) {
       const player = this.viewModel.players[btn.playerId];
+      const nodeId = `unlock_${btn.researchType}`;
       const researched = this.hasResearched(player, btn.researchType);
-      const canResearch = this.canResearch(player, btn.researchType);
-      btn.bg.setAlpha(researched ? 0.3 : canResearch ? 1 : 0.4);
-      btn.costText.setText(researched ? 'DONE' : `$${this.getResearchCost(player, btn.researchType)}`);
-      if (researched) btn.costText.setColor('#66ff66');
-      else btn.costText.setColor('#ffd700');
+      const progress = player.getResearchProgress(nodeId, gameTimeMs);
+      if (progress >= 0 && progress < 1) {
+        btn.bg.setAlpha(0.8);
+        btn.costText.setText(`${Math.ceil(player.getResearchRemainingMs(nodeId, gameTimeMs) / 1000)}s`);
+        btn.costText.setColor('#ffffff');
+        this.drawClockOverlay(btn.clockGfx, btn.bg.x, btn.bg.y, btn.bg.width, btn.bg.height, progress);
+      } else {
+        btn.clockGfx.clear();
+        const canResearch = this.canResearch(player, btn.researchType);
+        btn.bg.setAlpha(researched ? 0.3 : canResearch ? 1 : 0.4);
+        btn.costText.setText(researched ? 'DONE' : `$${this.getResearchCost(player, btn.researchType)}`);
+        btn.costText.setColor(researched ? '#66ff66' : '#ffd700');
+      }
     }
 
     for (const btn of this.constructButtons) {
       const player = this.viewModel.players[btn.playerId];
       const researched = player.hasResearched(btn.towerType);
-      const selected = this.constructionMenuState[btn.playerId].selectedTowerType === btn.towerType;
-      btn.bg.setAlpha(researched ? (selected ? 1 : 0.7) : 0.4);
-      btn.bg.setStrokeStyle(2, selected ? 0xffffff : (btn.playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR), selected ? 0.9 : 0.5);
-      btn.costText.setText(researched ? `$${player.getConstructionCost(btn.towerType)}` : 'LOCKED');
+      const pending = this.viewModel.getPendingConstruction(btn.playerId);
+      const isConstructing = pending?.towerType === btn.towerType;
+      if (isConstructing && pending) {
+        btn.bg.setAlpha(0.8);
+        btn.bg.setStrokeStyle(2, btn.playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR, 0.8);
+        btn.costText.setText(`${Math.ceil(pending.remainingMs / 1000)}s`);
+        btn.costText.setColor('#ffffff');
+        this.drawClockOverlay(btn.clockGfx, btn.bg.x, btn.bg.y, btn.bg.width, btn.bg.height, pending.progress);
+      } else {
+        btn.clockGfx.clear();
+        const selected = this.constructionMenuState[btn.playerId].selectedTowerType === btn.towerType;
+        btn.bg.setAlpha(researched ? (selected ? 1 : 0.7) : 0.4);
+        btn.bg.setStrokeStyle(2, selected ? 0xffffff : (btn.playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR), selected ? 0.9 : 0.5);
+        btn.costText.setText(researched ? `$${player.getConstructionCost(btn.towerType)}` : 'LOCKED');
+        btn.costText.setColor(researched ? '#ffd700' : '#666666');
+      }
     }
 
-    const gameTimeMs = this.viewModel.gameTimeMs;
     for (const btn of this.nukeButtons) {
       const player = this.viewModel.players[btn.playerId];
-      if (!player.hasResearchedNuke()) {
+      const nukeProgress = player.getResearchProgress('unlock_nuke', gameTimeMs);
+      if (nukeProgress >= 0 && nukeProgress < 1) {
+        // Nuke research in progress
+        btn.clockGfx.clear();
+        btn.bg.setAlpha(0.8);
+        btn.statusText.setText(`${Math.ceil(player.getResearchRemainingMs('unlock_nuke', gameTimeMs) / 1000)}s`);
+        btn.statusText.setColor('#ffffff');
+        this.drawClockOverlay(btn.clockGfx, btn.bg.x, btn.bg.y, btn.bg.width, btn.bg.height, nukeProgress);
+      } else if (!player.hasResearchedNuke()) {
+        btn.clockGfx.clear();
         btn.bg.setAlpha(0.4);
         btn.statusText.setText('LOCKED');
         btn.statusText.setColor('#666666');
-        continue;
-      }
-      const canUse = player.canUseNuke(gameTimeMs);
-      btn.bg.setAlpha(canUse ? 1 : 0.4);
-      const remainingMs = player.getNukeCooldownRemainingMs(gameTimeMs);
-      if (remainingMs <= 0) {
-        btn.statusText.setText('READY');
-        btn.statusText.setColor('#66ff66');
       } else {
-        const mins = Math.floor(remainingMs / 60000);
-        const secs = Math.floor((remainingMs % 60000) / 1000);
-        btn.statusText.setText(`${mins}:${secs.toString().padStart(2, '0')}`);
-        btn.statusText.setColor('#ff6666');
+        const remainingMs = player.getNukeCooldownRemainingMs(gameTimeMs);
+        if (remainingMs <= 0) {
+          btn.clockGfx.clear();
+          btn.bg.setAlpha(1);
+          btn.statusText.setText('READY');
+          btn.statusText.setColor('#66ff66');
+        } else {
+          const progress = 1 - remainingMs / CONFIG.NUCLEAR_COOLDOWN_MS;
+          btn.bg.setAlpha(0.6);
+          const mins = Math.floor(remainingMs / 60000);
+          const secs = Math.floor((remainingMs % 60000) / 1000);
+          btn.statusText.setText(mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`);
+          btn.statusText.setColor('#ff6666');
+          this.drawClockOverlay(btn.clockGfx, btn.bg.x, btn.bg.y, btn.bg.width, btn.bg.height, progress);
+        }
       }
     }
 
@@ -1166,20 +1282,33 @@ export class UIScene extends Phaser.Scene {
       const selectedSite = this.getSelectedBuildSite(btn.playerId);
       const player = this.viewModel.players[btn.playerId];
       const towerType = this.constructionMenuState[btn.playerId].selectedTowerType;
-      const canBuild = selectedSite !== null
-        && player.hasResearched(towerType)
-        && player.canAffordConstruction(towerType)
-        && this.viewModel.getTowers(btn.playerId).length < CONFIG.TOWER_MAX_PER_PLAYER;
-      btn.bg.setAlpha(btn.action === 'buildSelected' ? (canBuild ? 1 : 0.4) : (selectedSite ? 1 : 0.4));
-      if (!selectedSite) {
-        btn.statusText.setText('NO SITE');
-        btn.statusText.setColor('#666666');
-      } else if (btn.action === 'buildSelected') {
-        btn.statusText.setText(`SITE ${selectedSite.id + 1}`);
-        btn.statusText.setColor(canBuild ? '#66ff66' : '#ffaa33');
+      const pending = this.viewModel.getPendingConstruction(btn.playerId);
+
+      if (btn.action === 'buildSelected' && btn.clockGfx) {
+        if (pending) {
+          btn.bg.setAlpha(0.8);
+          btn.statusText.setText(`${Math.ceil(pending.remainingMs / 1000)}s`);
+          btn.statusText.setColor('#ffffff');
+          this.drawClockOverlay(btn.clockGfx, btn.bg.x, btn.bg.y, btn.bg.width, btn.bg.height, pending.progress);
+        } else {
+          btn.clockGfx.clear();
+          const canBuild = selectedSite !== null
+            && player.hasResearched(towerType)
+            && player.canAffordConstruction(towerType)
+            && this.viewModel.getTowers(btn.playerId).length < CONFIG.TOWER_MAX_PER_PLAYER;
+          btn.bg.setAlpha(canBuild ? 1 : 0.4);
+          if (!selectedSite) {
+            btn.statusText.setText('NO SITE');
+            btn.statusText.setColor('#666666');
+          } else {
+            btn.statusText.setText(`SITE ${selectedSite.id + 1}`);
+            btn.statusText.setColor(canBuild ? '#66ff66' : '#ffaa33');
+          }
+        }
       } else {
-        btn.statusText.setText(`${selectedSite.id + 1}/6`);
-        btn.statusText.setColor('#cccccc');
+        btn.bg.setAlpha(selectedSite ? 1 : 0.4);
+        btn.statusText.setText(selectedSite ? `${selectedSite.id + 1}/6` : 'NO SITE');
+        btn.statusText.setColor(selectedSite ? '#cccccc' : '#666666');
       }
     }
 

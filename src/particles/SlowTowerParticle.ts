@@ -41,6 +41,7 @@ export class SlowTowerParticle extends AbstractParticle {
       name: 'Slow Tower',
       description: 'Unlock slow towers that reduce nearby enemy speed',
       cost: CONFIG.TOWER_RESEARCH_COSTS.slow,
+      durationMs: CONFIG.TOWER_RESEARCH_DURATION_MS.slow,
     },
     upgradePaths: [{
       id: 'slow_upgrades',
@@ -54,6 +55,7 @@ export class SlowTowerParticle extends AbstractParticle {
   readonly typeName = 'slowTower';
   readonly towerType = 'slow' as const;
 
+  pendingUpgrade: { startedAtMs: number; durationMs: number } | null = null;
   level: number = 0;
   range: number = CONFIG.TOWER_SLOW_BASE_RANGE;
   slowFactor: number = CONFIG.TOWER_SLOW_BASE_FACTOR;

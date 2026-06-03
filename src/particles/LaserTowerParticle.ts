@@ -44,6 +44,7 @@ export class LaserTowerParticle extends AbstractParticle {
       name: 'Laser Tower',
       description: 'Unlock laser towers that damage nearby enemies',
       cost: CONFIG.TOWER_RESEARCH_COSTS.laser,
+      durationMs: CONFIG.TOWER_RESEARCH_DURATION_MS.laser,
     },
     upgradePaths: [{
       id: 'laser_upgrades',
@@ -57,6 +58,7 @@ export class LaserTowerParticle extends AbstractParticle {
   readonly typeName = 'laserTower';
   readonly towerType = 'laser' as const;
 
+  pendingUpgrade: { startedAtMs: number; durationMs: number } | null = null;
   level: number = 0;
   range: number = CONFIG.TOWER_LASER_BASE_RANGE;
   damage: number = CONFIG.TOWER_LASER_BASE_DAMAGE;

@@ -186,7 +186,7 @@ export class AIController {
     }
 
     if (bestType !== null) {
-      ai.buyUpgrade(bestType);
+      ai.startUpgrade(bestType, state.gameTimeMs, CONFIG.PARTICLE_UPGRADE_DURATION_MS);
     }
   }
 
