@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# First-time Fly.io setup: creates the app and configures it.
-# Run once before deploy.sh: ./scripts/setup-fly.sh
+# First-time Fly.io setup: creates the app (run once before deploy.sh).
 #
 # Prerequisites:
 #   brew install flyctl   (or curl -L https://fly.io/install.sh | sh)
@@ -8,7 +7,7 @@
 
 set -euo pipefail
 
-cd "$(dirname "$0")/../server"
+APP_NAME="particle-defence-signaling"
 
 if ! command -v flyctl &>/dev/null; then
   echo "flyctl not found. Install it:"
@@ -21,10 +20,8 @@ if ! flyctl auth whoami &>/dev/null; then
   flyctl auth login
 fi
 
-echo "▶ Creating Fly.io app..."
-# --no-deploy skips the first deploy so we can configure first
-flyctl launch --no-deploy --copy-config
+echo "▶ Creating Fly.io app: ${APP_NAME}"
+flyctl apps create "${APP_NAME}" || true   # 'true' so re-running doesn't fail if app exists
 
 echo ""
-echo "✅ App created. Run the following to deploy:"
-echo "   ./scripts/deploy.sh"
+echo "✅ Done. Now run:  ./scripts/deploy.sh"
