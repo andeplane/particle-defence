@@ -7,6 +7,7 @@
 Particle Defence is a 2-player tower defence game where you spawn particles from your base, upgrade them with gold from kills, and fight through a procedurally generated maze to destroy the enemy base. Particles navigate the maze, collide with enemy particles in real-time combat, and deal damage when they reach the enemy base. Win by reducing the enemy base HP to zero.
 
 **Features:**
+- **Online Multiplayer** -- Play against a friend anywhere via WebRTC P2P (host-authoritative)
 - **1 Player vs AI** -- Battle an AI that upgrades, builds towers, and uses nukes tactically
 - **2 Player** -- Local multiplayer with hierarchical keyboard menus
 - **8 upgrade types** -- Health, Attack, Radius, Spawn Rate, Speed, Defense, Max Particles, Interest Rate
@@ -22,6 +23,7 @@ Particle Defence is a 2-player tower defence game where you spawn particles from
 
 | Mode | Description |
 |------|-------------|
+| **Online Multiplayer** | Play against a friend online. Host creates a room code, guest enters it. WebRTC P2P — no game state on the server. |
 | **1 Player vs AI** | You (left, cyan) vs AI (right, red). AI controls its own upgrades, towers, and nuke. |
 | **2 Player** | Both players control upgrades, towers, and nuke via keyboard. |
 
@@ -135,9 +137,59 @@ npm run balance-test -- full --games 30         # All analyses
 
 Six AI strategy profiles (Balanced, Rush, Economy, TowerFortress, GlassCannon, Tank) compete in round-robin tournaments. See `STRATEGIES.md` for detailed strategy descriptions.
 
+## Online multiplayer
+
+The game uses a lightweight WebSocket signaling server to connect two players, then all game data flows directly peer-to-peer via WebRTC.
+
+### Playing online
+
+1. One player clicks **Multiplayer → Create Room** and shares the 6-character code
+2. The other clicks **Multiplayer → Join Room** and enters the code
+3. The game starts automatically once connected
+
+### Running the signaling server locally
+
+```bash
+cd server
+npm install
+npm run dev     # starts on ws://localhost:8080
+```
+
+The game client defaults to `ws://localhost:8080` in development.
+
+### Deploying the signaling server to Fly.io
+
+**First time only** (creates the Fly app):
+
+```bash
+./scripts/setup-fly.sh
+```
+
+**Every deploy after that:**
+
+```bash
+./scripts/deploy.sh
+```
+
+The script prints the `wss://` URL when done. Then build the game client pointing at it:
+
+```bash
+VITE_SIGNALING_URL=wss://particle-defence-signaling.fly.dev npm run build
+```
+
+### Signaling server tests
+
+```bash
+cd server
+npm test
+```
+
+---
+
 ## Tech stack
 
 - **Phaser 3** -- Game framework
 - **TypeScript** -- Language
 - **Vite** -- Build tool and dev server
 - **Vitest** -- Testing framework
+- **ws** -- WebSocket signaling server (Node.js, deployed on Fly.io)
