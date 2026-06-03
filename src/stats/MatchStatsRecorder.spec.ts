@@ -322,7 +322,6 @@ function createPlayers(overrides?: {
     getUpgradeLevel: (type) => upgrades[type] ?? 0,
     getUpgradeCost: () => 5,
     canAfford: () => true,
-    buyUpgrade: () => true,
     canUseNuke: () => false,
     useNuke: () => {},
     getNukeCooldownRemainingMs: () => 0,

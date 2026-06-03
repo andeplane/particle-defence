@@ -28,7 +28,7 @@ const noSpawnConfig = {
 
 function createPlayerWithInterest(interestLevel: number, startingGold: number): IPlayer {
   const p = createPlayer(0, { ...noSpawnConfig, startingGold: startingGold + 10000 });
-  for (let i = 0; i < interestLevel; i++) p.buyUpgrade('interestRate');
+  for (let i = 0; i < interestLevel; i++) { p.startUpgrade('interestRate', i * 2, 1); p.tickUpgrades(i * 2 + 1); }
   p.gold = startingGold;
   return p;
 }
@@ -281,7 +281,7 @@ describe(GameEngine.name, () => {
       expect(engine.towers[0][0].typeName).toBe('slowTower');
     });
 
-    it('upgradeTower deducts gold and increases level', () => {
+    it('upgradeTower deducts gold and increases level after duration', () => {
       const { engine } = createTowerEngine();
       engine.buyResearch(0, 'laser');
       skipTimers(engine);
@@ -290,11 +290,23 @@ describe(GameEngine.name, () => {
 
       const goldBefore = engine.players[0].gold;
       const result = engine.upgradeTower(0, 0);
-      skipTimers(engine);
 
       expect(result).toBe(true);
-      expect(engine.towers[0][0].level).toBe(1);
-      expect(engine.players[0].gold).toBeLessThan(goldBefore);
+      expect(engine.players[0].gold).toBeLessThan(goldBefore); // gold deducted immediately
+      expect(engine.towers[0][0].level).toBe(0); // not yet applied
+      engine.tick(CONFIG.TOWER_UPGRADE_DURATION_MS + 1000);
+      expect(engine.towers[0][0].level).toBe(1); // applied after duration
+    });
+
+    it('upgradeTower returns false while a previous upgrade is still pending', () => {
+      const { engine } = createTowerEngine();
+      engine.buyResearch(0, 'laser');
+      skipTimers(engine);
+      engine.constructTower(0, 'laser', 0);
+      skipTimers(engine);
+
+      expect(engine.upgradeTower(0, 0)).toBe(true);
+      expect(engine.upgradeTower(0, 0)).toBe(false); // pending, rejected
     });
 
     it('upgradeTower fails when cannot afford', () => {

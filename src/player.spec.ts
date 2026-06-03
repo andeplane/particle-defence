@@ -46,9 +46,9 @@ describe(Player.name, () => {
     ])('$stat increases by 1 per $upgradeType upgrade level', ({ stat, base, upgradeType }) => {
       expect(player[stat as keyof Player]).toBe(base);
       player.gold = 9999;
-      player.buyUpgrade(upgradeType);
+      applyUpgrade(player, upgradeType);
       expect(player[stat as keyof Player]).toBe(base + 1);
-      player.buyUpgrade(upgradeType);
+      applyUpgrade(player, upgradeType);
       expect(player[stat as keyof Player]).toBe(base + 2);
     });
 
@@ -56,25 +56,24 @@ describe(Player.name, () => {
       expect(player.spawnInterval).toBe(200);
       player.gold = 9999;
 
-      player.buyUpgrade('spawnRate');
+      applyUpgrade(player, 'spawnRate');
       expect(player.spawnInterval).toBe(180);
 
-      // Buy enough to hit the minimum
-      for (let i = 0; i < 20; i++) player.buyUpgrade('spawnRate');
+      for (let i = 0; i < 20; i++) applyUpgrade(player, 'spawnRate');
       expect(player.spawnInterval).toBe(testConfig.minSpawnInterval);
     });
 
     it('particleSpeed increases with speed upgrades', () => {
       expect(player.particleSpeed).toBe(180);
       player.gold = 9999;
-      player.buyUpgrade('speed');
+      applyUpgrade(player, 'speed');
       expect(player.particleSpeed).toBe(200);
     });
 
     it('maxParticles increases with maxParticles upgrades', () => {
       expect(player.maxParticles).toBe(100);
       player.gold = 9999;
-      player.buyUpgrade('maxParticles');
+      applyUpgrade(player, 'maxParticles');
       expect(player.maxParticles).toBe(150);
     });
 
@@ -85,7 +84,7 @@ describe(Player.name, () => {
       { level: 50, expected: CONFIG.OWNERSHIP_DEFENSE_MAX, desc: 'capped at max' },
     ])('particleDefense $desc', ({ level, expected }) => {
       player.gold = 99999;
-      for (let i = 0; i < level; i++) player.buyUpgrade('defense');
+      for (let i = 0; i < level; i++) applyUpgrade(player, 'defense');
       expect(player.particleDefense).toBeCloseTo(expected);
     });
 
@@ -96,7 +95,7 @@ describe(Player.name, () => {
       { level: 50, expected: CONFIG.GLOBAL_DEFENSE_MAX, desc: 'capped at max' },
     ])('globalDefense $desc', ({ level, expected }) => {
       player.gold = 99999;
-      for (let i = 0; i < level; i++) player.buyUpgrade('defense');
+      for (let i = 0; i < level; i++) applyUpgrade(player, 'defense');
       expect(player.globalDefense).toBeCloseTo(expected);
     });
 
@@ -108,7 +107,7 @@ describe(Player.name, () => {
       { level: 21, expected: 0.05, desc: 'stays capped at 5%' },
     ])('goldInterestRate $desc', ({ level, expected }) => {
       player.gold = 99999;
-      for (let i = 0; i < level; i++) player.buyUpgrade('interestRate');
+      for (let i = 0; i < level; i++) applyUpgrade(player, 'interestRate');
       expect(player.goldInterestRate).toBeCloseTo(expected);
     });
   });
@@ -124,22 +123,46 @@ describe(Player.name, () => {
       expect(player.canAfford('health')).toBe(false);
     });
 
-    it('buyUpgrade deducts gold and increments level', () => {
+    it('canAfford returns false when upgrade is pending', () => {
+      player.gold = 9999;
+      player.startUpgrade('health', 0, 5000);
+      expect(player.canAfford('health')).toBe(false);
+    });
+
+    it('startUpgrade deducts gold immediately and level is not yet incremented', () => {
       player.gold = 9999;
       const cost = player.getUpgradeCost('health');
-      const result = player.buyUpgrade('health');
+      const result = player.startUpgrade('health', 0, 3000);
 
       expect(result).toBe(true);
       expect(player.gold).toBe(9999 - cost);
+      expect(player.getUpgradeLevel('health')).toBe(0); // not applied yet
+    });
+
+    it('tickUpgrades increments level after duration elapses', () => {
+      player.gold = 9999;
+      player.startUpgrade('health', 0, 3000);
+      player.tickUpgrades(3001);
       expect(player.getUpgradeLevel('health')).toBe(1);
     });
 
-    it('buyUpgrade returns false when cannot afford', () => {
-      player.gold = 0;
-      const result = player.buyUpgrade('health');
-
-      expect(result).toBe(false);
+    it('tickUpgrades does not increment level before duration', () => {
+      player.gold = 9999;
+      player.startUpgrade('health', 0, 3000);
+      player.tickUpgrades(1000);
       expect(player.getUpgradeLevel('health')).toBe(0);
+    });
+
+    it('startUpgrade returns false when cannot afford', () => {
+      player.gold = 0;
+      expect(player.startUpgrade('health', 0, 3000)).toBe(false);
+      expect(player.getUpgradeLevel('health')).toBe(0);
+    });
+
+    it('startUpgrade returns false while same type is already pending', () => {
+      player.gold = 9999;
+      player.startUpgrade('health', 0, 3000);
+      expect(player.startUpgrade('health', 0, 3000)).toBe(false);
     });
 
     it.each([
@@ -149,9 +172,9 @@ describe(Player.name, () => {
     ])('isUpgradeAtMax returns false when $type below max, true when at max', ({ type, levelsBelowMax, statCheck }) => {
       player.gold = 99999;
       expect(player.isUpgradeAtMax(type)).toBe(false);
-      for (let i = 0; i < levelsBelowMax; i++) player.buyUpgrade(type);
+      for (let i = 0; i < levelsBelowMax; i++) applyUpgrade(player, type);
       expect(player.isUpgradeAtMax(type)).toBe(false);
-      player.buyUpgrade(type);
+      applyUpgrade(player, type);
       expect(player.isUpgradeAtMax(type)).toBe(true);
       statCheck(player);
     });
@@ -165,12 +188,12 @@ describe(Player.name, () => {
       { type: 'interestRate' as UpgradeType, levelsToMax: 20 },
       { type: 'defense' as UpgradeType, levelsToMax: Math.round((CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL) },
       { type: 'spawnRate' as UpgradeType, levelsToMax: 8 },
-    ])('buyUpgrade returns false when $type is at max', ({ type, levelsToMax }) => {
+    ])('startUpgrade returns false when $type is at max', ({ type, levelsToMax }) => {
       player.gold = 99999;
-      for (let i = 0; i < levelsToMax; i++) player.buyUpgrade(type);
+      for (let i = 0; i < levelsToMax; i++) applyUpgrade(player, type);
       const levelBefore = player.getUpgradeLevel(type);
       const goldBefore = player.gold;
-      const result = player.buyUpgrade(type);
+      const result = player.startUpgrade(type, 0, 3000);
 
       expect(result).toBe(false);
       expect(player.getUpgradeLevel(type)).toBe(levelBefore);
@@ -180,7 +203,7 @@ describe(Player.name, () => {
     it('upgrade cost increases with level', () => {
       player.gold = 9999;
       const cost0 = player.getUpgradeCost('health');
-      player.buyUpgrade('health');
+      applyUpgrade(player, 'health');
       const cost1 = player.getUpgradeCost('health');
 
       expect(cost1).toBeGreaterThan(cost0);
@@ -463,6 +486,12 @@ describe(computeMaxLevels.name, () => {
     expect(maxLevels.spawnRate).toBe(8);
   });
 });
+
+/** Instantly apply one upgrade level — deducts gold and completes the timer in 1 ms. */
+function applyUpgrade(player: Player, type: UpgradeType): void {
+  player.startUpgrade(type, 0, 1);
+  player.tickUpgrades(2);
+}
 
 describe(createPlayer.name, () => {
   it('creates a player with default config', () => {

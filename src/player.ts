@@ -23,7 +23,6 @@ export interface IPlayer {
   getUpgradeCost(upgrade: UpgradeType): number;
   canAfford(upgrade: UpgradeType): boolean;
   isUpgradeAtMax(upgrade: UpgradeType): boolean;
-  buyUpgrade(upgrade: UpgradeType): boolean;
   canUseNuke(gameTimeMs: number): boolean;
   useNuke(gameTimeMs: number): void;
   getNukeCooldownRemainingMs(gameTimeMs: number): number;
@@ -214,14 +213,6 @@ export class Player implements IPlayer {
 
   isUpgradeAtMax(upgrade: UpgradeType): boolean {
     return this.upgradeLevels[upgrade] >= this.maxLevels[upgrade];
-  }
-
-  buyUpgrade(upgrade: UpgradeType): boolean {
-    if (!this.canAfford(upgrade)) return false;
-    if (this.isUpgradeAtMax(upgrade)) return false;
-    this.gold -= this.getUpgradeCost(upgrade);
-    this.upgradeLevels[upgrade]++;
-    return true;
   }
 
   canUseNuke(gameTimeMs: number): boolean {

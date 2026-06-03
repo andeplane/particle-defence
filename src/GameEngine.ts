@@ -365,7 +365,10 @@ export class GameEngine implements AIGameState {
   }
 
   getPendingConstruction(playerId: 0 | 1): { towerType: TowerType; progress: number; remainingMs: number } | null {
-    const pc = this.pendingConstructions.find(p => p.playerId === playerId);
+    // Return the most recently started construction so the clock reflects the latest action
+    const pc = this.pendingConstructions
+      .filter(p => p.playerId === playerId)
+      .sort((a, b) => b.startedAtMs - a.startedAtMs)[0];
     if (!pc) return null;
     const elapsed = this.gameTimeMs - pc.startedAtMs;
     const progress = pc.durationMs > 0 ? Math.min(1, elapsed / pc.durationMs) : 1;

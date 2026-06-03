@@ -48,7 +48,6 @@ function createMinimalMockPlayer(id: 0 | 1): IPlayer {
     getUpgradeCost: vi.fn(() => 5),
     canAfford: vi.fn(() => true),
     isUpgradeAtMax: vi.fn(() => false),
-    buyUpgrade: vi.fn(() => true),
     canUseNuke: vi.fn(() => true),
     useNuke: vi.fn(),
     getNukeCooldownRemainingMs: vi.fn(() => 0),
