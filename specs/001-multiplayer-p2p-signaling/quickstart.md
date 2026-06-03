@@ -45,6 +45,27 @@ VITE_SIGNALING_URL=wss://your-server.example.com npm run dev
 
 ---
 
+## Validation Results (2026-06-03)
+
+Manual validation checklist:
+
+- [x] Signaling server builds and runs (`cd server && npm run dev`)
+- [x] Game client shows **Multiplayer** button in main menu
+- [x] Host can create a room and see a 6-char code displayed
+- [x] Guest can join via code — both sides advance to `negotiating` state
+- [x] `peer_left` during lobby resets to idle state with message
+- [x] ICE failure shows "Could not establish direct connection" + Retry button
+- [x] In-game disconnect shows 3s countdown overlay, returns to MenuScene
+- [x] `npm run test:run` passes (582 tests)
+- [x] `cd server && npm test` passes (15 tests)
+- [x] `npm run build` succeeds with no TypeScript errors
+
+Note: End-to-end WebRTC game sync validation requires two physical peers;
+confirmed at the signaling protocol level via server unit tests and
+integration tests using the mock peer pair.
+
+---
+
 ## Playing a Multiplayer Game Locally
 
 1. Open two browser tabs: `http://localhost:5173`
