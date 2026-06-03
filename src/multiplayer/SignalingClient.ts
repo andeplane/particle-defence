@@ -21,6 +21,9 @@ export class SignalingClient {
   private ws: WebSocket | null = null;
   private handlers: HandlerMap = {};
 
+  /** Convenience callback fired when the server sends { type: "peer_left" }. */
+  onPeerLeft: (() => void) | null = null;
+
   connect(url: string): void {
     this.ws = new WebSocket(url);
     this.ws.addEventListener('open', () => this.emit('open', {}));
@@ -73,6 +76,9 @@ export class SignalingClient {
       for (const h of list) {
         h(payload);
       }
+    }
+    if (type === 'peer_left') {
+      this.onPeerLeft?.();
     }
   }
 }
