@@ -84,6 +84,7 @@ interface BuildActionButton {
   labelText: Phaser.GameObjects.Text;
   statusText: Phaser.GameObjects.Text;
   keyText: Phaser.GameObjects.Text;
+  clockGfx?: Phaser.GameObjects.Graphics;
   action: BuildAction;
   playerId: 0 | 1;
 }
@@ -391,7 +392,7 @@ export class UIScene extends Phaser.Scene {
     });
     this.buildActionButtons = this.buildActionButtons.filter(btn => {
       if (btn.playerId !== playerId) return true;
-      btn.bg.destroy(); btn.labelText.destroy(); btn.statusText.destroy(); btn.keyText.destroy();
+      btn.bg.destroy(); btn.labelText.destroy(); btn.statusText.destroy(); btn.keyText.destroy(); btn.clockGfx?.destroy();
       return false;
     });
     const title = this.categoryTitle[playerId];
@@ -766,10 +767,12 @@ export class UIScene extends Phaser.Scene {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5).setVisible(!this._mobile);
 
+    const clockGfx = action === 'buildSelected' ? this.add.graphics().setDepth(10) : undefined;
+
     bg.on('pointerdown', () => this.handleBuildAction(playerId, action, bg));
     bg.on('pointerover', () => { bg.setFillStyle(0x333322, 0.9); this.showTooltip(tooltip, x, y, playerId); });
     bg.on('pointerout', () => { bg.setFillStyle(0x222211, 0.85); this.hideTooltip(playerId); });
-    this.buildActionButtons.push({ bg, labelText, statusText, keyText, action, playerId });
+    this.buildActionButtons.push({ bg, labelText, statusText, keyText, clockGfx, action, playerId });
   }
 
   private createTowerMgmtButton(
@@ -1279,20 +1282,33 @@ export class UIScene extends Phaser.Scene {
       const selectedSite = this.getSelectedBuildSite(btn.playerId);
       const player = this.viewModel.players[btn.playerId];
       const towerType = this.constructionMenuState[btn.playerId].selectedTowerType;
-      const canBuild = selectedSite !== null
-        && player.hasResearched(towerType)
-        && player.canAffordConstruction(towerType)
-        && this.viewModel.getTowers(btn.playerId).length < CONFIG.TOWER_MAX_PER_PLAYER;
-      btn.bg.setAlpha(btn.action === 'buildSelected' ? (canBuild ? 1 : 0.4) : (selectedSite ? 1 : 0.4));
-      if (!selectedSite) {
-        btn.statusText.setText('NO SITE');
-        btn.statusText.setColor('#666666');
-      } else if (btn.action === 'buildSelected') {
-        btn.statusText.setText(`SITE ${selectedSite.id + 1}`);
-        btn.statusText.setColor(canBuild ? '#66ff66' : '#ffaa33');
+      const pending = this.viewModel.getPendingConstruction(btn.playerId);
+
+      if (btn.action === 'buildSelected' && btn.clockGfx) {
+        if (pending) {
+          btn.bg.setAlpha(0.8);
+          btn.statusText.setText(`${Math.ceil(pending.remainingMs / 1000)}s`);
+          btn.statusText.setColor('#ffffff');
+          this.drawClockOverlay(btn.clockGfx, btn.bg.x, btn.bg.y, btn.bg.width, btn.bg.height, pending.progress);
+        } else {
+          btn.clockGfx.clear();
+          const canBuild = selectedSite !== null
+            && player.hasResearched(towerType)
+            && player.canAffordConstruction(towerType)
+            && this.viewModel.getTowers(btn.playerId).length < CONFIG.TOWER_MAX_PER_PLAYER;
+          btn.bg.setAlpha(canBuild ? 1 : 0.4);
+          if (!selectedSite) {
+            btn.statusText.setText('NO SITE');
+            btn.statusText.setColor('#666666');
+          } else {
+            btn.statusText.setText(`SITE ${selectedSite.id + 1}`);
+            btn.statusText.setColor(canBuild ? '#66ff66' : '#ffaa33');
+          }
+        }
       } else {
-        btn.statusText.setText(`${selectedSite.id + 1}/6`);
-        btn.statusText.setColor('#cccccc');
+        btn.bg.setAlpha(selectedSite ? 1 : 0.4);
+        btn.statusText.setText(selectedSite ? `${selectedSite.id + 1}/6` : 'NO SITE');
+        btn.statusText.setColor(selectedSite ? '#cccccc' : '#666666');
       }
     }
 
