@@ -14,6 +14,9 @@ import { MatchStatsRecorder } from '../stats';
 import { GAME_MODE, type GameMode } from './MenuScene';
 import type { IGameViewModel, TowerSelectionForRender } from './UIScene';
 import { SCENE_KEYS } from './SceneKeys';
+import { getLaserStatsAtLevel } from '../particles/LaserTowerParticle';
+import { getWeaknessStatsAtLevel } from '../particles/WeaknessTowerParticle';
+import { getTowerUpgradeCost } from '../config';
 
 export class GameScene extends Phaser.Scene implements IGameViewModel {
   static readonly TEXTURES = {
@@ -621,15 +624,15 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
       const centerY = (site.row + 0.5) * grid.cellH;
       const size = Math.min(grid.cellW, grid.cellH) * 0.72;
       const zone = this.add.zone(centerX, centerY, size, size).setInteractive();
-      zone.on('pointerover', () => this.showTowerSiteTooltip(centerX, centerY));
+      zone.on('pointerover', () => this.showTowerSiteTooltip(centerX, centerY, site.id));
       zone.on('pointerout', () => this.hideTowerSiteTooltip());
       this.towerSiteZones.push(zone);
     }
   }
 
-  private showTowerSiteTooltip(x: number, y: number): void {
+  private showTowerSiteTooltip(x: number, y: number, siteId: number): void {
     this.hideTowerSiteTooltip();
-    const text = 'Tower Slot\nResearch, then BUILD > TOWERS\nOwn adjacent cells to unlock';
+    const text = this.buildTowerSiteTooltipText(siteId);
     const pad = CONFIG.UI_GAP * 2;
     this.towerSiteTooltip = this.add.text(x, y - CONFIG.UI_GAP, text, {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`,
@@ -644,6 +647,41 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     } else if (bounds.right > CONFIG.GAME_WIDTH - pad) {
       this.towerSiteTooltip.setX(CONFIG.GAME_WIDTH - pad - bounds.width / 2);
     }
+  }
+
+  private buildTowerSiteTooltipText(siteId: number): string {
+    const site = this.engine.grid.towerSites.find(s => s.id === siteId);
+    if (site) {
+      for (const playerId of [0, 1] as const) {
+        const tower = this.engine.towers[playerId].find(t =>
+          t.alive &&
+          Math.floor(t.x / this.engine.grid.cellW) === site.col &&
+          Math.floor(t.y / this.engine.grid.cellH) === site.row,
+        );
+        if (tower) {
+          const label = playerId === 0 ? '[P1]' : '[P2]';
+          const hp = `HP: ${Math.ceil(tower.health)}/${tower.maxHealth}`;
+          const cost = getTowerUpgradeCost(tower.towerType, tower.level);
+          const canAfford = this.engine.players[playerId].gold >= cost;
+          const costStr = `Upgrade: $${cost}${canAfford ? '' : ' (need gold)'}`;
+          let statsLine: string;
+          if (tower.towerType === TOWER_TYPE.LASER) {
+            const t = tower as LaserTowerParticle;
+            const nxt = getLaserStatsAtLevel(t.level + 1);
+            statsLine = `DMG:${t.damage}->${nxt.damage}  SPD:${t.attackSpeed.toFixed(1)}->${nxt.attackSpeed.toFixed(1)}`;
+          } else {
+            const t = tower as WeaknessTowerParticle;
+            const nxt = getWeaknessStatsAtLevel(t.level + 1);
+            statsLine = `DRN:${t.drainDps.toFixed(1)}->${nxt.drainDps.toFixed(1)}  ATK-:${Math.round(t.attackReduction * 100)}%->${Math.round(nxt.attackReduction * 100)}%`;
+          }
+          return `${tower.towerType.toUpperCase()} Lv${tower.level} ${label}\n${hp}\n${statsLine}\n${costStr}`;
+        }
+      }
+    }
+    if (this.engine.isTowerSiteOccupied(siteId)) {
+      return 'Tower Slot\nUnder construction…';
+    }
+    return 'Tower Slot\nResearch, then BUILD > TOWERS\nOwn adjacent cells to unlock';
   }
 
   private hideTowerSiteTooltip(): void {
