@@ -13,6 +13,7 @@ export interface AIGameState {
   launchNuke(playerId: 0 | 1): boolean;
   buyNukeResearch(playerId: 0 | 1): boolean;
   buyResearch(playerId: 0 | 1, towerType: TowerType): boolean;
+  buyPathResearch(playerId: 0 | 1, pathId: string): boolean;
   constructTower(playerId: 0 | 1, towerType: TowerType, siteId: number): boolean;
   upgradeTower(playerId: 0 | 1, towerIndex: number): boolean;
   getEligibleTowerSites(playerId: 0 | 1): readonly TowerSite[];
@@ -71,6 +72,7 @@ export class AIController {
       this.tryNukeResearch(state);
       this.tryNuke(state);
       this.tryTowerActions(state);
+      this.tryTier2Research(state);
       this.tryUpgrade(state);
     }
   }
@@ -130,7 +132,8 @@ export class AIController {
     const eligibleSites = state.getEligibleTowerSites(this.playerId);
     if (towers.length < CONFIG.TOWER_MAX_PER_PLAYER) {
       if (eligibleSites.length === 0) return;
-      const constructionReserve = highPriority ? 1.2 : 1.5;
+      // Keep a small gold buffer after construction (1.0x = exact cost, no extra reserve needed now costs are lower)
+      const constructionReserve = highPriority ? 1.0 : 1.2;
       const preferredType: TowerType = towers.length % 2 === 0 ? TOWER_TYPE.LASER : TOWER_TYPE.WEAKNESS;
       const siteId = eligibleSites[0].id;
       if (ai.hasResearched(preferredType) && ai.canAffordConstruction(preferredType)) {
@@ -151,7 +154,7 @@ export class AIController {
       }
     }
 
-    if (towers.length > 0 && ai.gold > 50) {
+    if (towers.length > 0) {
       let lowestLevel = Infinity;
       let lowestIdx = 0;
       for (let i = 0; i < towers.length; i++) {
@@ -161,6 +164,31 @@ export class AIController {
         }
       }
       state.upgradeTower(this.playerId, lowestIdx);
+    }
+  }
+
+  private tryTier2Research(state: AIGameState): void {
+    if (this.profile.towersEnabled === false) return;
+    const ai = state.players[this.playerId];
+    const towers = state.towers[this.playerId];
+    if (towers.length === 0) return;
+
+    const hasLaser = ai.hasResearched(TOWER_TYPE.LASER);
+    const hasWeakness = ai.hasResearched(TOWER_TYPE.WEAKNESS);
+
+    // Priority: universal paths first, then type-specific
+    const candidates: string[] = [];
+    if (hasLaser || hasWeakness) {
+      candidates.push('tower_regen', 'tower_range');
+    }
+    if (hasLaser) candidates.push('laser_bounce', 'laser_overcharge');
+    if (hasWeakness) candidates.push('weakness_slow', 'weakness_stun');
+
+    for (const pathId of candidates) {
+      if (!ai.isResearching(pathId) && ai.canPurchasePath(pathId)) {
+        state.buyPathResearch(this.playerId, pathId);
+        return;
+      }
     }
   }
 
