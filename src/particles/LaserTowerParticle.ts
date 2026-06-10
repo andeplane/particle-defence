@@ -113,7 +113,7 @@ export class LaserTowerParticle extends AbstractParticle {
     const regenLevel = player.getPathLevel('tower_regen');
     if (regenLevel > 0 && this.health < this.maxHealth) {
       const regenRate = regenLevel * CONFIG.TOWER_REGEN_HP_PER_SEC_PER_LEVEL;
-      this.health = Math.min(this.maxHealth, this.health + regenRate * dt / 1000);
+      this.health = Math.min(this.maxHealth, this.health + regenRate * dt);
     }
 
     this.attackCooldown -= dt;
