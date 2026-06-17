@@ -74,10 +74,9 @@ describe('CONFIG', () => {
   });
 
   it('has spawn rate and speed upgrade constants', () => {
-    expect(CONFIG.MIN_SPAWN_INTERVAL).toBeGreaterThan(0);
-    expect(CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL).toBeGreaterThan(0);
+    expect(CONFIG.SPAWN_RATE_BASE).toBeGreaterThan(0);
+    expect(CONFIG.SPAWN_RATE_PER_LEVEL).toBeGreaterThan(0);
     expect(CONFIG.SPEED_PER_LEVEL).toBeGreaterThan(0);
-    expect(CONFIG.SPAWN_INTERVAL_MS).toBeGreaterThan(CONFIG.MIN_SPAWN_INTERVAL);
   });
 
   it('has positive game dimensions', () => {

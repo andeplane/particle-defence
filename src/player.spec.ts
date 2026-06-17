@@ -12,9 +12,8 @@ const testConfig: PlayerConfig = {
   attackPerLevel: 1,
   particleBaseRadius: 3,
   particleBaseSpeed: 180,
-  spawnIntervalMs: 200,
-  spawnRateReductionPerLevel: 20,
-  minSpawnInterval: 50,
+  spawnRateBase: 5,
+  spawnRatePerLevel: 1,
   speedPerLevel: 20,
   maxParticlesPerPlayer: 100,
   maxParticlesPerLevel: 50,
@@ -52,15 +51,19 @@ describe(Player.name, () => {
       expect(player[stat as keyof Player]).toBe(base + 2);
     });
 
-    it('spawnInterval decreases with spawnRate upgrades, clamped to min', () => {
-      expect(player.spawnInterval).toBe(200);
+    it('spawnInterval decreases with spawnRate upgrades (no floor)', () => {
+      expect(player.spawnInterval).toBeCloseTo(1000 / 5, 5);
       player.gold = 9999;
 
       applyUpgrade(player, 'spawnRate');
-      expect(player.spawnInterval).toBe(180);
+      expect(player.spawnInterval).toBeCloseTo(1000 / 6, 5);
 
+      applyUpgrade(player, 'spawnRate');
+      expect(player.spawnInterval).toBeCloseTo(1000 / 7, 5);
+
+      // No floor — keeps decreasing (L2 + 20 more = L22, pps = 5 + 22 = 27)
       for (let i = 0; i < 20; i++) applyUpgrade(player, 'spawnRate');
-      expect(player.spawnInterval).toBe(testConfig.minSpawnInterval);
+      expect(player.spawnInterval).toBeCloseTo(1000 / 27, 5);
     });
 
     it('particleSpeed increases with speed upgrades', () => {
@@ -168,7 +171,6 @@ describe(Player.name, () => {
     it.each([
       { type: 'interestRate' as UpgradeType, levelsBelowMax: 19, levelsAtMax: 20, statCheck: (p: Player) => expect(p.goldInterestRate).toBeCloseTo(CONFIG.MAX_INTEREST_RATE) },
       { type: 'defense' as UpgradeType, levelsBelowMax: Math.round((CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL + 1e-9) - 1, levelsAtMax: Math.round((CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL + 1e-9), statCheck: (p: Player) => expect(p.particleDefense).toBeCloseTo(CONFIG.OWNERSHIP_DEFENSE_MAX) },
-      { type: 'spawnRate' as UpgradeType, levelsBelowMax: 7, levelsAtMax: 8, statCheck: (p: Player) => expect(p.spawnInterval).toBe(testConfig.minSpawnInterval) },
     ])('isUpgradeAtMax returns false when $type below max, true when at max', ({ type, levelsBelowMax, statCheck }) => {
       player.gold = 99999;
       expect(player.isUpgradeAtMax(type)).toBe(false);
@@ -179,7 +181,7 @@ describe(Player.name, () => {
       statCheck(player);
     });
 
-    it.each(['health', 'attack', 'radius', 'speed', 'maxParticles'] as UpgradeType[])('isUpgradeAtMax returns false for uncapped %s', (type) => {
+    it.each(['health', 'attack', 'radius', 'speed', 'maxParticles', 'spawnRate'] as UpgradeType[])('isUpgradeAtMax returns false for uncapped %s', (type) => {
       player.gold = 99999;
       expect(player.isUpgradeAtMax(type)).toBe(false);
     });
@@ -187,7 +189,6 @@ describe(Player.name, () => {
     it.each([
       { type: 'interestRate' as UpgradeType, levelsToMax: 20 },
       { type: 'defense' as UpgradeType, levelsToMax: Math.round((CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL + 1e-9) },
-      { type: 'spawnRate' as UpgradeType, levelsToMax: 8 },
     ])('startUpgrade returns false when $type is at max', ({ type, levelsToMax }) => {
       player.gold = 99999;
       for (let i = 0; i < levelsToMax; i++) applyUpgrade(player, type);
@@ -468,9 +469,8 @@ describe(computeMaxLevels.name, () => {
       attackPerLevel: CONFIG.ATTACK_PER_LEVEL,
       particleBaseRadius: CONFIG.PARTICLE_BASE_RADIUS,
       particleBaseSpeed: CONFIG.PARTICLE_SPEED,
-      spawnIntervalMs: CONFIG.SPAWN_INTERVAL_MS,
-      spawnRateReductionPerLevel: CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL,
-      minSpawnInterval: CONFIG.MIN_SPAWN_INTERVAL,
+      spawnRateBase: CONFIG.SPAWN_RATE_BASE,
+      spawnRatePerLevel: CONFIG.SPAWN_RATE_PER_LEVEL,
       speedPerLevel: CONFIG.SPEED_PER_LEVEL,
       maxParticlesPerPlayer: CONFIG.MAX_PARTICLES_PER_PLAYER,
       maxParticlesPerLevel: CONFIG.MAX_PARTICLES_PER_LEVEL,
@@ -481,9 +481,9 @@ describe(computeMaxLevels.name, () => {
     expect(maxLevels[type]).toBe(expected);
   });
 
-  it('returns spawnRate max 8 for testConfig (spawnIntervalMs=200)', () => {
+  it('returns spawnRate Infinity (no cap)', () => {
     const maxLevels = computeMaxLevels(testConfig);
-    expect(maxLevels.spawnRate).toBe(8);
+    expect(maxLevels.spawnRate).toBe(Infinity);
   });
 });
 

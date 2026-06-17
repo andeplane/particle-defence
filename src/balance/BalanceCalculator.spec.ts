@@ -27,9 +27,8 @@ function createTestConfig(overrides?: Partial<BalanceConfig>): BalanceConfig {
     attackPerLevel: 1,
     particleBaseRadius: 3,
     particleBaseSpeed: 180,
-    spawnIntervalMs: 60,
-    minSpawnInterval: 50,
-    spawnRateReductionPerLevel: 20,
+    spawnRateBase: 10,
+    spawnRatePerLevel: 2,
     speedPerLevel: 20,
     maxParticlesPerPlayer: 1000,
     maxParticlesPerLevel: 50,
@@ -120,7 +119,7 @@ describe('Gold & Cost Calculations', () => {
     const cfg = createTestConfig();
 
     it.each([
-      { type: 'spawnRate' as const, expected: 1 },
+      { type: 'spawnRate' as const, expected: Infinity },
       { type: 'defense' as const, expected: 8 },
       { type: 'interestRate' as const, expected: 20 },
       { type: 'health' as const, expected: Infinity },
@@ -140,8 +139,8 @@ describe('Stat Values', () => {
       { type: 'health' as const, level: 5, expected: 8 },
       { type: 'attack' as const, level: 0, expected: 1 },
       { type: 'attack' as const, level: 2, expected: 3 },
-      { type: 'spawnRate' as const, level: 0, expected: 1000 / 60 },
-      { type: 'spawnRate' as const, level: 1, expected: 1000 / 50 },
+      { type: 'spawnRate' as const, level: 0, expected: 10 },
+      { type: 'spawnRate' as const, level: 1, expected: 12 },
       { type: 'speed' as const, level: 0, expected: 180 },
       { type: 'speed' as const, level: 3, expected: 240 },
       { type: 'defense' as const, level: 0, expected: 0.05 },
@@ -177,11 +176,12 @@ describe(upgradeEfficiencyTable.name, () => {
     expect(table[2].cumulativeCost).toBe(5 + 6 + 8);
   });
 
-  it('handles spawnRate delta becoming 0 at max level', () => {
+  it('handles spawnRate with constant positive delta per level', () => {
     const table = upgradeEfficiencyTable('spawnRate', 2, cfg);
-    expect(table[0].statDelta).toBeGreaterThan(0);
-    expect(table[1].statDelta).toBe(0);
-    expect(table[1].efficiency).toBe(0);
+    expect(table[0].statDelta).toBeCloseTo(cfg.spawnRatePerLevel, 5);
+    expect(table[1].statDelta).toBeCloseTo(cfg.spawnRatePerLevel, 5);
+    expect(table[0].efficiency).toBeGreaterThan(0);
+    expect(table[1].efficiency).toBeGreaterThan(0);
   });
 });
 
@@ -324,23 +324,35 @@ describe('Lanchester Analysis', () => {
 describe(spawnRateTable.name, () => {
   const cfg = createTestConfig();
 
-  it('produces rows from level 0 to max', () => {
+  it('produces rows from level 0 to displayLevels', () => {
     const table = spawnRateTable(cfg);
-    expect(table).toHaveLength(2);
+    expect(table).toHaveLength(21); // levels 0..20
     expect(table[0].level).toBe(0);
-    expect(table[1].level).toBe(1);
+    expect(table[20].level).toBe(20);
   });
 
-  it('level 0 has base interval', () => {
+  it('level 0 has base spawn rate', () => {
     const table = spawnRateTable(cfg);
-    expect(table[0].intervalMs).toBe(60);
-    expect(table[0].spawnsPerSecond).toBeCloseTo(1000 / 60, 2);
+    expect(table[0].spawnsPerSecond).toBeCloseTo(cfg.spawnRateBase, 5);
+    expect(table[0].intervalMs).toBeCloseTo(1000 / cfg.spawnRateBase, 2);
   });
 
-  it('max level respects minimum interval', () => {
+  it('each level increases spawns per second linearly', () => {
     const table = spawnRateTable(cfg);
-    const last = table[table.length - 1];
-    expect(last.intervalMs).toBeGreaterThanOrEqual(cfg.minSpawnInterval);
+    expect(table[1].spawnsPerSecond).toBeCloseTo(cfg.spawnRateBase + cfg.spawnRatePerLevel, 5);
+    expect(table[1].deltaSpawnsPerSecond).toBeCloseTo(cfg.spawnRatePerLevel, 5);
+  });
+
+  it('interval decreases with each level', () => {
+    const table = spawnRateTable(cfg);
+    for (let i = 1; i < table.length; i++) {
+      expect(table[i].intervalMs).toBeLessThan(table[i - 1].intervalMs);
+    }
+  });
+
+  it('respects custom displayLevels', () => {
+    const table = spawnRateTable(cfg, 5);
+    expect(table).toHaveLength(6); // levels 0..5
   });
 });
 
@@ -399,12 +411,11 @@ describe(interestBreakEvenTable.name, () => {
 });
 
 describe(detectRedFlags.name, () => {
-  it('detects spawn rate cap with default config', () => {
+  it('has no spawn rate cap flag (spawn rate is now uncapped)', () => {
     const cfg = createTestConfig();
     const flags = detectRedFlags(cfg);
     const spawnFlag = flags.find(f => f.category === 'Spawn Rate');
-    expect(spawnFlag).toBeDefined();
-    expect(spawnFlag!.severity).toBe('critical');
+    expect(spawnFlag).toBeUndefined();
   });
 
   it('detects attack one-shot', () => {
@@ -428,14 +439,4 @@ describe(detectRedFlags.name, () => {
     expect(towerFlag).toBeDefined();
   });
 
-  it('no spawn rate flag when many levels available', () => {
-    const cfg = createTestConfig({
-      spawnIntervalMs: 200,
-      minSpawnInterval: 30,
-      spawnRateReductionPerLevel: 10,
-    });
-    const flags = detectRedFlags(cfg);
-    const spawnFlag = flags.find(f => f.category === 'Spawn Rate');
-    expect(spawnFlag).toBeUndefined();
-  });
 });

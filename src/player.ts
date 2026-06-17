@@ -83,9 +83,8 @@ export type PlayerConfig = {
   attackPerLevel: number;
   particleBaseRadius: number;
   particleBaseSpeed: number;
-  spawnIntervalMs: number;
-  spawnRateReductionPerLevel: number;
-  minSpawnInterval: number;
+  spawnRateBase: number;
+  spawnRatePerLevel: number;
   speedPerLevel: number;
   maxParticlesPerPlayer: number;
   maxParticlesPerLevel: number;
@@ -102,9 +101,8 @@ export const defaultPlayerConfig: PlayerConfig = {
   attackPerLevel: CONFIG.ATTACK_PER_LEVEL,
   particleBaseRadius: CONFIG.PARTICLE_BASE_RADIUS,
   particleBaseSpeed: CONFIG.PARTICLE_SPEED,
-  spawnIntervalMs: CONFIG.SPAWN_INTERVAL_MS,
-  spawnRateReductionPerLevel: CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL,
-  minSpawnInterval: CONFIG.MIN_SPAWN_INTERVAL,
+  spawnRateBase: CONFIG.SPAWN_RATE_BASE,
+  spawnRatePerLevel: CONFIG.SPAWN_RATE_PER_LEVEL,
   speedPerLevel: CONFIG.SPEED_PER_LEVEL,
   maxParticlesPerPlayer: CONFIG.MAX_PARTICLES_PER_PLAYER,
   maxParticlesPerLevel: CONFIG.MAX_PARTICLES_PER_LEVEL,
@@ -112,16 +110,14 @@ export const defaultPlayerConfig: PlayerConfig = {
   nuclearCooldownMs: CONFIG.NUCLEAR_COOLDOWN_MS,
 };
 
-export function computeMaxLevels(config: PlayerConfig): Record<UpgradeType, number> {
+export function computeMaxLevels(_config: PlayerConfig): Record<UpgradeType, number> {
   return {
     health: Infinity,
     attack: Infinity,
     radius: Infinity,
     speed: Infinity,
     maxParticles: Infinity,
-    spawnRate: Math.ceil(
-      (config.spawnIntervalMs - config.minSpawnInterval) / config.spawnRateReductionPerLevel
-    ),
+    spawnRate: Infinity,
     defense: Math.round(
       (CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL + 1e-9
     ),
@@ -175,8 +171,7 @@ export class Player implements IPlayer {
   }
 
   get spawnInterval(): number {
-    const reduction = this.upgradeLevels.spawnRate * this.config.spawnRateReductionPerLevel;
-    return Math.max(this.config.minSpawnInterval, this.config.spawnIntervalMs - reduction);
+    return 1000 / (this.config.spawnRateBase + this.upgradeLevels.spawnRate * this.config.spawnRatePerLevel);
   }
 
   get particleSpeed(): number {
