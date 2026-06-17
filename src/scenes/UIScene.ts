@@ -6,6 +6,8 @@ import { GAME_MODE, type GameMode } from './MenuScene';
 import {
   MENU_CATEGORIES,
   getConstructionSubmenuItems,
+  getResearchKey,
+  getResearchNodeIndex,
   type BuildSubmenu,
   type MenuCategory,
   type MenuItemDef,
@@ -486,7 +488,7 @@ export class UIScene extends Phaser.Scene {
         const y = isTopRow ? topRowY : bottomRowY;
         const rowOffset = isTopRow ? 0 : staggerOffset;
         const x = this.getButtonX(playerId, rowIndex, totalInRow, rowOffset, isRight);
-        const nodeKey = playerId === 0 ? node.p1Key : node.p2Key;
+        const nodeKey = getResearchKey(playerId, isTopRow, rowIndex);
         this.createResearchButton(x, y, btnW, btnH, node, nodeKey, playerId);
       });
       const backKey = playerId === 0 ? 'Tab' : 'Bksp';
@@ -1041,9 +1043,10 @@ export class UIScene extends Phaser.Scene {
       case 'researchKey': {
         const player = this.viewModel.players[playerId];
         const nodes = getVisibleResearchNodes(player);
-        const keyProp = playerId === 0 ? 'p1Key' : 'p2Key';
-        const node = nodes.find(n => n[keyProp] === result.key);
-        if (node) {
+        const topRowCount = Math.min(4, nodes.length);
+        const nodeIndex = getResearchNodeIndex(result.key, playerId, topRowCount);
+        if (nodeIndex !== null && nodeIndex < nodes.length) {
+          const node = nodes[nodeIndex];
           const btn = this.researchButtons.find(b => b.playerId === playerId && b.node.id === node.id);
           this.handleResearchNode(playerId, node, btn?.bg);
         }
