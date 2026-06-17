@@ -140,7 +140,7 @@ export class LaserTowerParticle extends AbstractParticle {
       && this.shotCount % Math.max(2, CONFIG.LASER_OVERCHARGE_BASE_INTERVAL - overchargeLevel + 1) === 0;
     const damageMultiplier = isOvercharge ? 3 : 1;
 
-    target.takeDamage(this.damage * damageMultiplier);
+    target.takeDamage(this.damage * damageMultiplier, this);
 
     if (bounceLevel > 0) {
       this.fireBounces(context, target, effectiveRange, bounceLevel, this.damage * damageMultiplier);
@@ -170,7 +170,7 @@ export class LaserTowerParticle extends AbstractParticle {
         }
       }
       if (!nearest) break;
-      nearest.takeDamage(damage * 0.7); // bounced shots deal 70% damage
+      nearest.takeDamage(damage * 0.7, this); // bounced shots deal 70% damage
       excluded = nearest.id;
     }
   }

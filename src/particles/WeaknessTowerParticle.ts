@@ -126,7 +126,7 @@ export class WeaknessTowerParticle extends AbstractParticle {
       if (dx * dx + dy * dy >= rangeSq) continue;
 
       // HP drain
-      p.takeDamage(this.drainDps * dt);
+      p.takeDamage(this.drainDps * dt, this);
 
       // Attack reduction
       p.attackFactor = Math.min(p.attackFactor, 1 - this.attackReduction);

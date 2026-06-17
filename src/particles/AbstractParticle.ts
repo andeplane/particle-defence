@@ -26,9 +26,11 @@ export interface IParticle {
   onDeath(context: GameContext): void;
   getBaseDamage(): number;
   isStuck(): boolean;
-  takeDamage(amount: number): void;
+  takeDamage(amount: number, attacker?: IParticle): void;
   /** Call before destroy to leave current cell for ownership tracking. */
   leaveCurrentCell(context: GameContext): void;
+  /** Set to the particle that delivered the killing blow via a non-collision path (e.g. tower fire). Null for collision kills. */
+  killedBy: IParticle | null;
   /** Defense reduction (0-0.25) applied in takeDamage. Set by engine each tick. */
   defenseFactor: number;
   /** Tower-based slow multiplier (0-1). Set by engine each tick. 1.0 = no slow. */
@@ -119,6 +121,7 @@ export abstract class AbstractParticle implements IParticle {
   stunnedUntilMs: number = 0;
 
   kills: number = 0;
+  killedBy: IParticle | null = null;
 
   protected readonly config: ParticleConfig;
 
@@ -324,11 +327,12 @@ export abstract class AbstractParticle implements IParticle {
     return dist < maxDist;
   }
 
-  takeDamage(amount: number): void {
+  takeDamage(amount: number, attacker?: IParticle): void {
     const effectiveAmount = amount * (1 - this.defenseFactor);
     this.health -= effectiveAmount;
     if (this.health <= 0) {
       this.alive = false;
+      if (attacker) this.killedBy = attacker;
     }
   }
 

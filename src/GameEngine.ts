@@ -552,6 +552,12 @@ export class GameEngine implements AIGameState {
     const context = this.createContext();
     this.particles = this.particles.filter(p => {
       if (!p.alive) {
+        if (p.killedBy !== null) {
+          p.onDeath(context);
+          this.players[p.killedBy.owner].gold += this.deps.killReward;
+          this.players[p.killedBy.owner].kills++;
+          this.callbacks.onKill(p.killedBy, p);
+        }
         p.leaveCurrentCell(context);
         p.destroy();
         return false;

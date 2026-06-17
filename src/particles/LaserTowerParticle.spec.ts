@@ -57,7 +57,7 @@ describe(LaserTowerParticle.name, () => {
 
     t.onUpdate(1, ctx);
 
-    expect(enemy.takeDamage).toHaveBeenCalledWith(t.damage);
+    expect(enemy.takeDamage).toHaveBeenCalledWith(t.damage, t);
     expect(t.currentTargetId).toBe(enemy.id);
   });
 
