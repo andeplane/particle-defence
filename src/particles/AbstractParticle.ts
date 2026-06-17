@@ -37,6 +37,7 @@ export interface IParticle {
   attackFactor: number;
   /** Game time (ms) until which this particle is stunned (attackFactor forced to 0). Set by weakness towers. */
   stunnedUntilMs: number;
+  kills: number;
   destroy(): void;
 }
 
@@ -116,6 +117,8 @@ export abstract class AbstractParticle implements IParticle {
 
   /** Game time (ms) until which this particle is stunned (attackFactor forced to 0). */
   stunnedUntilMs: number = 0;
+
+  kills: number = 0;
 
   protected readonly config: ParticleConfig;
 

@@ -293,6 +293,15 @@ export class PostGameStatsScene extends Phaser.Scene {
         yMin: 0,
         isStep: true,
       },
+      {
+        title: 'Tower Kills (Cumulative)',
+        series: [
+          { data: samples.map(s => s.towerKillsCumulative[0]), color: p1c, label: p1Label },
+          { data: samples.map(s => s.towerKillsCumulative[1]), color: p2c, label: p2Label },
+        ],
+        yMin: 0,
+        isStep: true,
+      },
       ...perUpgradeCharts,
     ];
   }

@@ -52,6 +52,10 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   private towerSiteZones: Phaser.GameObjects.Zone[] = [];
   private towerSiteTooltip: Phaser.GameObjects.Text | null = null;
 
+  private kbTowerTooltips: [Phaser.GameObjects.Text | null, Phaser.GameObjects.Text | null] = [null, null];
+  private kbSelectedTower: [IParticle | null, IParticle | null] = [null, null];
+  private kbSelectedKills: [number, number] = [0, 0];
+
   get players() { return this.engine.players; }
   get particles() { return this.engine.particles; }
   get gameOver() { return this.engine.gameOver; }
@@ -75,11 +79,16 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
     const callbacks: GameEngineCallbacks = {
       onKill: (killer, victim) => {
+        killer.kills++;
         const victimColor = victim.owner === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
         this.spawnExplosion(victim.x, victim.y, victimColor);
         this.statsRecorder.recordKill(killer.owner);
         this.statsRecorder.recordUnitDamage(killer.owner, victim.maxHealth);
         this.statsRecorder.recordGoldIncome(killer.owner, CONFIG.KILL_REWARD);
+        if (killer.typeName === LaserTowerParticle.TYPE_NAME ||
+            killer.typeName === WeaknessTowerParticle.TYPE_NAME) {
+          this.statsRecorder.recordTowerKill(killer.owner);
+        }
       },
       onBaseDamage: (_playerId, damage, px, py) => {
         const baseColor = _playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
@@ -107,6 +116,13 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
           towerAny._rangeGfx = undefined;
           gfx.destroy();
           this.towerRangeGfx = this.towerRangeGfx.filter((g) => g !== gfx);
+        }
+        for (const pid of [0, 1] as const) {
+          if (this.kbSelectedTower[pid] === tower) {
+            this.hideKbTowerTooltip(pid);
+            this.kbSelectedTower[pid] = null;
+            this.kbSelectedKills[pid] = 0;
+          }
         }
       },
       onStuckRespawn: () => {},
@@ -227,6 +243,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     this.renderCellEffects();
     this.renderTowerSites();
     this.renderTowerEffects();
+    this.updateKbTowerTooltips();
   }
 
   private attachVisuals(p: IParticle): void {
@@ -649,6 +666,28 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     }
   }
 
+  private buildTowerTooltipText(
+    tower: LaserTowerParticle | WeaknessTowerParticle,
+    playerId: 0 | 1,
+  ): string {
+    const label = playerId === 0 ? '[P1]' : '[P2]';
+    const hp = `HP: ${Math.ceil(tower.health)}/${tower.maxHealth}`;
+    const cost = getTowerUpgradeCost(tower.towerType, tower.level);
+    const canAfford = this.engine.players[playerId].gold >= cost;
+    const costStr = `Upgrade: $${cost}${canAfford ? '' : ' (need gold)'}`;
+    let statsLine: string;
+    if (tower.towerType === TOWER_TYPE.LASER) {
+      const t = tower as LaserTowerParticle;
+      const nxt = getLaserStatsAtLevel(t.level + 1);
+      statsLine = `DMG:${t.damage}->${nxt.damage}  SPD:${t.attackSpeed.toFixed(1)}->${nxt.attackSpeed.toFixed(1)}`;
+    } else {
+      const t = tower as WeaknessTowerParticle;
+      const nxt = getWeaknessStatsAtLevel(t.level + 1);
+      statsLine = `DRN:${t.drainDps.toFixed(1)}->${nxt.drainDps.toFixed(1)}  ATK-:${Math.round(t.attackReduction * 100)}%->${Math.round(nxt.attackReduction * 100)}%`;
+    }
+    return `${tower.towerType.toUpperCase()} Lv${tower.level} ${label}\nKills: ${tower.kills}\n${hp}\n${statsLine}\n${costStr}`;
+  }
+
   private buildTowerSiteTooltipText(siteId: number): string {
     const site = this.engine.grid.towerSites.find(s => s.id === siteId);
     if (site) {
@@ -659,22 +698,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
           Math.floor(t.y / this.engine.grid.cellH) === site.row,
         );
         if (tower) {
-          const label = playerId === 0 ? '[P1]' : '[P2]';
-          const hp = `HP: ${Math.ceil(tower.health)}/${tower.maxHealth}`;
-          const cost = getTowerUpgradeCost(tower.towerType, tower.level);
-          const canAfford = this.engine.players[playerId].gold >= cost;
-          const costStr = `Upgrade: $${cost}${canAfford ? '' : ' (need gold)'}`;
-          let statsLine: string;
-          if (tower.towerType === TOWER_TYPE.LASER) {
-            const t = tower as LaserTowerParticle;
-            const nxt = getLaserStatsAtLevel(t.level + 1);
-            statsLine = `DMG:${t.damage}->${nxt.damage}  SPD:${t.attackSpeed.toFixed(1)}->${nxt.attackSpeed.toFixed(1)}`;
-          } else {
-            const t = tower as WeaknessTowerParticle;
-            const nxt = getWeaknessStatsAtLevel(t.level + 1);
-            statsLine = `DRN:${t.drainDps.toFixed(1)}->${nxt.drainDps.toFixed(1)}  ATK-:${Math.round(t.attackReduction * 100)}%->${Math.round(nxt.attackReduction * 100)}%`;
-          }
-          return `${tower.towerType.toUpperCase()} Lv${tower.level} ${label}\n${hp}\n${statsLine}\n${costStr}`;
+          return this.buildTowerTooltipText(tower as LaserTowerParticle | WeaknessTowerParticle, playerId);
         }
       }
     }
@@ -682,6 +706,50 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
       return 'Tower Slot\nUnder construction…';
     }
     return 'Tower Slot\nResearch, then BUILD > TOWERS\nOwn adjacent cells to unlock';
+  }
+
+  private updateKbTowerTooltips(): void {
+    for (const pid of [0, 1] as const) {
+      const sel = this.towerSelectionForRender[pid];
+      const towers = this.engine.towers[pid];
+      const tower = (sel.active && sel.selectedIndex >= 0 && sel.selectedIndex < towers.length && towers[sel.selectedIndex].alive)
+        ? towers[sel.selectedIndex] as LaserTowerParticle | WeaknessTowerParticle
+        : null;
+
+      const changed = tower !== this.kbSelectedTower[pid] ||
+        (tower !== null && tower.kills !== this.kbSelectedKills[pid]);
+      if (changed) {
+        if (tower) {
+          this.showKbTowerTooltip(tower, pid);
+        } else {
+          this.hideKbTowerTooltip(pid);
+        }
+        this.kbSelectedTower[pid] = tower;
+        this.kbSelectedKills[pid] = tower?.kills ?? 0;
+      }
+    }
+  }
+
+  private showKbTowerTooltip(tower: LaserTowerParticle | WeaknessTowerParticle, pid: 0 | 1): void {
+    this.hideKbTowerTooltip(pid);
+    const text = this.buildTowerTooltipText(tower, pid);
+    const pad = CONFIG.UI_GAP * 2;
+    const tooltip = this.add.text(tower.x, tower.y - tower.radius - CONFIG.UI_GAP * 2, text, {
+      fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`,
+      color: '#ffffff',
+      fontFamily: 'monospace',
+      backgroundColor: '#000000',
+      padding: { x: 6, y: 4 },
+    }).setOrigin(0.5, 1).setDepth(200);
+    const bounds = tooltip.getBounds();
+    if (bounds.left < pad) tooltip.setX(pad + bounds.width / 2);
+    else if (bounds.right > CONFIG.GAME_WIDTH - pad) tooltip.setX(CONFIG.GAME_WIDTH - pad - bounds.width / 2);
+    this.kbTowerTooltips[pid] = tooltip;
+  }
+
+  private hideKbTowerTooltip(pid: 0 | 1): void {
+    this.kbTowerTooltips[pid]?.destroy();
+    this.kbTowerTooltips[pid] = null;
   }
 
   private hideTowerSiteTooltip(): void {
