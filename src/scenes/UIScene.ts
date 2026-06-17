@@ -99,6 +99,8 @@ interface CategoryButton {
   keyText: Phaser.GameObjects.Text;
   categoryId: MenuCategory;
   playerId: 0 | 1;
+  action?: string;
+  clockGfx?: Phaser.GameObjects.Graphics;
 }
 
 interface BackButton {
@@ -384,7 +386,7 @@ export class UIScene extends Phaser.Scene {
     });
     this.categoryButtons = this.categoryButtons.filter(btn => {
       if (btn.playerId !== playerId) return true;
-      btn.bg.destroy(); btn.label.destroy(); btn.keyText.destroy();
+      btn.bg.destroy(); btn.label.destroy(); btn.keyText.destroy(); btn.clockGfx?.destroy();
       return false;
     });
     this.researchButtons = this.researchButtons.filter(btn => {
@@ -821,6 +823,8 @@ export class UIScene extends Phaser.Scene {
       fontSize: `${CONFIG.UI_FONT_SMALL - 2}px`, color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5).setVisible(!this._mobile);
 
+    const clockGfx = action === 'towerUpgrade' ? this.add.graphics().setDepth(10) : undefined;
+
     bg.on('pointerdown', () => {
       if (action === 'towerPrev') this.handleTowerCycle(playerId, -1);
       else if (action === 'towerNext') this.handleTowerCycle(playerId, 1);
@@ -828,7 +832,7 @@ export class UIScene extends Phaser.Scene {
     });
     bg.on('pointerover', () => { bg.setFillStyle(0x222244, 0.9); this.showTooltip(tooltip, x, y, playerId); });
     bg.on('pointerout', () => { bg.setFillStyle(0x111122, 0.85); this.hideTooltip(playerId); });
-    this.categoryButtons.push({ bg, label: labelText, keyText, categoryId: 'towers', playerId });
+    this.categoryButtons.push({ bg, label: labelText, keyText, categoryId: 'towers', playerId, action, clockGfx });
   }
 
   // ── Actions ────────────────────────────────────────────────────────
@@ -1348,6 +1352,22 @@ export class UIScene extends Phaser.Scene {
         btn.bg.setAlpha(selectedSite ? 1 : 0.4);
         btn.statusText.setText(selectedSite ? `${selectedSite.id + 1}/6` : 'NO SITE');
         btn.statusText.setColor(selectedSite ? '#cccccc' : '#666666');
+      }
+    }
+
+    for (const btn of this.categoryButtons) {
+      if (btn.action !== 'towerUpgrade' || !btn.clockGfx) continue;
+      const idx = this.selectedTowerIndex[btn.playerId];
+      const pending = this.viewModel.getPendingTowerUpgrade(btn.playerId, idx);
+      if (pending) {
+        btn.bg.setAlpha(0.8);
+        this.drawClockOverlay(btn.clockGfx, btn.bg.x, btn.bg.y, btn.bg.width, btn.bg.height, pending.progress);
+      } else {
+        btn.clockGfx.clear();
+        const towers = this.viewModel.getTowers(btn.playerId);
+        const tower = towers[idx];
+        const canUpgrade = tower !== undefined && this.viewModel.players[btn.playerId].gold >= getTowerUpgradeCost(tower.towerType, tower.level);
+        btn.bg.setAlpha(canUpgrade ? 1 : 0.5);
       }
     }
 
