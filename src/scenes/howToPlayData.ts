@@ -57,7 +57,7 @@ function getOverviewSections(): ContentSection[] {
       title: 'Gold & Economy',
       lines: [
         `Starting gold: ${CONFIG.STARTING_GOLD}g`,
-        `Kill reward: ${CONFIG.KILL_REWARD}g per enemy killed`,
+        `Kill reward: ${CONFIG.KILL_REWARD}g per enemy killed (including towers)`,
         `Nuke kill reward: ${CONFIG.NUCLEAR_KILL_REWARD_FRACTION * 100}% of normal`,
         '',
         'Spend gold on upgrades, tower research, and construction.',
