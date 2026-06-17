@@ -141,7 +141,7 @@ export const CONFIG = {
   /** Per-level defense bonus increase from upgrade */
   OWNERSHIP_DEFENSE_PER_LEVEL: 0.02,
   /** Max total defense bonus (base + upgrade) */
-  OWNERSHIP_DEFENSE_MAX: 0.40,
+  OWNERSHIP_DEFENSE_MAX: 0.60,
   /** Duration (ms) of capture flash overlay */
   OWNERSHIP_CAPTURE_FLASH_MS: 300,
   /** Alpha for subtle owned-cell tint */
