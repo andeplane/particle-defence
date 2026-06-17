@@ -19,6 +19,7 @@ export interface GameEngineCallbacks {
   onGameOver(winner: number): void;
   onStuckRespawn(owner: 0 | 1): void;
   onInterest(playerId: 0 | 1, amount: number): void;
+  onTerritoryIncome(playerId: 0 | 1, amount: number): void;
   onTowerPlaced(tower: IParticle, playerId: 0 | 1): void;
   onTowerDeath(tower: IParticle): void;
   spawnExplosion(x: number, y: number, color: number): void;
@@ -69,6 +70,8 @@ export class GameEngine implements AIGameState {
   spawnTimers: number[] = [0, 0];
   /** Per-player interest payout accumulators (ms) */
   interestTimers: number[] = [0, 0];
+  /** Per-player territory income payout accumulators (ms) */
+  territoryIncomeTimers: number[] = [0, 0];
   gameOver: boolean = false;
   winner: number = -1;
   gameTimeMs: number = 0;
@@ -108,6 +111,7 @@ export class GameEngine implements AIGameState {
     this.winner = -1;
     this.spawnTimers = [0, 0];
     this.interestTimers = [0, 0];
+    this.territoryIncomeTimers = [0, 0];
     this.gameTimeMs = 0;
     this.carriers = [null, null];
     this.towers = [[], []];
@@ -168,6 +172,7 @@ export class GameEngine implements AIGameState {
     }
 
     this.applyInterest(delta);
+    this.applyTerritoryIncome(delta);
     this.tickResearchTimers();
     this.tickPendingConstructions();
     this.tickParticleUpgrades();
@@ -458,6 +463,27 @@ export class GameEngine implements AIGameState {
         if (increment > 0) {
           player.gold += increment;
           this.callbacks.onInterest(i as 0 | 1, increment);
+        }
+      }
+    }
+  }
+
+  private applyTerritoryIncome(delta: number): void {
+    const intervalMs = CONFIG.TERRITORY_INCOME_INTERVAL_MS;
+    for (let i = 0; i < 2; i++) {
+      const player = this.players[i];
+      if (!player.hasUnlocked('unlock_territory_income')) continue;
+
+      this.territoryIncomeTimers[i] += delta;
+      while (this.territoryIncomeTimers[i] >= intervalMs) {
+        this.territoryIncomeTimers[i] -= intervalMs;
+        const rateLevel = player.getPathLevel('territory_income_rate');
+        const rate = CONFIG.TERRITORY_INCOME_BASE_RATE + rateLevel * CONFIG.TERRITORY_INCOME_RATE_PER_LEVEL;
+        const cellCount = this.cellEffects.getOwnedCellCount(i as 0 | 1);
+        const income = Math.floor(rate * cellCount * (intervalMs / 1000));
+        if (income > 0) {
+          player.gold += income;
+          this.callbacks.onTerritoryIncome(i as 0 | 1, income);
         }
       }
     }

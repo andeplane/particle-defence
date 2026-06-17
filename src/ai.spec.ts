@@ -45,6 +45,7 @@ function createState(overrides: Partial<AIGameState> = {}): AIGameState {
     buyNukeResearch: vi.fn((playerId: 0 | 1) => overrides.players?.[playerId].researchNuke() ?? true),
     buyResearch: vi.fn(() => true),
     buyPathResearch: vi.fn(() => true),
+    purchaseResearchNode: vi.fn(() => true),
     constructTower: vi.fn(() => true),
     upgradeTower: vi.fn(() => true),
     getEligibleTowerSites: vi.fn(() => [{ id: 0, col: 4, row: 2 }]),

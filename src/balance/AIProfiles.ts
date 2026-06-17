@@ -33,6 +33,7 @@ export const RUSH_PROFILE: AIProfile = {
     radius: 0.3,
   },
   towersEnabled: false,
+  territoryIncomeEnabled: false,
 };
 
 // Economy: interest snowball into late-game military dominance.
@@ -87,6 +88,7 @@ export const GLASS_CANNON_PROFILE: AIProfile = {
     interestRate: 0,
   },
   towersEnabled: false,
+  territoryIncomeEnabled: false,
 };
 
 // Tank: large durable army wins by numerical attrition and sustained pressure.

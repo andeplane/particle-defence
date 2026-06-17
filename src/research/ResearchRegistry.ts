@@ -1,3 +1,4 @@
+import { CONFIG } from '../config';
 import { BasicParticle } from '../particles/BasicParticle';
 import { LaserTowerParticle } from '../particles/LaserTowerParticle';
 import { WeaknessTowerParticle } from '../particles/WeaknessTowerParticle';
@@ -10,10 +11,24 @@ const ALL_META: GameObjectMeta<unknown>[] = [
   WeaknessTowerParticle.meta as GameObjectMeta<unknown>,
 ];
 
+/** Standalone unlock nodes not tied to any game object class. */
+const STANDALONE_UNLOCKS: ResearchNodeMeta[] = [
+  {
+    id: 'unlock_territory_income',
+    name: 'Territory Income',
+    description: 'Owned cells generate passive gold income',
+    cost: CONFIG.TERRITORY_INCOME_RESEARCH_COST,
+    durationMs: CONFIG.TERRITORY_INCOME_RESEARCH_DURATION_MS,
+  },
+];
+
 export const ResearchRegistry = {
   findUnlock(id: string): ResearchNodeMeta | undefined {
     for (const meta of ALL_META) {
       if (meta.unlock?.id === id) return meta.unlock;
+    }
+    for (const node of STANDALONE_UNLOCKS) {
+      if (node.id === id) return node;
     }
     return undefined;
   },

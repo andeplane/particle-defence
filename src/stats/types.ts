@@ -25,6 +25,8 @@ export interface PerSecondSample {
 
   readonly towerCount: PerPlayer<number>;
   readonly towerKillsCumulative: PerPlayer<number>;
+
+  readonly territoryCells: PerPlayer<number>;
 }
 
 export interface MatchEvent {

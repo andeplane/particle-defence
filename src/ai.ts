@@ -14,6 +14,7 @@ export interface AIGameState {
   buyNukeResearch(playerId: 0 | 1): boolean;
   buyResearch(playerId: 0 | 1, towerType: TowerType): boolean;
   buyPathResearch(playerId: 0 | 1, pathId: string): boolean;
+  purchaseResearchNode(playerId: 0 | 1, nodeId: string, isPath: boolean, durationMs: number): boolean;
   constructTower(playerId: 0 | 1, towerType: TowerType, siteId: number): boolean;
   upgradeTower(playerId: 0 | 1, towerIndex: number): boolean;
   getEligibleTowerSites(playerId: 0 | 1): readonly TowerSite[];
@@ -32,6 +33,8 @@ export interface AIProfile {
   readonly nukeEnabled?: boolean;
   /** Tower investment priority: 'high' researches/builds earlier and more aggressively */
   readonly towerPriority?: 'normal' | 'high';
+  /** Whether territory income research is allowed (default true) */
+  readonly territoryIncomeEnabled?: boolean;
 }
 
 export type AIConfig = {
@@ -73,6 +76,7 @@ export class AIController {
       this.tryNuke(state);
       this.tryTowerActions(state);
       this.tryTier2Research(state);
+      this.tryTerritoryIncomeResearch(state);
       this.tryUpgrade(state);
     }
   }
@@ -188,6 +192,27 @@ export class AIController {
       if (!ai.isResearching(pathId) && ai.canPurchasePath(pathId)) {
         state.buyPathResearch(this.playerId, pathId);
         return;
+      }
+    }
+  }
+
+  private tryTerritoryIncomeResearch(state: AIGameState): void {
+    if (this.profile.territoryIncomeEnabled === false) return;
+    const ai = state.players[this.playerId];
+    const gameTimeSec = state.gameTimeMs / 1000;
+
+    if (gameTimeSec < 90) return;
+
+    if (!ai.hasUnlocked('unlock_territory_income') && !ai.isResearching('unlock_territory_income')) {
+      if (ai.canPurchaseUnlock('unlock_territory_income')) {
+        state.purchaseResearchNode(this.playerId, 'unlock_territory_income', false, CONFIG.TERRITORY_INCOME_RESEARCH_DURATION_MS);
+        return;
+      }
+    }
+
+    if (ai.hasUnlocked('unlock_territory_income') && !ai.isResearching('territory_income_rate')) {
+      if (ai.canPurchasePath('territory_income_rate')) {
+        state.purchaseResearchNode(this.playerId, 'territory_income_rate', true, CONFIG.TERRITORY_INCOME_PATH_DURATION_MS);
       }
     }
   }

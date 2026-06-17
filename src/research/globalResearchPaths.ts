@@ -58,6 +58,14 @@ export const WEAKNESS_STUN_PATH: ResearchPath<never> = {
   levels: makeLevels(5, CONFIG.WEAKNESS_STUN_COST_PER_LEVEL) as ResearchPath<never>['levels'],
 };
 
+export const TERRITORY_INCOME_RATE_PATH: ResearchPath<never> = {
+  id: 'territory_income_rate',
+  name: 'Territory Income Rate',
+  description: 'Increase gold income per owned cell',
+  requires: ['unlock_territory_income'],
+  levels: makeLevels(CONFIG.TERRITORY_INCOME_MAX_LEVEL, CONFIG.TERRITORY_INCOME_PATH_COST_PER_LEVEL) as ResearchPath<never>['levels'],
+};
+
 export const ALL_GLOBAL_PATHS: ResearchPath<never>[] = [
   TOWER_REGEN_PATH,
   TOWER_RANGE_PATH,
@@ -65,4 +73,5 @@ export const ALL_GLOBAL_PATHS: ResearchPath<never>[] = [
   LASER_OVERCHARGE_PATH,
   WEAKNESS_SLOW_PATH,
   WEAKNESS_STUN_PATH,
+  TERRITORY_INCOME_RATE_PATH,
 ];
