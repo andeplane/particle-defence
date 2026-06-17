@@ -293,10 +293,6 @@ export function getTowerResearchCost(towerType: TowerType): number {
   return CONFIG.TOWER_RESEARCH_COSTS[towerType];
 }
 
-export function getNukeResearchCost(): number {
-  if (DEBUG_EVERYTHING_CHEAP) return 1;
-  return CONFIG.NUKE_RESEARCH_COST;
-}
 
 export function getTowerConstructionCost(towerType: TowerType): number {
   if (DEBUG_EVERYTHING_CHEAP) return 1;

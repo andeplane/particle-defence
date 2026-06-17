@@ -27,6 +27,8 @@ export interface PerSecondSample {
   readonly towerKillsCumulative: PerPlayer<number>;
 
   readonly territoryCells: PerPlayer<number>;
+
+  readonly totalGoldProduced: PerPlayer<number>;
 }
 
 export interface MatchEvent {
@@ -41,4 +43,5 @@ export interface MatchStats {
   readonly events: MatchEvent[];
   readonly durationSec: number;
   readonly winner: 0 | 1;
+  readonly strategyAffinities: PerPlayer<Record<string, number>>;
 }

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { trackHowToPlayTabClicked } from '../analytics';
 import { CONFIG } from '../config';
 import { isMobile } from '../mobile';
 import { TABS, getTabContent, type TabId, type ContentSection } from './howToPlayData';
@@ -133,6 +134,7 @@ export class HowToPlayScene extends Phaser.Scene {
 
   private switchTab(tabId: TabId): void {
     if (tabId === this.activeTab) return;
+    trackHowToPlayTabClicked(tabId);
     this.activeTab = tabId;
     this.updateTabHighlight();
     this.renderContent();

@@ -88,7 +88,8 @@ export class PostGameStatsScene extends Phaser.Scene {
     const charts = this.buildCharts(samples);
     const startX = (CONFIG.GAME_WIDTH - (CHART_W * COLS + GAP_X * (COLS - 1))) / 2;
     const rows = Math.ceil(charts.length / COLS);
-    const totalContentHeight = HEADER_H + rows * (CHART_H + GAP_Y) - GAP_Y;
+    const HIST_H = CHART_H + 50;
+    const totalContentHeight = HEADER_H + rows * (CHART_H + GAP_Y) + GAP_Y + HIST_H + GAP_Y;
 
     charts.forEach((chart, idx) => {
       const col = idx % COLS;
@@ -97,6 +98,12 @@ export class PostGameStatsScene extends Phaser.Scene {
       const y = HEADER_H + row * (CHART_H + GAP_Y);
       this.drawChart(x, y, CHART_W, CHART_H, chart, samples.length);
     });
+
+    const histY = HEADER_H + rows * (CHART_H + GAP_Y);
+    const gridW = CHART_W * COLS + GAP_X * (COLS - 1);
+    const histW = (gridW - GAP_X) / 2;
+    this.drawStrategyHistogram(startX, histY, histW, HIST_H, this.stats.strategyAffinities[0], 0);
+    this.drawStrategyHistogram(startX + histW + GAP_X, histY, histW, HIST_H, this.stats.strategyAffinities[1], 1);
 
     this.addReturnButton();
 
@@ -242,6 +249,14 @@ export class PostGameStatsScene extends Phaser.Scene {
         series: [
           { data: samples.map(s => s.goldBanked[0]), color: p1c, label: p1Label },
           { data: samples.map(s => s.goldBanked[1]), color: p2c, label: p2Label },
+        ],
+        yMin: 0,
+      },
+      {
+        title: 'Total Gold Produced',
+        series: [
+          { data: samples.map(s => s.totalGoldProduced[0]), color: p1c, label: p1Label },
+          { data: samples.map(s => s.totalGoldProduced[1]), color: p2c, label: p2Label },
         ],
         yMin: 0,
       },
@@ -527,5 +542,75 @@ export class PostGameStatsScene extends Phaser.Scene {
     btn.on('pointerover', () => btn.setColor('#ffffff'));
     btn.on('pointerout', () => btn.setColor('#666666'));
     btn.on('pointerdown', () => this.scene.start(SCENE_KEYS.MENU));
+  }
+
+  private drawStrategyHistogram(
+    x: number, y: number, w: number, h: number,
+    affinities: Record<string, number>,
+    playerIdx: 0 | 1,
+  ): void {
+    const color = playerIdx === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+    const colorHex = `#${color.toString(16).padStart(6, '0')}`;
+    const playerLabel = playerIdx === 0 ? 'P1' : (this.mode === GAME_MODE.AI ? 'AI' : 'P2');
+
+    const gfx = this.add.graphics();
+    gfx.fillStyle(CHART_BG, 0.85);
+    gfx.fillRoundedRect(x, y, w, h, 6);
+    gfx.lineStyle(1, CHART_BORDER, 0.6);
+    gfx.strokeRoundedRect(x, y, w, h, 6);
+
+    this.add.text(x + 10, y + 6, `Strategy Profile — ${playerLabel}`, {
+      fontSize: '16px', color: TITLE_HEX, fontFamily: 'monospace', fontStyle: 'bold',
+    });
+
+    const strategies = ['Rush', 'Economy', 'TowerFortress', 'GlassCannon', 'Tank', 'Balanced'];
+    const shortNames: Record<string, string> = {
+      Rush: 'Rush', Economy: 'Economy', TowerFortress: 'Fortress',
+      GlassCannon: 'Glass', Tank: 'Tank', Balanced: 'Balanced',
+    };
+
+    const LABEL_BOTTOM = 36;
+    const px = x + PAD_LEFT;
+    const py = y + PAD_TOP;
+    const pw = w - PAD_LEFT - PAD_RIGHT;
+    const ph = h - PAD_TOP - PAD_BOTTOM - LABEL_BOTTOM;
+
+    // Horizontal grid lines at 0, 25, 50, 75, 100%
+    gfx.lineStyle(1, GRID_COLOR, 0.5);
+    for (let pct = 0; pct <= 100; pct += 25) {
+      const gy = py + ph - (pct / 100) * ph;
+      gfx.lineBetween(px, gy, px + pw, gy);
+      this.add.text(px - 6, gy, `${pct}%`, {
+        fontSize: '10px', color: LABEL_HEX, fontFamily: 'monospace',
+      }).setOrigin(1, 0.5);
+    }
+
+    const barCount = strategies.length;
+    const barGap = 8;
+    const barW = (pw - barGap * (barCount - 1)) / barCount;
+
+    for (let i = 0; i < strategies.length; i++) {
+      const name = strategies[i];
+      const pct = affinities[name] ?? 0;
+      const bx = px + i * (barW + barGap);
+      const barH = (pct / 100) * ph;
+      const by = py + ph - barH;
+
+      gfx.fillStyle(color, 0.45);
+      if (barH > 0) gfx.fillRect(bx, by, barW, barH);
+
+      gfx.lineStyle(1, color, 0.9);
+      if (barH > 0) gfx.strokeRect(bx, by, barW, barH);
+
+      if (pct > 0) {
+        this.add.text(bx + barW / 2, by - 2, `${pct}%`, {
+          fontSize: '11px', color: colorHex, fontFamily: 'monospace',
+        }).setOrigin(0.5, 1);
+      }
+
+      this.add.text(bx + barW / 2, py + ph + 6, shortNames[name] ?? name, {
+        fontSize: '12px', color: LABEL_HEX, fontFamily: 'monospace',
+      }).setOrigin(0.5, 0);
+    }
   }
 }

@@ -4,6 +4,7 @@ import type { IPlayer } from '../player';
 import { LaserTowerParticle } from '../particles/LaserTowerParticle';
 import { WeaknessTowerParticle } from '../particles/WeaknessTowerParticle';
 import type { MatchEvent, MatchStats, PerPlayer, PerSecondSample } from './types';
+import { computeStrategyAffinities } from './strategyAffinities';
 
 export interface MatchStatsRecorderDependencies {
   cellW: number;
@@ -35,6 +36,7 @@ export class MatchStatsRecorder {
 
   private deltas: DeltaAccumulator = MatchStatsRecorder.freshDeltas();
   private towerKillsCumulative: MutablePerPlayer<number> = [0, 0];
+  private totalGoldProduced: MutablePerPlayer<number> = [0, 0];
 
   constructor(deps?: Partial<MatchStatsRecorderDependencies>) {
     this.deps = deps ? { ...defaultDeps, ...deps } : defaultDeps;
@@ -50,6 +52,7 @@ export class MatchStatsRecorder {
 
   recordGoldIncome(player: 0 | 1, amount: number): void {
     this.deltas.goldIncome[player] += amount;
+    this.totalGoldProduced[player] += amount;
   }
 
   recordGoldSpent(player: 0 | 1, amount: number): void {
@@ -108,11 +111,22 @@ export class MatchStatsRecorder {
   }
 
   finalize(winner: 0 | 1): MatchStats {
+    const lastSample = this.samples[this.samples.length - 1];
+    const strategyAffinities: PerPlayer<Record<string, number>> = [
+      lastSample
+        ? computeStrategyAffinities(lastSample.upgradeLevels[0], lastSample.towerCount[0], this.totalGoldProduced[0])
+        : {},
+      lastSample
+        ? computeStrategyAffinities(lastSample.upgradeLevels[1], lastSample.towerCount[1], this.totalGoldProduced[1])
+        : {},
+    ];
+
     return {
       samples: [...this.samples],
       events: [...this.events],
       durationSec: Math.floor(this.elapsedMs / 1000),
       winner,
+      strategyAffinities,
     };
   }
 
@@ -174,6 +188,7 @@ export class MatchStatsRecorder {
       towerCount,
       towerKillsCumulative: [this.towerKillsCumulative[0], this.towerKillsCumulative[1]],
       territoryCells: [territoryCellCounts[0], territoryCellCounts[1]],
+      totalGoldProduced: [this.totalGoldProduced[0], this.totalGoldProduced[1]],
     };
 
     this.samples.push(sample);

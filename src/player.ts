@@ -1,4 +1,4 @@
-import { CONFIG, getUpgradeCost, getTowerConstructionCost, getNukeResearchCost, getDebugEverythingCheap, type UpgradeType, type TowerType } from './config';
+import { CONFIG, getUpgradeCost, getTowerConstructionCost, getDebugEverythingCheap, type UpgradeType, type TowerType } from './config';
 import { ResearchRegistry } from './research/ResearchRegistry';
 
 export interface IPlayer {
@@ -39,11 +39,6 @@ export interface IPlayer {
   purchasePath(pathId: string): boolean;
   getPathCost(pathId: string): number;
 
-  // Legacy wrappers — delegate to generic API
-  hasResearchedNuke(): boolean;
-  canResearchNuke(): boolean;
-  researchNuke(): boolean;
-  getNukeResearchCost(): number;
   hasResearched(towerType: TowerType): boolean;
   canResearchTower(towerType: TowerType): boolean;
   researchTower(towerType: TowerType): boolean;
@@ -54,7 +49,6 @@ export interface IPlayer {
 
   // Timer-based research (used by GameEngine.buyResearch — deducts gold and starts timer)
   startTowerResearch(towerType: TowerType, gameTimeMs: number, durationMs: number): boolean;
-  startNukeResearch(gameTimeMs: number, durationMs: number): boolean;
   /** Start a timer-based multi-level path research. Deducts cost for next level and starts timer. */
   startPathResearch(pathId: string, gameTimeMs: number, durationMs: number): boolean;
   /** Start a timer-based one-time unlock research for any arbitrary nodeId. */
@@ -215,7 +209,7 @@ export class Player implements IPlayer {
   }
 
   canUseNuke(gameTimeMs: number): boolean {
-    if (!this.hasResearchedNuke()) return false;
+    if (!this.hasUnlocked('unlock_nuke')) return false;
     if (this.lastNukeTimeMs < 0) {
       return gameTimeMs >= this.config.nuclearFirstAvailableMs;
     }
@@ -227,7 +221,7 @@ export class Player implements IPlayer {
   }
 
   getNukeCooldownRemainingMs(gameTimeMs: number): number {
-    if (!this.hasResearchedNuke()) return 0;
+    if (!this.hasUnlocked('unlock_nuke')) return 0;
     if (this.canUseNuke(gameTimeMs)) return 0;
     if (this.lastNukeTimeMs < 0) {
       return Math.max(0, this.config.nuclearFirstAvailableMs - gameTimeMs);
@@ -294,38 +288,6 @@ export class Player implements IPlayer {
     this.gold -= this.getPathCost(pathId);
     this._purchased.set(pathId, currentLevel + 1);
     return true;
-  }
-
-  // ── Legacy wrappers ────────────────────────────────────────────────
-
-  hasResearchedNuke(): boolean {
-    return this.hasUnlocked('unlock_nuke');
-  }
-
-  canResearchNuke(): boolean {
-    if (this.hasResearchedNuke()) return false;
-    if (this.isResearching('unlock_nuke')) return false;
-    return this.gold >= this.getNukeResearchCost();
-  }
-
-  researchNuke(): boolean {
-    if (!this.canResearchNuke()) return false;
-    this.gold -= this.getNukeResearchCost();
-    this._purchased.set('unlock_nuke', 1);
-    return true;
-  }
-
-  startNukeResearch(gameTimeMs: number, durationMs: number): boolean {
-    if (this.hasResearchedNuke()) return false;
-    if (this.isResearching('unlock_nuke')) return false;
-    if (this.gold < this.getNukeResearchCost()) return false;
-    this.gold -= this.getNukeResearchCost();
-    this._researchTimers.set('unlock_nuke', { startedAtMs: gameTimeMs, durationMs });
-    return true;
-  }
-
-  getNukeResearchCost(): number {
-    return getNukeResearchCost();
   }
 
   hasResearched(towerType: TowerType): boolean {

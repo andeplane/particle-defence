@@ -107,6 +107,27 @@ export function getConstructionSubmenuItems(buildSubmenu: BuildSubmenu): Readonl
 
 export type ActionType = 'nuke' | 'buildPrev' | 'buildNext' | 'buildSelected' | 'towerPrev' | 'towerNext' | 'towerUpgrade';
 
+const RESEARCH_POSITIONAL_KEYS: Record<0 | 1, { top: readonly string[]; bottom: readonly string[] }> = {
+  0: { top: ['Q', 'W', 'E', 'R'], bottom: ['A', 'S', 'D', 'F'] },
+  1: { top: ['U', 'I', 'O', 'P'], bottom: ['H', 'J', 'K', 'L'] },
+};
+
+/** Returns the display key for a research button at the given render position. */
+export function getResearchKey(playerId: 0 | 1, isTopRow: boolean, rowIndex: number): string {
+  const row = isTopRow ? RESEARCH_POSITIONAL_KEYS[playerId].top : RESEARCH_POSITIONAL_KEYS[playerId].bottom;
+  return row[rowIndex] ?? '?';
+}
+
+/** Maps a pressed key back to a node index in the visible research list, or null if not a research key. */
+export function getResearchNodeIndex(key: string, playerId: 0 | 1, topRowCount: number): number | null {
+  const { top, bottom } = RESEARCH_POSITIONAL_KEYS[playerId];
+  const ti = top.indexOf(key);
+  if (ti !== -1 && ti < topRowCount) return ti;
+  const bi = bottom.indexOf(key);
+  if (bi !== -1) return topRowCount + bi;
+  return null;
+}
+
 export type KeyPressResult =
   | { type: 'back' }
   | { type: 'navigate'; category: MenuCategory }

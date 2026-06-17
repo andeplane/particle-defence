@@ -11,7 +11,6 @@ export interface AIGameState {
   readonly gameTimeMs: number;
   readonly gameOver: boolean;
   launchNuke(playerId: 0 | 1): boolean;
-  buyNukeResearch(playerId: 0 | 1): boolean;
   buyResearch(playerId: 0 | 1, towerType: TowerType): boolean;
   buyPathResearch(playerId: 0 | 1, pathId: string): boolean;
   purchaseResearchNode(playerId: 0 | 1, nodeId: string, isPath: boolean, durationMs: number): boolean;
@@ -88,10 +87,10 @@ export class AIController {
   private tryNukeResearch(state: AIGameState): void {
     if (this.profile.nukeEnabled === false) return;
     const ai = state.players[this.playerId];
-    if (ai.hasResearchedNuke()) return;
+    if (ai.hasUnlocked('unlock_nuke')) return;
     if (state.gameTimeMs < CONFIG.NUCLEAR_FIRST_AVAILABLE_MS * 0.8) return;
-    if (ai.canResearchNuke()) {
-      state.buyNukeResearch(this.playerId);
+    if (ai.canPurchaseUnlock('unlock_nuke')) {
+      state.purchaseResearchNode(this.playerId, 'unlock_nuke', false, CONFIG.NUKE_RESEARCH_DURATION_MS);
     }
   }
 

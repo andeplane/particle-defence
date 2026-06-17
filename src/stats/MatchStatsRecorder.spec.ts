@@ -385,10 +385,6 @@ function createPlayers(overrides?: {
     canUseNuke: () => false,
     useNuke: () => {},
     getNukeCooldownRemainingMs: () => 0,
-    hasResearchedNuke: () => false,
-    canResearchNuke: () => false,
-    researchNuke: () => false,
-    getNukeResearchCost: () => 2000,
     takeDamage: () => {},
     hasResearched: () => false,
     canResearchTower: () => false,
@@ -408,7 +404,6 @@ function createPlayers(overrides?: {
     purchasePath: () => false,
     getPathCost: () => Infinity,
     startTowerResearch: () => false,
-    startNukeResearch: () => false,
     startPathResearch: () => false,
     startUnlockResearch: () => false,
     isResearching: () => false,
@@ -454,5 +449,6 @@ function createSample(overrides: {
     towerCount: [0, 0],
     towerKillsCumulative: [0, 0],
     territoryCells: [0, 0],
+    totalGoldProduced: [0, 0],
   };
 }

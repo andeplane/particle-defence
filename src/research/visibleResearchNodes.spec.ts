@@ -11,13 +11,12 @@ function makePlayer(overrides: Partial<{
   const { hasLaser = false, hasWeakness = false, hasNuke = false } = overrides;
   return {
     hasResearched: (type: string) => type === TOWER_TYPE.LASER ? hasLaser : type === TOWER_TYPE.WEAKNESS ? hasWeakness : false,
-    hasResearchedNuke: () => hasNuke,
+    hasUnlocked: (id: string) => id === 'unlock_nuke' ? hasNuke : false,
     getPathLevel: vi.fn(() => 0),
     getPathCost: vi.fn(() => 100),
     canPurchasePath: vi.fn(() => false),
     getUnlockCost: vi.fn(() => 200),
     canPurchaseUnlock: vi.fn(() => true),
-    hasUnlocked: vi.fn(() => false),
     getResearchProgress: vi.fn(() => -1),
     getResearchRemainingMs: vi.fn(() => 0),
   } as unknown as IPlayer;
@@ -73,16 +72,5 @@ describe('getVisibleResearchNodes', () => {
     const nodes = getVisibleResearchNodes(makePlayer({ hasNuke: true }));
     const ids = nodes.map(n => n.id);
     expect(ids).not.toContain('unlock_nuke');
-  });
-
-  it('bounce and slow use same key as original tower unlock for slot replacement', () => {
-    const before = getVisibleResearchNodes(makePlayer({}));
-    const laserBefore = before.find(n => n.id === 'unlock_laser')!;
-
-    const after = getVisibleResearchNodes(makePlayer({ hasLaser: true }));
-    const bounceAfter = after.find(n => n.id === 'laser_bounce')!;
-
-    expect(bounceAfter.p1Key).toBe(laserBefore.p1Key);
-    expect(bounceAfter.p2Key).toBe(laserBefore.p2Key);
   });
 });
