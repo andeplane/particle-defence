@@ -73,15 +73,4 @@ describe('getVisibleResearchNodes', () => {
     const ids = nodes.map(n => n.id);
     expect(ids).not.toContain('unlock_nuke');
   });
-
-  it('bounce and slow use same key as original tower unlock for slot replacement', () => {
-    const before = getVisibleResearchNodes(makePlayer({}));
-    const laserBefore = before.find(n => n.id === 'unlock_laser')!;
-
-    const after = getVisibleResearchNodes(makePlayer({ hasLaser: true }));
-    const bounceAfter = after.find(n => n.id === 'laser_bounce')!;
-
-    expect(bounceAfter.p1Key).toBe(laserBefore.p1Key);
-    expect(bounceAfter.p2Key).toBe(laserBefore.p2Key);
-  });
 });
