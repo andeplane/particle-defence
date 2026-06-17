@@ -122,7 +122,7 @@ export function getVisibleResearchNodes(player: IPlayer): ResearchNodeDef[] {
   const hasLaser = player.hasResearched('laser');
   const hasWeakness = player.hasResearched('weakness');
   const hasTower = hasLaser || hasWeakness;
-  const hasNuke = player.hasResearchedNuke();
+  const hasNuke = player.hasUnlocked('unlock_nuke');
 
   const nodes: ResearchNodeDef[] = [];
 

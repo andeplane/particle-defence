@@ -11,13 +11,12 @@ function makePlayer(overrides: Partial<{
   const { hasLaser = false, hasWeakness = false, hasNuke = false } = overrides;
   return {
     hasResearched: (type: string) => type === TOWER_TYPE.LASER ? hasLaser : type === TOWER_TYPE.WEAKNESS ? hasWeakness : false,
-    hasResearchedNuke: () => hasNuke,
+    hasUnlocked: (id: string) => id === 'unlock_nuke' ? hasNuke : false,
     getPathLevel: vi.fn(() => 0),
     getPathCost: vi.fn(() => 100),
     canPurchasePath: vi.fn(() => false),
     getUnlockCost: vi.fn(() => 200),
     canPurchaseUnlock: vi.fn(() => true),
-    hasUnlocked: vi.fn(() => false),
     getResearchProgress: vi.fn(() => -1),
     getResearchRemainingMs: vi.fn(() => 0),
   } as unknown as IPlayer;

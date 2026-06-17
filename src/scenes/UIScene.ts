@@ -40,7 +40,6 @@ export interface IGameViewModel {
   purchaseUpgrade(playerId: 0 | 1, type: UpgradeType): boolean;
   launchNuke(playerId: 0 | 1): boolean;
   researchTower(playerId: 0 | 1, towerType: TowerType): boolean;
-  researchNuke(playerId: 0 | 1): boolean;
   /** Purchase (or start timer for) a dynamic research node (unlock or path level). */
   purchaseResearchNode(playerId: 0 | 1, nodeId: string, isPath: boolean, durationMs: number): boolean;
   constructTower(playerId: 0 | 1, towerType: TowerType, siteId: number): boolean;
@@ -1289,7 +1288,7 @@ export class UIScene extends Phaser.Scene {
         btn.statusText.setText(`${Math.ceil(player.getResearchRemainingMs('unlock_nuke', gameTimeMs) / 1000)}s`);
         btn.statusText.setColor('#ffffff');
         this.drawClockOverlay(btn.clockGfx, btn.bg.x, btn.bg.y, btn.bg.width, btn.bg.height, nukeProgress);
-      } else if (!player.hasResearchedNuke()) {
+      } else if (!player.hasUnlocked('unlock_nuke')) {
         btn.clockGfx.clear();
         btn.bg.setAlpha(0.4);
         btn.statusText.setText('LOCKED');

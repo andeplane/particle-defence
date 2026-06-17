@@ -1,4 +1,4 @@
-import { CONFIG, getUpgradeCost, getTowerResearchCost, getTowerConstructionCost, getTowerUpgradeCost, getNukeResearchCost, type UpgradeType } from '../config';
+import { CONFIG, getUpgradeCost, getTowerResearchCost, getTowerConstructionCost, getTowerUpgradeCost, type UpgradeType } from '../config';
 import { getLaserStatsAtLevel } from '../particles/LaserTowerParticle';
 import { getWeaknessStatsAtLevel } from '../particles/WeaknessTowerParticle';
 import { computeMaxLevels, defaultPlayerConfig } from '../player';
@@ -77,7 +77,7 @@ function getOverviewSections(): ContentSection[] {
       title: 'Nuclear Weapon',
       lines: [
         'Instantly kills ALL enemy particles (including towers).',
-        `Must be researched first for ${getNukeResearchCost()}g.`,
+        `Must be researched first for ${CONFIG.NUKE_RESEARCH_COST}g.`,
         `First available at ${formatTime(CONFIG.NUCLEAR_FIRST_AVAILABLE_MS)}.`,
         `Cooldown: ${formatTime(CONFIG.NUCLEAR_COOLDOWN_MS)}.`,
         `Kills from nukes give only ${CONFIG.NUCLEAR_KILL_REWARD_FRACTION * 100}% gold reward.`,
@@ -106,7 +106,7 @@ function getTechTreeSections(): ContentSection[] {
       '',
       `  Laser Tower research:  ${getTowerResearchCost('laser')}g`,
       `  Weakness Tower research: ${getTowerResearchCost('weakness')}g`,
-      `  Nuke research:         ${getNukeResearchCost()}g`,
+      `  Nuke research:         ${CONFIG.NUKE_RESEARCH_COST}g`,
     ],
   };
 

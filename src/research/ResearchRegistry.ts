@@ -14,6 +14,13 @@ const ALL_META: GameObjectMeta<unknown>[] = [
 /** Standalone unlock nodes not tied to any game object class. */
 const STANDALONE_UNLOCKS: ResearchNodeMeta[] = [
   {
+    id: 'unlock_nuke',
+    name: 'Nuclear Weapon',
+    description: 'Unlock nuclear weapon launch',
+    cost: CONFIG.NUKE_RESEARCH_COST,
+    durationMs: CONFIG.NUKE_RESEARCH_DURATION_MS,
+  },
+  {
     id: 'unlock_territory_income',
     name: 'Territory Income',
     description: 'Owned cells generate passive gold income',
