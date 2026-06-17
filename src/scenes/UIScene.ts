@@ -490,7 +490,8 @@ export class UIScene extends Phaser.Scene {
         this.createResearchButton(x, y, btnW, btnH, node, nodeKey, playerId);
       });
       const backKey = playerId === 0 ? 'Tab' : 'Bksp';
-      const backX = this.getButtonX(playerId, bottomRowCount, bottomRowCount + 1, (btnW + gap) * 0.4, isRight);
+      const backIndex = isRight ? 0 : bottomRowCount;
+      const backX = this.getButtonX(playerId, backIndex, bottomRowCount + 1, (btnW + gap) * 0.4, isRight);
       this.createBackButton(backX, bottomRowY, btnW, btnH, backKey, playerId);
       return;
     }
@@ -541,7 +542,8 @@ export class UIScene extends Phaser.Scene {
     });
 
     const backKey = playerId === 0 ? 'Tab' : 'Bksp';
-    const backX = this.getButtonX(playerId, bottomRowCount, bottomRowCount + 1, staggerOffset, isRight);
+    const backIndex = isRight ? 0 : bottomRowCount;
+    const backX = this.getButtonX(playerId, backIndex, bottomRowCount + 1, staggerOffset, isRight);
     this.createBackButton(backX, bottomRowY, btnW, btnH, backKey, playerId);
 
     if (category === 'towers' || category === 'construction') {
