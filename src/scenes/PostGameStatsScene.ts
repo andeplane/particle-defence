@@ -143,6 +143,31 @@ export class PostGameStatsScene extends Phaser.Scene {
     const upgradeTypes: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles'];
     const kpmData = MatchStatsRecorder.rollingKPM(samples, 30);
 
+    const upgradeTypeLabels: Record<UpgradeType, string> = {
+      health: 'Health Level',
+      attack: 'Attack Level',
+      radius: 'Radius Level',
+      spawnRate: 'Spawn Rate Level',
+      speed: 'Speed Level',
+      maxParticles: 'Max Particles Level',
+      defense: 'Defense Level',
+      interestRate: 'Interest Rate Level',
+    };
+
+    const allUpgradeTypes: UpgradeType[] = [
+      'health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles', 'defense', 'interestRate',
+    ];
+
+    const perUpgradeCharts: ChartConfig[] = allUpgradeTypes.map(type => ({
+      title: upgradeTypeLabels[type],
+      series: [
+        { data: samples.map(s => s.upgradeLevels[0][type]), color: p1c, label: p1Label },
+        { data: samples.map(s => s.upgradeLevels[1][type]), color: p2c, label: p2Label },
+      ],
+      yMin: 0,
+      isStep: true,
+    }));
+
     return [
       {
         title: 'Army Size',
@@ -233,6 +258,7 @@ export class PostGameStatsScene extends Phaser.Scene {
         yMin: 0,
         isStep: true,
       },
+      ...perUpgradeCharts,
     ];
   }
 
