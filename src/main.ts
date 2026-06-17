@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CONFIG } from './config';
+import { initAnalytics, trackLoad } from './analytics';
 import { isMobile } from './mobile';
 import { GameScene } from './scenes/GameScene';
 import { MapSelectScene } from './scenes/MapSelectScene';
@@ -7,6 +8,9 @@ import { MenuScene } from './scenes/MenuScene';
 import { HowToPlayScene } from './scenes/HowToPlayScene';
 import { PostGameStatsScene } from './scenes/PostGameStatsScene';
 import { UIScene } from './scenes/UIScene';
+
+initAnalytics();
+trackLoad();
 
 const mobile = isMobile();
 

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { trackGameStarted } from '../analytics';
 import { CONFIG } from '../config';
 import { isMobile } from '../mobile';
 import { GAME_MODE, type GameMode } from './MenuScene';
@@ -82,6 +83,7 @@ export class MapSelectScene extends Phaser.Scene {
   }
 
   private startGame(gridType: GridType): void {
+    trackGameStarted(this.mode, gridType);
     this.scene.start(SCENE_KEYS.GAME, { mode: this.mode, gridType });
   }
 }

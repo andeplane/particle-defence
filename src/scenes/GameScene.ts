@@ -14,6 +14,7 @@ import { MatchStatsRecorder } from '../stats';
 import { GAME_MODE, type GameMode } from './MenuScene';
 import type { IGameViewModel, TowerSelectionForRender } from './UIScene';
 import { SCENE_KEYS } from './SceneKeys';
+import { trackGameEnded } from '../analytics';
 import { getLaserStatsAtLevel } from '../particles/LaserTowerParticle';
 import { getWeaknessStatsAtLevel } from '../particles/WeaknessTowerParticle';
 import { getTowerUpgradeCost } from '../config';
@@ -32,6 +33,8 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
   engine!: GameEngine;
   mode: GameMode = GAME_MODE.PVP;
+  private gridType: GridType = 'random';
+  private gameStartTime: number = 0;
   debugSpeedMultiplier: number = 1;
   debugEverythingCheap: boolean = false;
   private statsRecorder!: MatchStatsRecorder;
@@ -72,7 +75,8 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
   init(data: { mode?: GameMode; gridType?: GridType }): void {
     this.mode = data.mode ?? GAME_MODE.PVP;
-    const gridType = data.gridType ?? 'random';
+    this.gridType = data.gridType ?? 'random';
+    const gridType = this.gridType;
     const grid = generateGrid(gridType);
 
     this.statsRecorder = new MatchStatsRecorder({ cellW: grid.cellW });
@@ -150,6 +154,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   }
 
   create(): void {
+    this.gameStartTime = Date.now();
     this.engine.init(this.mode === GAME_MODE.AI);
 
     this.renderMaze();
@@ -825,6 +830,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
   private showGameOver(winner: number): void {
     const matchStats = this.statsRecorder.finalize(winner as 0 | 1);
+    trackGameEnded(matchStats, this.mode, this.gridType, this.gameStartTime);
     const winnerColor = winner === 0 ? CONFIG.PLAYER1_COLOR_STR : CONFIG.PLAYER2_COLOR_STR;
     const winnerLabel = winner === 1 && this.mode === GAME_MODE.AI ? 'AI WINS!' : `PLAYER ${winner + 1} WINS!`;
     const overlay = this.add.rectangle(
