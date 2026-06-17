@@ -133,6 +133,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
       onInterest: (playerId, amount) => {
         const uiScene = this.scene.get(SCENE_KEYS.UI) as { showInterestPopup?: (id: 0 | 1, amt: number) => void };
         uiScene?.showInterestPopup?.(playerId, amount);
+        this.statsRecorder.recordGoldIncome(playerId, amount);
       },
       onTerritoryIncome: (playerId, amount) => {
         const uiScene = this.scene.get(SCENE_KEYS.UI) as { showTerritoryIncomePopup?: (id: 0 | 1, amt: number) => void };
