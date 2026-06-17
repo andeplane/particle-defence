@@ -454,5 +454,6 @@ function createSample(overrides: {
     towerCount: [0, 0],
     towerKillsCumulative: [0, 0],
     territoryCells: [0, 0],
+    totalGoldProduced: [0, 0],
   };
 }
