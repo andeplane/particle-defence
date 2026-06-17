@@ -1,8 +1,8 @@
 import type { AIProfile } from '../ai';
 
 // Balanced: consistent investment wins through mid-game efficiency.
-// Counter: GlassCannon (burst damage overwhelms before defense accrues), Rush (volume + speed)
-// Counters: TowerFortress (flexible spending out-values tower investment), Economy (fights before economy peaks)
+// Counter: GlassCannon (burst overwhelms), Tank (armor absorbs balanced damage), Rush (volume)
+// Counters: Economy (combat before economy peaks), TowerFortress (flexible spending beats tower investment)
 export const BALANCED_PROFILE: AIProfile = {
   name: 'Balanced',
   upgradeWeights: {
@@ -18,8 +18,8 @@ export const BALANCED_PROFILE: AIProfile = {
 };
 
 // Rush: fastest spawn rate + speed overwhelms before the opponent scales.
-// Counter: GlassCannon (superior individual attack kills Rush efficiently), Economy (outlasts the rush)
-// Counters: TowerFortress (overwhelms before towers are operational), Balanced (volume outpaces defense)
+// Counter: GlassCannon (kills efficiently), Tank (HP absorbs the rush), Economy (outlasts)
+// Counters: Balanced (volume outpaces), TowerFortress (overwhelms before towers are up)
 export const RUSH_PROFILE: AIProfile = {
   name: 'Rush',
   upgradeWeights: {
@@ -37,8 +37,8 @@ export const RUSH_PROFILE: AIProfile = {
 };
 
 // Economy: interest snowball into late-game military dominance.
-// Counter: Rush (wins before economy scales), GlassCannon (burst kills before scaling kicks in)
-// Counters: Tank (gold out-upgrades HP stacking), TowerFortress (out-scales tower investment)
+// Counter: Balanced (fights before economy peaks), TowerFortress (tower DPS outlasts interest)
+// Counters: GlassCannon (outlasts burst damage), Rush (scale over volume)
 export const ECONOMY_PROFILE: AIProfile = {
   name: 'Economy',
   upgradeWeights: {
@@ -54,8 +54,8 @@ export const ECONOMY_PROFILE: AIProfile = {
 };
 
 // TowerFortress: tower network + durable army wins by attrition.
-// Counter: Rush (early pressure before towers are up), GlassCannon (burst melts towers quickly)
-// Counters: Balanced (towers tip the scale in sustained fights), Economy (tower DPS outlasts interest)
+// Counter: Tank (large army overwhelms towers), Balanced (flexible spending beats tower lock-in), Rush
+// Counters: GlassCannon (durable towers outlast glass particles), Economy (tower DPS > interest)
 export const TOWER_FORTRESS_PROFILE: AIProfile = {
   name: 'TowerFortress',
   upgradeWeights: {
@@ -72,14 +72,13 @@ export const TOWER_FORTRESS_PROFILE: AIProfile = {
 };
 
 // GlassCannon: devastating burst damage — kills fast or dies trying.
-// Counter: Tank (large durable army overwhelms the small fragile elite force),
-//          TowerFortress (towers survive and punish glass particles)
-// Counters: Economy (burst before scaling), Balanced (overwhelms before defense accrues)
+// Counter: Economy (outlasts the burst), TowerFortress (durable towers survive and punish)
+// Counters: Balanced (burst overwhelms), Rush (kills efficiently), Tank (speed penetrates armor)
 export const GLASS_CANNON_PROFILE: AIProfile = {
   name: 'GlassCannon',
   upgradeWeights: {
-    attack: 1.9,
-    speed: 2.0,
+    attack: 1.6,
+    speed: 1.6,
     spawnRate: 1.5,
     radius: 0.4,
     maxParticles: 1.0,
@@ -91,23 +90,20 @@ export const GLASS_CANNON_PROFILE: AIProfile = {
   territoryIncomeEnabled: false,
 };
 
-// Tank: large durable army wins by numerical attrition and sustained pressure.
-// spawnRate:3.0 fills the big army as fast as Rush — but particles have higher HP and defense.
-// maxParticles:2.0 grows the cap to maintain sustained numerical pressure over time.
-// Counter: Economy (gold snowball out-upgrades tank stats in long games)
-// Counters: GlassCannon (1100-particle army overwhelms the small fragile elite force),
-//           Rush (matching spawn rate + higher HP wins the attrition battle)
+// Tank: durable high-defense army wins by attrition — high HP+defense negates HP-scaling attacks.
+// Counter: GlassCannon (burst speed penetrates armor), Economy (gold outlasts HP stacking)
+// Counters: TowerFortress (large army overwhelms towers), Balanced (armor absorbs damage), Rush (HP wins attrition)
 export const TANK_PROFILE: AIProfile = {
   name: 'Tank',
   upgradeWeights: {
-    maxParticles: 2.0,
-    spawnRate: 3.0,
+    maxParticles: 1.5,
+    spawnRate: 2.2,
     health: 2.5,
     attack: 2.0,
-    defense: 1.5,
-    speed: 1.8,
-    radius: 0.8,
-    interestRate: 0.5,
+    defense: 1.7,
+    speed: 1.2,
+    radius: 0.5,
+    interestRate: 0.8,
   },
 };
 
