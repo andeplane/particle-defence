@@ -46,7 +46,7 @@ const NUKE_UNLOCK: ResearchNodeDef = {
 const LASER_BOUNCE: ResearchNodeDef = {
   id: 'laser_bounce',
   label: 'BOUNCE',
-  tooltip: 'Laser chains to additional nearby targets after the primary hit',
+  tooltip: 'Laser chains to additional nearby targets after the primary hit\nApplies to: Laser tower',
   p1Key: 'Q', p2Key: 'I',
   isPath: true, maxLevel: 5,
   durationMs: CONFIG.LASER_BOUNCE_DURATION_MS,
@@ -55,7 +55,7 @@ const LASER_BOUNCE: ResearchNodeDef = {
 const LASER_OVERCHARGE: ResearchNodeDef = {
   id: 'laser_overcharge',
   label: 'OVRCHG',
-  tooltip: 'Every few shots fires a 3× damage burst',
+  tooltip: 'Every few shots fires a 3× damage burst\nApplies to: Laser tower',
   p1Key: 'R', p2Key: 'H',
   isPath: true, maxLevel: 5,
   durationMs: CONFIG.LASER_OVERCHARGE_DURATION_MS,
@@ -64,7 +64,7 @@ const LASER_OVERCHARGE: ResearchNodeDef = {
 const WEAKNESS_SLOW: ResearchNodeDef = {
   id: 'weakness_slow',
   label: 'SLOW',
-  tooltip: 'Weakness tower also slows enemies in range',
+  tooltip: 'Weakness tower also slows enemies in range\nApplies to: Weakness tower',
   p1Key: 'W', p2Key: 'O',
   isPath: true, maxLevel: 5,
   durationMs: CONFIG.WEAKNESS_SLOW_DURATION_MS,
@@ -73,7 +73,7 @@ const WEAKNESS_SLOW: ResearchNodeDef = {
 const WEAKNESS_STUN: ResearchNodeDef = {
   id: 'weakness_stun',
   label: 'STUN',
-  tooltip: 'Weakness tower periodically stuns enemies, removing their attack',
+  tooltip: 'Weakness tower periodically stuns enemies, removing their attack\nApplies to: Weakness tower',
   p1Key: 'A', p2Key: 'J',
   isPath: true, maxLevel: 5,
   durationMs: CONFIG.WEAKNESS_STUN_DURATION_MS,
