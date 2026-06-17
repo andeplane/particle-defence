@@ -167,7 +167,7 @@ describe(GameEngine.name, () => {
     it('launches after nuke research timer completes', () => {
       const { engine, callbacks } = createNukeEngine();
 
-      expect(engine.buyNukeResearch(0)).toBe(true);
+      expect(engine.purchaseResearchNode(0, 'unlock_nuke', false, CONFIG.NUKE_RESEARCH_DURATION_MS)).toBe(true);
       engine.tick(CONFIG.NUKE_RESEARCH_DURATION_MS + 1000);
       expect(engine.launchNuke(0)).toBe(true);
 
@@ -444,8 +444,8 @@ describe(GameEngine.name, () => {
 
     it('launchNuke does not kill spawner towers', () => {
       const { engine } = createSpawnerEngine();
-      engine.buyNukeResearch(0);
-      engine.tick(CONFIG.NUCLEAR_FIRST_AVAILABLE_MS + 1);
+      engine.purchaseResearchNode(0, 'unlock_nuke', false, CONFIG.NUKE_RESEARCH_DURATION_MS);
+      engine.tick(CONFIG.NUKE_RESEARCH_DURATION_MS + CONFIG.NUCLEAR_FIRST_AVAILABLE_MS + 1);
 
       engine.launchNuke(0);
 

@@ -201,10 +201,6 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     return this.engine.buyResearch(playerId, towerType);
   }
 
-  researchNuke(playerId: 0 | 1): boolean {
-    return this.engine.buyNukeResearch(playerId);
-  }
-
   purchaseResearchNode(playerId: 0 | 1, nodeId: string, isPath: boolean, durationMs: number): boolean {
     return this.engine.purchaseResearchNode(playerId, nodeId, isPath, durationMs);
   }

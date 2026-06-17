@@ -227,7 +227,7 @@ describe(Player.name, () => {
     ])('canUseNuke returns $expected when $scenario', ({ researched, gameTimeMs, expected }) => {
       if (researched) {
         player.gold = 9999;
-        player.researchNuke();
+        player.purchaseUnlock('unlock_nuke');
       }
       expect(player.canUseNuke(gameTimeMs)).toBe(expected);
     });
@@ -238,14 +238,14 @@ describe(Player.name, () => {
       { gameTimeMs: 6000, expected: true },
     ])('canUseNuke returns $expected at $gameTimeMs during/after cooldown', ({ gameTimeMs, expected }) => {
       player.gold = 9999;
-      player.researchNuke();
+      player.purchaseUnlock('unlock_nuke');
       player.useNuke(1000);
       expect(player.canUseNuke(gameTimeMs)).toBe(expected);
     });
 
     it('getNukeCooldownRemainingMs returns correct values', () => {
       player.gold = 9999;
-      player.researchNuke();
+      player.purchaseUnlock('unlock_nuke');
 
       // Before first available
       expect(player.getNukeCooldownRemainingMs(0)).toBe(1000);
@@ -265,22 +265,22 @@ describe(Player.name, () => {
       expect(player.getNukeCooldownRemainingMs(0)).toBe(0);
     });
 
-    it('researchNuke deducts gold and unlocks nuke once', () => {
+    it('purchaseUnlock deducts gold and unlocks nuke once', () => {
       player.gold = 9999;
-      const cost = player.getNukeResearchCost();
+      const cost = player.getUnlockCost('unlock_nuke');
 
-      expect(player.researchNuke()).toBe(true);
+      expect(player.purchaseUnlock('unlock_nuke')).toBe(true);
       expect(player.gold).toBe(9999 - cost);
-      expect(player.hasResearchedNuke()).toBe(true);
-      expect(player.canResearchNuke()).toBe(false);
-      expect(player.researchNuke()).toBe(false);
+      expect(player.hasUnlocked('unlock_nuke')).toBe(true);
+      expect(player.canPurchaseUnlock('unlock_nuke')).toBe(false);
+      expect(player.purchaseUnlock('unlock_nuke')).toBe(false);
     });
 
-    it('researchNuke returns false when cannot afford', () => {
+    it('purchaseUnlock returns false when cannot afford nuke', () => {
       player.gold = 0;
-      expect(player.canResearchNuke()).toBe(false);
-      expect(player.researchNuke()).toBe(false);
-      expect(player.hasResearchedNuke()).toBe(false);
+      expect(player.canPurchaseUnlock('unlock_nuke')).toBe(false);
+      expect(player.purchaseUnlock('unlock_nuke')).toBe(false);
+      expect(player.hasUnlocked('unlock_nuke')).toBe(false);
     });
   });
 

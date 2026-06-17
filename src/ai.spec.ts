@@ -42,7 +42,6 @@ function createState(overrides: Partial<AIGameState> = {}): AIGameState {
     gameTimeMs: 10_000,
     gameOver: false,
     launchNuke: vi.fn(() => true),
-    buyNukeResearch: vi.fn((playerId: 0 | 1) => overrides.players?.[playerId].researchNuke() ?? true),
     buyResearch: vi.fn(() => true),
     buyPathResearch: vi.fn(() => true),
     purchaseResearchNode: vi.fn(() => true),
@@ -70,7 +69,7 @@ describe(AIController.name, () => {
       state.players[0].baseHP = 500;
       state.players[1].baseHP = 900;
       state.players[0].gold = 9999;
-      state.players[0].researchNuke();
+      state.players[0].purchaseUnlock('unlock_nuke');
 
       ai0.update(300, state);
 
@@ -180,7 +179,7 @@ describe(AIController.name, () => {
       state.players[0].baseHP = humanHP;
       state.players[1].baseHP = aiHP;
       state.players[1].gold = 9999;
-      state.players[1].researchNuke();
+      state.players[1].purchaseUnlock('unlock_nuke');
 
       ai.update(300, state);
 
@@ -197,7 +196,7 @@ describe(AIController.name, () => {
       });
       state.players[1].baseHP = 200;
       state.players[1].gold = 9999;
-      state.players[1].researchNuke();
+      state.players[1].purchaseUnlock('unlock_nuke');
       state.players[1].useNuke(9000);
 
       ai.update(300, state);
@@ -214,7 +213,7 @@ describe(AIController.name, () => {
 
       ai.update(300, state);
 
-      expect(state.buyNukeResearch).toHaveBeenCalledWith(1);
+      expect(state.purchaseResearchNode).toHaveBeenCalledWith(1, 'unlock_nuke', false, expect.any(Number));
       expect(state.launchNuke).not.toHaveBeenCalled();
     });
 
@@ -230,7 +229,7 @@ describe(AIController.name, () => {
 
       noNukeAI.update(300, state);
 
-      expect(state.buyNukeResearch).not.toHaveBeenCalled();
+      expect(state.purchaseResearchNode).not.toHaveBeenCalledWith(1, 'unlock_nuke', false, expect.any(Number));
       expect(state.launchNuke).not.toHaveBeenCalled();
     });
   });
@@ -375,7 +374,7 @@ describe(AIController.name, () => {
 
       ai.update(300, state);
 
-      expect(state.buyNukeResearch).not.toHaveBeenCalled();
+      expect(state.purchaseResearchNode).not.toHaveBeenCalledWith(1, 'unlock_nuke', false, expect.any(Number));
       expect(state.launchNuke).not.toHaveBeenCalled();
     });
 

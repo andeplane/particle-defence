@@ -381,11 +381,6 @@ export class GameEngine implements AIGameState {
     return { towerType: pc.towerType, progress, remainingMs };
   }
 
-  buyNukeResearch(playerId: 0 | 1): boolean {
-    if (this.gameOver) return false;
-    return this.players[playerId].startNukeResearch(this.gameTimeMs, CONFIG.NUKE_RESEARCH_DURATION_MS);
-  }
-
   buyPathResearch(playerId: 0 | 1, pathId: string): boolean {
     if (this.gameOver) return false;
     const durationMs = CONFIG.TIER2_PATH_DURATIONS[pathId] ?? 10_000;
