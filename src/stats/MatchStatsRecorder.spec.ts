@@ -352,6 +352,7 @@ function createParticle(
     attackFactor: 1,
     stunnedUntilMs: 0,
     kills: 0,
+    killedBy: null,
     destroy() {},
   };
 }
