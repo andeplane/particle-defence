@@ -20,6 +20,10 @@ interface ChartConfig {
   isStep?: boolean;
 }
 
+interface ChartBounds {
+  px: number; py: number; pw: number; ph: number;
+}
+
 const CHART_W = 580;
 const CHART_H = 250;
 const GAP_X = 20;
@@ -44,6 +48,9 @@ const SCROLL_SPEED = 0.5;
 export class PostGameStatsScene extends Phaser.Scene {
   private stats!: MatchStats;
   private mode!: GameMode;
+  private chartBoundsArr: ChartBounds[] = [];
+  private overlayGfx!: Phaser.GameObjects.Graphics;
+  private crosshairMoveHandler?: (pointer: Phaser.Input.Pointer) => void;
   private wheelHandler?: (
     pointer: Phaser.Input.Pointer,
     _currentlyOver: Phaser.GameObjects.GameObject[],
@@ -62,6 +69,7 @@ export class PostGameStatsScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.chartBoundsArr = [];
     this.cameras.main.setBackgroundColor(CONFIG.BG_COLOR);
     this.cameras.main.fadeIn(400, 0, 0, 0);
 
@@ -92,6 +100,29 @@ export class PostGameStatsScene extends Phaser.Scene {
 
     this.addReturnButton();
 
+    this.overlayGfx = this.add.graphics().setDepth(5);
+    this.crosshairMoveHandler = (pointer: Phaser.Input.Pointer) => {
+      const wx = pointer.worldX;
+      const wy = pointer.worldY;
+      let normX: number | null = null;
+      for (const b of this.chartBoundsArr) {
+        if (wx >= b.px && wx <= b.px + b.pw && wy >= b.py && wy <= b.py + b.ph) {
+          normX = (wx - b.px) / b.pw;
+          break;
+        }
+      }
+      this.overlayGfx.clear();
+      if (normX !== null) {
+        this.overlayGfx.lineStyle(1, 0xffffff, 0.3);
+        for (const b of this.chartBoundsArr) {
+          const lx = b.px + normX * b.pw;
+          this.overlayGfx.lineBetween(lx, b.py, lx, b.py + b.ph);
+        }
+      }
+    };
+    this.input.on('pointermove', this.crosshairMoveHandler);
+    this.input.on('gameout', () => this.overlayGfx.clear());
+
     const maxScrollY = Math.max(0, totalContentHeight - CONFIG.GAME_HEIGHT);
     if (maxScrollY > 0) {
       this.cameras.main.setBounds(0, 0, CONFIG.GAME_WIDTH, totalContentHeight);
@@ -110,6 +141,10 @@ export class PostGameStatsScene extends Phaser.Scene {
   }
 
   shutdown(): void {
+    if (this.crosshairMoveHandler) {
+      this.input.off('pointermove', this.crosshairMoveHandler);
+      this.crosshairMoveHandler = undefined;
+    }
     if (this.wheelHandler) {
       this.input.off('wheel', this.wheelHandler);
       this.wheelHandler = undefined;
@@ -293,6 +328,8 @@ export class PostGameStatsScene extends Phaser.Scene {
     for (const series of config.series) {
       this.plotSeries(gfx, px, py, pw, ph, series, sampleCount, yMin, yMax, config.isStep ?? false);
     }
+
+    this.chartBoundsArr.push({ px, py, pw, ph });
   }
 
   private drawLegend(x: number, y: number, w: number, series: ChartSeries[]): void {
