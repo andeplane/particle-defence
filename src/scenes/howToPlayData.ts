@@ -45,9 +45,9 @@ function getOverviewSections(): ContentSection[] {
     {
       title: 'Particles',
       lines: [
-        'Particles spawn automatically at a fixed interval.',
+        'Particles spawn automatically at a set rate.',
         `Base stats:  ${CONFIG.PARTICLE_BASE_HEALTH} HP  |  ${CONFIG.PARTICLE_BASE_ATTACK} ATK  |  ${CONFIG.PARTICLE_SPEED} SPD  |  ${CONFIG.PARTICLE_BASE_RADIUS} RAD`,
-        `Spawn interval: ${CONFIG.SPAWN_INTERVAL_MS}ms  |  Pop cap: ${CONFIG.MAX_PARTICLES_PER_PLAYER}`,
+        `Base spawn rate: ${CONFIG.SPAWN_RATE_BASE}/s  |  Pop cap: ${CONFIG.MAX_PARTICLES_PER_PLAYER}`,
         '',
         'Particles fight enemy particles on contact.',
         'Survivors continue toward the enemy base.',
@@ -322,7 +322,7 @@ function getUpgradeDescriptions(maxLevels: Record<UpgradeType, number>): string[
     { type: 'health', label: 'Health', perLevel: `+${CONFIG.HEALTH_PER_LEVEL} HP` },
     { type: 'attack', label: 'Attack', perLevel: `+${CONFIG.ATTACK_PER_LEVEL} ATK` },
     { type: 'radius', label: 'Radius', perLevel: '+1 radius' },
-    { type: 'spawnRate', label: 'Spawn Rate', perLevel: `-${CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL}ms interval` },
+    { type: 'spawnRate', label: 'Spawn Rate', perLevel: `+${CONFIG.SPAWN_RATE_PER_LEVEL}/s` },
     { type: 'speed', label: 'Speed', perLevel: `+${CONFIG.SPEED_PER_LEVEL} speed` },
     { type: 'maxParticles', label: 'Max Pop', perLevel: `+${CONFIG.MAX_PARTICLES_PER_LEVEL} cap` },
     { type: 'defense', label: 'Defense', perLevel: `+${pct(CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL)} cell def` },

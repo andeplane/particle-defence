@@ -23,8 +23,8 @@ const noopCallbacks: GameEngineCallbacks = {
 };
 
 const noSpawnConfig = {
-  spawnIntervalMs: 999_999,
-  minSpawnInterval: 999_999,
+  spawnRateBase: 0.001,
+  spawnRatePerLevel: 0,
   maxParticlesPerPlayer: 0,
 };
 

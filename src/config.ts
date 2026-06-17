@@ -48,11 +48,10 @@ export const CONFIG = {
   GLOBAL_DEFENSE_MAX: 0.25,
   PARTICLE_BASE_RADIUS: 3,
   PARTICLE_SPEED: 180,
-  SPAWN_INTERVAL_MS: 200,
-  /** Minimum spawn interval (ms) - spawn rate upgrade cannot go below this */
-  MIN_SPAWN_INTERVAL: 40,
-  /** Spawn interval reduction (ms) per spawn rate upgrade level */
-  SPAWN_RATE_REDUCTION_PER_LEVEL: 10,
+  /** Base spawn rate in particles per second */
+  SPAWN_RATE_BASE: 5,
+  /** Additional particles per second added per spawn rate upgrade level */
+  SPAWN_RATE_PER_LEVEL: 0.5,
   /** Speed increase per speed upgrade level */
   SPEED_PER_LEVEL: 20,
   MAX_PARTICLES_PER_PLAYER: 1000,

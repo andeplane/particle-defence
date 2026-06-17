@@ -11,9 +11,8 @@ export interface BalanceConfig {
   readonly attackPerLevel: number;
   readonly particleBaseRadius: number;
   readonly particleBaseSpeed: number;
-  readonly spawnIntervalMs: number;
-  readonly minSpawnInterval: number;
-  readonly spawnRateReductionPerLevel: number;
+  readonly spawnRateBase: number;
+  readonly spawnRatePerLevel: number;
   readonly speedPerLevel: number;
   readonly maxParticlesPerPlayer: number;
   readonly maxParticlesPerLevel: number;
@@ -55,9 +54,8 @@ export function defaultBalanceConfig(): BalanceConfig {
     attackPerLevel: CONFIG.ATTACK_PER_LEVEL,
     particleBaseRadius: CONFIG.PARTICLE_BASE_RADIUS,
     particleBaseSpeed: CONFIG.PARTICLE_SPEED,
-    spawnIntervalMs: CONFIG.SPAWN_INTERVAL_MS,
-    minSpawnInterval: CONFIG.MIN_SPAWN_INTERVAL,
-    spawnRateReductionPerLevel: CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL,
+    spawnRateBase: CONFIG.SPAWN_RATE_BASE,
+    spawnRatePerLevel: CONFIG.SPAWN_RATE_PER_LEVEL,
     speedPerLevel: CONFIG.SPEED_PER_LEVEL,
     maxParticlesPerPlayer: CONFIG.MAX_PARTICLES_PER_PLAYER,
     maxParticlesPerLevel: CONFIG.MAX_PARTICLES_PER_LEVEL,
@@ -126,9 +124,7 @@ export function maxLevelsForBudget(baseCost: number, budget: number, multiplier:
 export function maxUpgradeLevel(type: UpgradeType, cfg: BalanceConfig): number {
   switch (type) {
     case 'spawnRate':
-      return Math.max(0, Math.ceil(
-        (cfg.spawnIntervalMs - cfg.minSpawnInterval) / cfg.spawnRateReductionPerLevel
-      ));
+      return Infinity;
     case 'defense':
       return Math.max(0, Math.round(
         (cfg.ownershipDefenseMax - cfg.ownershipDefenseBase) / cfg.ownershipDefensePerLevel
@@ -149,10 +145,8 @@ export function statAtLevel(type: UpgradeType, level: number, cfg: BalanceConfig
     case 'health': return cfg.particleBaseHealth + level * cfg.healthPerLevel;
     case 'attack': return cfg.particleBaseAttack + level * cfg.attackPerLevel;
     case 'radius': return cfg.particleBaseRadius + level;
-    case 'spawnRate': {
-      const interval = Math.max(cfg.minSpawnInterval, cfg.spawnIntervalMs - level * cfg.spawnRateReductionPerLevel);
-      return 1000 / interval;
-    }
+    case 'spawnRate':
+      return cfg.spawnRateBase + level * cfg.spawnRatePerLevel;
     case 'speed': return cfg.particleBaseSpeed + level * cfg.speedPerLevel;
     case 'maxParticles': return cfg.maxParticlesPerPlayer + level * cfg.maxParticlesPerLevel;
     case 'defense': return Math.min(cfg.ownershipDefenseMax, cfg.ownershipDefenseBase + level * cfg.ownershipDefensePerLevel);
@@ -356,16 +350,14 @@ export interface SpawnRateAnalysis {
   readonly deltaSpawnsPerSecond: number;
 }
 
-export function spawnRateTable(cfg: BalanceConfig): SpawnRateAnalysis[] {
-  const maxLvl = maxUpgradeLevel('spawnRate', cfg);
+export function spawnRateTable(cfg: BalanceConfig, displayLevels = 20): SpawnRateAnalysis[] {
   const rows: SpawnRateAnalysis[] = [];
-  const baseSPS = 1000 / cfg.spawnIntervalMs;
 
-  for (let level = 0; level <= maxLvl; level++) {
-    const interval = Math.max(cfg.minSpawnInterval, cfg.spawnIntervalMs - level * cfg.spawnRateReductionPerLevel);
-    const sps = 1000 / interval;
+  for (let level = 0; level <= displayLevels; level++) {
+    const sps = cfg.spawnRateBase + level * cfg.spawnRatePerLevel;
+    const interval = 1000 / sps;
     const cost = level === 0 ? 0 : upgradeCostAtLevel(cfg.upgradeCosts.spawnRate, level - 1, cfg.upgradeCostMultiplier);
-    const prevSPS = level === 0 ? baseSPS : 1000 / Math.max(cfg.minSpawnInterval, cfg.spawnIntervalMs - (level - 1) * cfg.spawnRateReductionPerLevel);
+    const prevSPS = level === 0 ? cfg.spawnRateBase : cfg.spawnRateBase + (level - 1) * cfg.spawnRatePerLevel;
     rows.push({
       level,
       intervalMs: interval,
@@ -477,18 +469,6 @@ export interface BalanceRedFlag {
 
 export function detectRedFlags(cfg: BalanceConfig): BalanceRedFlag[] {
   const flags: BalanceRedFlag[] = [];
-
-  const spawnMaxLvl = maxUpgradeLevel('spawnRate', cfg);
-  if (spawnMaxLvl <= 1) {
-    flags.push({
-      severity: 'critical',
-      category: 'Spawn Rate',
-      description: `Spawn rate caps at ${spawnMaxLvl} level(s)`,
-      details: `Interval ${cfg.spawnIntervalMs}ms -> ${cfg.minSpawnInterval}ms with ${cfg.spawnRateReductionPerLevel}ms/level. ` +
-        `Only ${spawnMaxLvl} upgrade(s) possible. By Lanchester's Square Law, army size has quadratic impact on combat power, ` +
-        `making this the highest-value upgrade category -- yet it's nearly uncappable.`,
-    });
-  }
 
   const oneShotLevel = findOneShotLevel(cfg);
   if (oneShotLevel !== null && oneShotLevel <= 3) {

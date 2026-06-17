@@ -238,13 +238,7 @@ export class AIController {
 
     switch (type) {
       case 'spawnRate': {
-        const spawnInterval = ai.spawnInterval;
-        const nearMin = spawnInterval <= 55;
-        if (nearMin) {
-          score *= 0.3;
-        } else {
-          score *= 2.5;
-        }
+        score *= 2.5;
         if (gameTimeSec < 60) score *= 1.5;
         break;
       }

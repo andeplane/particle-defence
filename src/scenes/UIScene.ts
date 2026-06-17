@@ -338,10 +338,13 @@ export class UIScene extends Phaser.Scene {
         current = `${CONFIG.PARTICLE_BASE_RADIUS + level}`;
         next = `Next: ${CONFIG.PARTICLE_BASE_RADIUS + level + 1}`;
         break;
-      case 'spawnRate':
-        current = `${player.spawnInterval}ms`;
-        next = `Next: ${Math.max(CONFIG.MIN_SPAWN_INTERVAL, player.spawnInterval - CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL)}ms`;
+      case 'spawnRate': {
+        const pps = 1000 / player.spawnInterval;
+        const nextPps = pps + CONFIG.SPAWN_RATE_PER_LEVEL;
+        current = `${pps.toFixed(1)}/s`;
+        next = `Next: ${nextPps.toFixed(1)}/s`;
         break;
+      }
       case 'speed':
         current = `${player.particleSpeed}`;
         next = `Next: ${player.particleSpeed + CONFIG.SPEED_PER_LEVEL}`;
