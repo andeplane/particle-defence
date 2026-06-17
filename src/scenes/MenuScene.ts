@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CONFIG } from '../config';
+import { trackHowToPlayClicked } from '../analytics';
 import { isMobile } from '../mobile';
 import { createMenuButton } from './createMenuButton';
 import { SCENE_KEYS } from './SceneKeys';
@@ -49,14 +50,20 @@ export class MenuScene extends Phaser.Scene {
       ? centerY + gap + btnH - 20
       : centerY + 2 * (gap + btnH) - 20;
     createMenuButton(this, centerX, howToPlayY, btnW, btnH,
-      'How to Play', 0x88aa88, () => this.scene.start(SCENE_KEYS.HOW_TO_PLAY));
+      'How to Play', 0x88aa88, () => {
+        trackHowToPlayClicked();
+        this.scene.start(SCENE_KEYS.HOW_TO_PLAY);
+      });
 
     if (!mobile) {
       this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
         const key = event.key.toUpperCase();
         if (key === '1') this.startGame(GAME_MODE.AI);
         if (key === '2') this.startGame(GAME_MODE.PVP);
-        if (key === 'H' || key === '3') this.scene.start(SCENE_KEYS.HOW_TO_PLAY);
+        if (key === 'H' || key === '3') {
+          trackHowToPlayClicked();
+          this.scene.start(SCENE_KEYS.HOW_TO_PLAY);
+        }
       });
 
       this.add.text(centerX, centerY + 180, '[1] vs AI  [2] 2 Player  [H] How to Play', {
