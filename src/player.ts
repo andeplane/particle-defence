@@ -123,7 +123,7 @@ export function computeMaxLevels(config: PlayerConfig): Record<UpgradeType, numb
       (config.spawnIntervalMs - config.minSpawnInterval) / config.spawnRateReductionPerLevel
     ),
     defense: Math.round(
-      (CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL
+      (CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL + 1e-9
     ),
     interestRate: Math.round(CONFIG.MAX_INTEREST_RATE / CONFIG.INTEREST_RATE_PER_LEVEL),
   };

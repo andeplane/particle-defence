@@ -167,7 +167,7 @@ describe(Player.name, () => {
 
     it.each([
       { type: 'interestRate' as UpgradeType, levelsBelowMax: 19, levelsAtMax: 20, statCheck: (p: Player) => expect(p.goldInterestRate).toBeCloseTo(CONFIG.MAX_INTEREST_RATE) },
-      { type: 'defense' as UpgradeType, levelsBelowMax: Math.round((CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL) - 1, levelsAtMax: Math.round((CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL), statCheck: (p: Player) => expect(p.particleDefense).toBeCloseTo(CONFIG.OWNERSHIP_DEFENSE_MAX) },
+      { type: 'defense' as UpgradeType, levelsBelowMax: Math.round((CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL + 1e-9) - 1, levelsAtMax: Math.round((CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL + 1e-9), statCheck: (p: Player) => expect(p.particleDefense).toBeCloseTo(CONFIG.OWNERSHIP_DEFENSE_MAX) },
       { type: 'spawnRate' as UpgradeType, levelsBelowMax: 7, levelsAtMax: 8, statCheck: (p: Player) => expect(p.spawnInterval).toBe(testConfig.minSpawnInterval) },
     ])('isUpgradeAtMax returns false when $type below max, true when at max', ({ type, levelsBelowMax, statCheck }) => {
       player.gold = 99999;
@@ -186,7 +186,7 @@ describe(Player.name, () => {
 
     it.each([
       { type: 'interestRate' as UpgradeType, levelsToMax: 20 },
-      { type: 'defense' as UpgradeType, levelsToMax: Math.round((CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL) },
+      { type: 'defense' as UpgradeType, levelsToMax: Math.round((CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL + 1e-9) },
       { type: 'spawnRate' as UpgradeType, levelsToMax: 8 },
     ])('startUpgrade returns false when $type is at max', ({ type, levelsToMax }) => {
       player.gold = 99999;
@@ -456,7 +456,7 @@ describe(computeMaxLevels.name, () => {
     { type: 'radius' as UpgradeType, expected: Infinity },
     { type: 'speed' as UpgradeType, expected: Infinity },
     { type: 'maxParticles' as UpgradeType, expected: Infinity },
-    { type: 'defense' as UpgradeType, expected: Math.round((CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL) },
+    { type: 'defense' as UpgradeType, expected: Math.round((CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL + 1e-9) },
     { type: 'interestRate' as UpgradeType, expected: 20 },
   ])('returns $expected for $type with default config', ({ type, expected }) => {
     const config: PlayerConfig = {
