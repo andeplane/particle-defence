@@ -130,6 +130,11 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
         const uiScene = this.scene.get(SCENE_KEYS.UI) as { showInterestPopup?: (id: 0 | 1, amt: number) => void };
         uiScene?.showInterestPopup?.(playerId, amount);
       },
+      onTerritoryIncome: (playerId, amount) => {
+        const uiScene = this.scene.get(SCENE_KEYS.UI) as { showTerritoryIncomePopup?: (id: 0 | 1, amt: number) => void };
+        uiScene?.showTerritoryIncomePopup?.(playerId, amount);
+        this.statsRecorder.recordGoldIncome(playerId, amount);
+      },
       spawnExplosion: (x, y, color) => this.spawnExplosion(x, y, color),
     };
 
@@ -239,7 +244,11 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   update(_time: number, delta: number): void {
     const spedDelta = delta * this.debugSpeedMultiplier;
     this.engine.tick(spedDelta);
-    this.statsRecorder.tick(spedDelta, this.engine.particles, this.engine.players);
+    const territoryCellCounts: [number, number] = [
+      this.engine.cellEffects.getOwnedCellCount(0),
+      this.engine.cellEffects.getOwnedCellCount(1),
+    ];
+    this.statsRecorder.tick(spedDelta, this.engine.particles, this.engine.players, territoryCellCounts);
     this.renderCellEffects();
     this.renderTowerSites();
     this.renderTowerEffects();

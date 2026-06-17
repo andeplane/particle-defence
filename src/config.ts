@@ -245,7 +245,26 @@ export const CONFIG = {
     laser_overcharge: 12_000,
     weakness_slow: 10_000,
     weakness_stun: 20_000,
+    territory_income_rate: 15_000,
   } as Record<string, number>,
+
+  // Territory Income
+  /** One-time research cost to unlock territorial gold income */
+  TERRITORY_INCOME_RESEARCH_COST: 150,
+  /** Duration (ms) to complete the territory income unlock research */
+  TERRITORY_INCOME_RESEARCH_DURATION_MS: 30_000,
+  /** How often (ms) territory income is paid out */
+  TERRITORY_INCOME_INTERVAL_MS: 5_000,
+  /** Gold per owned cell per second at level 1 */
+  TERRITORY_INCOME_BASE_RATE: 0.003,
+  /** Additional gold per cell per second per upgrade level */
+  TERRITORY_INCOME_RATE_PER_LEVEL: 0.002,
+  /** Max level for the territory income rate upgrade path */
+  TERRITORY_INCOME_MAX_LEVEL: 5,
+  /** Base cost for territory income rate upgrade (scales by UPGRADE_COST_MULTIPLIER per level) */
+  TERRITORY_INCOME_PATH_COST_PER_LEVEL: 100,
+  /** Duration (ms) to complete each territory income rate upgrade */
+  TERRITORY_INCOME_PATH_DURATION_MS: 15_000,
 } as const;
 
 export type TowerType = 'laser' | 'weakness';

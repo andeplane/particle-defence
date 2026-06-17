@@ -95,13 +95,14 @@ export class MatchStatsRecorder {
     deltaMs: number,
     particles: readonly IParticle[],
     players: readonly [IPlayer, IPlayer],
+    territoryCellCounts?: [number, number],
   ): void {
     this.elapsedMs += deltaMs;
     const currentSec = Math.floor(this.elapsedMs / 1000);
 
     while (currentSec > this.lastSampleSec) {
       this.lastSampleSec++;
-      this.takeSample(this.lastSampleSec, particles, players);
+      this.takeSample(this.lastSampleSec, particles, players, territoryCellCounts ?? [0, 0]);
       this.deltas = MatchStatsRecorder.freshDeltas();
     }
   }
@@ -119,6 +120,7 @@ export class MatchStatsRecorder {
     timeSec: number,
     particles: readonly IParticle[],
     players: readonly [IPlayer, IPlayer],
+    territoryCellCounts: [number, number],
   ): void {
     const alive: MutablePerPlayer<IParticle[]> = [[], []];
     for (const p of particles) {
@@ -171,6 +173,7 @@ export class MatchStatsRecorder {
       frontlineXCell,
       towerCount,
       towerKillsCumulative: [this.towerKillsCumulative[0], this.towerKillsCumulative[1]],
+      territoryCells: [territoryCellCounts[0], territoryCellCounts[1]],
     };
 
     this.samples.push(sample);

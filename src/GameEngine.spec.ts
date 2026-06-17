@@ -17,6 +17,7 @@ const noopCallbacks: GameEngineCallbacks = {
   onGameOver: vi.fn(),
   onStuckRespawn: vi.fn(),
   onInterest: vi.fn(),
+  onTerritoryIncome: vi.fn(),
   onTowerPlaced: vi.fn(),
   onTowerDeath: vi.fn(),
   spawnExplosion: vi.fn(),

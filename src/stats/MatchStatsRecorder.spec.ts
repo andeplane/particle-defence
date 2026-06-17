@@ -453,5 +453,6 @@ function createSample(overrides: {
     frontlineXCell: [null, null],
     towerCount: [0, 0],
     towerKillsCumulative: [0, 0],
+    territoryCells: [0, 0],
   };
 }

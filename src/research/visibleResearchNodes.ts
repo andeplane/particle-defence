@@ -97,6 +97,24 @@ const TOWER_RANGE: ResearchNodeDef = {
   durationMs: CONFIG.TOWER_RANGE_DURATION_MS,
 };
 
+const TERRITORY_INCOME_UNLOCK: ResearchNodeDef = {
+  id: 'unlock_territory_income',
+  label: 'INCOME',
+  tooltip: 'Owned cells generate passive gold income (+$every 5s based on territory)',
+  p1Key: 'F', p2Key: ';',
+  isPath: false, maxLevel: 1,
+  durationMs: CONFIG.TERRITORY_INCOME_RESEARCH_DURATION_MS,
+};
+
+const TERRITORY_INCOME_RATE: ResearchNodeDef = {
+  id: 'territory_income_rate',
+  label: 'RATE+',
+  tooltip: 'Increase gold earned per owned cell',
+  p1Key: 'F', p2Key: ';',
+  isPath: true, maxLevel: CONFIG.TERRITORY_INCOME_MAX_LEVEL,
+  durationMs: CONFIG.TERRITORY_INCOME_PATH_DURATION_MS,
+};
+
 // ── Visibility logic ──────────────────────────────────────────────────
 
 /** Returns the ordered list of research nodes visible to this player. */
@@ -128,6 +146,13 @@ export function getVisibleResearchNodes(player: IPlayer): ResearchNodeDef[] {
   if (hasTower) {
     nodes.push(TOWER_REGEN);
     nodes.push(TOWER_RANGE);
+  }
+
+  const hasTerritoryIncome = player.hasUnlocked('unlock_territory_income');
+  if (!hasTerritoryIncome) {
+    nodes.push(TERRITORY_INCOME_UNLOCK);
+  } else {
+    nodes.push(TERRITORY_INCOME_RATE);
   }
 
   return nodes;
