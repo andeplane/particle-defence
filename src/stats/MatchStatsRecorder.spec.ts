@@ -240,6 +240,40 @@ describe(MatchStatsRecorder.name, () => {
     });
   });
 
+  describe('towerKillsCumulative', () => {
+    it('starts at [0,0] with no tower kills', () => {
+      recorder.tick(1000, [], createPlayers());
+      const s = recorder.finalize(0).samples[0];
+      expect(s.towerKillsCumulative).toEqual([0, 0]);
+    });
+
+    it('recordTowerKill is independent from recordKill', () => {
+      recorder.recordKill(0);
+      recorder.recordKill(0);
+      recorder.recordTowerKill(0);
+      recorder.recordTowerKill(1);
+
+      recorder.tick(1000, [], createPlayers());
+      const s = recorder.finalize(0).samples[0];
+
+      expect(s.killsThisSecond).toEqual([2, 0]);
+      expect(s.towerKillsCumulative).toEqual([1, 1]);
+    });
+
+    it('accumulates cumulatively across samples, not reset per second', () => {
+      recorder.recordTowerKill(0);
+      recorder.tick(1000, [], createPlayers());
+
+      recorder.recordTowerKill(0);
+      recorder.recordTowerKill(0);
+      recorder.tick(1000, [], createPlayers());
+
+      const stats = recorder.finalize(0);
+      expect(stats.samples[0].towerKillsCumulative).toEqual([1, 0]);
+      expect(stats.samples[1].towerKillsCumulative).toEqual([3, 0]);
+    });
+  });
+
   describe('event recording', () => {
     it('records upgrade events', () => {
       recorder.tick(2500, [], createPlayers());
@@ -317,6 +351,7 @@ function createParticle(
     towerSlowFactor: 1,
     attackFactor: 1,
     stunnedUntilMs: 0,
+    kills: 0,
     destroy() {},
   };
 }
@@ -417,5 +452,6 @@ function createSample(overrides: {
     baseDamageDealt: [0, 0],
     frontlineXCell: [null, null],
     towerCount: [0, 0],
+    towerKillsCumulative: [0, 0],
   };
 }

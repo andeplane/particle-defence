@@ -19,6 +19,7 @@ type MutablePerPlayer<T> = [T, T];
 
 interface DeltaAccumulator {
   kills: MutablePerPlayer<number>;
+  towerKills: MutablePerPlayer<number>;
   goldIncome: MutablePerPlayer<number>;
   goldSpent: MutablePerPlayer<number>;
   unitDamageDealt: MutablePerPlayer<number>;
@@ -33,6 +34,7 @@ export class MatchStatsRecorder {
   private lastSampleSec: number = 0;
 
   private deltas: DeltaAccumulator = MatchStatsRecorder.freshDeltas();
+  private towerKillsCumulative: MutablePerPlayer<number> = [0, 0];
 
   constructor(deps?: Partial<MatchStatsRecorderDependencies>) {
     this.deps = deps ? { ...defaultDeps, ...deps } : defaultDeps;
@@ -40,6 +42,10 @@ export class MatchStatsRecorder {
 
   recordKill(killer: 0 | 1): void {
     this.deltas.kills[killer]++;
+  }
+
+  recordTowerKill(killer: 0 | 1): void {
+    this.deltas.towerKills[killer]++;
   }
 
   recordGoldIncome(player: 0 | 1, amount: number): void {
@@ -146,6 +152,9 @@ export class MatchStatsRecorder {
       alive[1].filter(p => p.typeName === LaserTowerParticle.TYPE_NAME || p.typeName === WeaknessTowerParticle.TYPE_NAME).length,
     ];
 
+    this.towerKillsCumulative[0] += this.deltas.towerKills[0];
+    this.towerKillsCumulative[1] += this.deltas.towerKills[1];
+
     const sample: PerSecondSample = {
       timeSec,
       aliveUnits,
@@ -161,6 +170,7 @@ export class MatchStatsRecorder {
       baseDamageDealt: [this.deltas.baseDamageDealt[0], this.deltas.baseDamageDealt[1]],
       frontlineXCell,
       towerCount,
+      towerKillsCumulative: [this.towerKillsCumulative[0], this.towerKillsCumulative[1]],
     };
 
     this.samples.push(sample);
@@ -205,6 +215,7 @@ export class MatchStatsRecorder {
   private static freshDeltas(): DeltaAccumulator {
     return {
       kills: [0, 0],
+      towerKills: [0, 0],
       goldIncome: [0, 0],
       goldSpent: [0, 0],
       unitDamageDealt: [0, 0],

@@ -24,6 +24,7 @@ export interface PerSecondSample {
   readonly frontlineXCell: PerPlayer<number | null>;
 
   readonly towerCount: PerPlayer<number>;
+  readonly towerKillsCumulative: PerPlayer<number>;
 }
 
 export interface MatchEvent {
