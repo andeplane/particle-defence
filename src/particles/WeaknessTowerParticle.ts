@@ -109,7 +109,7 @@ export class WeaknessTowerParticle extends AbstractParticle {
     const regenLevel = player.getPathLevel('tower_regen');
     if (regenLevel > 0 && this.health < this.maxHealth) {
       const regenRate = regenLevel * CONFIG.TOWER_REGEN_HP_PER_SEC_PER_LEVEL;
-      this.health = Math.min(this.maxHealth, this.health + regenRate * dt / 1000);
+      this.health = Math.min(this.maxHealth, this.health + regenRate * dt);
     }
 
     const rangeBonus = player.getPathLevel('tower_range') * CONFIG.TOWER_RANGE_BONUS_PER_LEVEL;
@@ -126,7 +126,7 @@ export class WeaknessTowerParticle extends AbstractParticle {
       if (dx * dx + dy * dy >= rangeSq) continue;
 
       // HP drain
-      p.takeDamage(this.drainDps * dt / 1000);
+      p.takeDamage(this.drainDps * dt);
 
       // Attack reduction
       p.attackFactor = Math.min(p.attackFactor, 1 - this.attackReduction);
