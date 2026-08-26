@@ -1,3 +1,4 @@
+import { ResearchRegistry } from '../research/ResearchRegistry';
 import type { UpgradeType } from '../config';
 import type { IParticle } from '../particles';
 import type { IPlayer } from '../player';
@@ -163,6 +164,11 @@ export class MatchStatsRecorder {
       MatchStatsRecorder.snapshotUpgrades(players[1]),
     ];
 
+    const researchLevels: PerPlayer<Readonly<Record<string, number>>> = [
+      MatchStatsRecorder.snapshotResearch(players[0]),
+      MatchStatsRecorder.snapshotResearch(players[1]),
+    ];
+
     const towerCount: PerPlayer<number> = [
       alive[0].filter(p => p.typeName === LaserTowerParticle.TYPE_NAME || p.typeName === WeaknessTowerParticle.TYPE_NAME).length,
       alive[1].filter(p => p.typeName === LaserTowerParticle.TYPE_NAME || p.typeName === WeaknessTowerParticle.TYPE_NAME).length,
@@ -181,6 +187,7 @@ export class MatchStatsRecorder {
       goldSpent: [this.deltas.goldSpent[0], this.deltas.goldSpent[1]],
       goldBanked: [players[0].gold, players[1].gold],
       upgradeLevels,
+      researchLevels,
       capPressure,
       unitDamageDealt: [this.deltas.unitDamageDealt[0], this.deltas.unitDamageDealt[1]],
       baseDamageDealt: [this.deltas.baseDamageDealt[0], this.deltas.baseDamageDealt[1]],
@@ -239,6 +246,14 @@ export class MatchStatsRecorder {
       unitDamageDealt: [0, 0],
       baseDamageDealt: [0, 0],
     };
+  }
+
+  private static snapshotResearch(player: IPlayer): Readonly<Record<string, number>> {
+    const levels: Record<string, number> = {};
+    for (const node of ResearchRegistry.allNodes()) {
+      levels[node.id] = player.getLevel(node.id);
+    }
+    return levels;
   }
 
   private static snapshotUpgrades(player: IPlayer): Record<UpgradeType, number> {

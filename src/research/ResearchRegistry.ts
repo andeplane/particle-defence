@@ -29,7 +29,35 @@ const STANDALONE_UNLOCKS: ResearchNodeMeta[] = [
   },
 ];
 
+/** Summary of one research node for listing / stats purposes. */
+export type ResearchNodeSummary = {
+  id: string;
+  name: string;
+  kind: 'unlock' | 'path';
+  /** 1 for unlocks; number of purchasable levels for paths. */
+  maxLevel: number;
+};
+
 export const ResearchRegistry = {
+  /** Every research node in the tree: unlocks first, then multi-level paths. Stable order. */
+  allNodes(): ResearchNodeSummary[] {
+    const unlocks: ResearchNodeSummary[] = [];
+    const paths: ResearchNodeSummary[] = [];
+    for (const meta of ALL_META) {
+      if (meta.unlock) unlocks.push({ id: meta.unlock.id, name: meta.unlock.name, kind: 'unlock', maxLevel: 1 });
+      for (const path of meta.upgradePaths) {
+        paths.push({ id: path.id, name: path.name, kind: 'path', maxLevel: path.levels.length });
+      }
+    }
+    for (const node of STANDALONE_UNLOCKS) {
+      unlocks.push({ id: node.id, name: node.name, kind: 'unlock', maxLevel: 1 });
+    }
+    for (const path of ALL_GLOBAL_PATHS) {
+      paths.push({ id: path.id, name: path.name, kind: 'path', maxLevel: path.levels.length });
+    }
+    return [...unlocks, ...paths];
+  },
+
   findUnlock(id: string): ResearchNodeMeta | undefined {
     for (const meta of ALL_META) {
       if (meta.unlock?.id === id) return meta.unlock;

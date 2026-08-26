@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { CONFIG } from '../config';
 import type { UpgradeType } from '../config';
+import { ResearchRegistry } from '../research/ResearchRegistry';
 import { MatchStatsRecorder } from '../stats';
 import type { MatchStats, PerSecondSample } from '../stats';
 import { GAME_MODE, type GameMode } from './MenuScene';
@@ -223,6 +224,48 @@ export class PostGameStatsScene extends Phaser.Scene {
       isStep: true,
     }));
 
+    const researchNodes = ResearchRegistry.allNodes();
+    const researchPaths = researchNodes.filter(n => n.kind === 'path');
+    const researchUnlocks = researchNodes.filter(n => n.kind === 'unlock');
+    const researchLevel = (s: PerSecondSample, player: 0 | 1, id: string): number => s.researchLevels[player][id] ?? 0;
+    const sumResearch = (s: PerSecondSample, player: 0 | 1, ids: readonly string[]): number =>
+      ids.reduce((sum, id) => sum + researchLevel(s, player, id), 0);
+    const allResearchIds = researchNodes.map(n => n.id);
+    const unlockIds = researchUnlocks.map(n => n.id);
+
+    const researchSummaryCharts: ChartConfig[] = [
+      {
+        title: 'Total Research Levels',
+        series: [
+          { data: samples.map(s => sumResearch(s, 0, allResearchIds)), color: p1c, label: p1Label },
+          { data: samples.map(s => sumResearch(s, 1, allResearchIds)), color: p2c, label: p2Label },
+        ],
+        yMin: 0,
+        isStep: true,
+      },
+      {
+        title: 'Unlocks Researched',
+        series: [
+          { data: samples.map(s => sumResearch(s, 0, unlockIds)), color: p1c, label: p1Label },
+          { data: samples.map(s => sumResearch(s, 1, unlockIds)), color: p2c, label: p2Label },
+        ],
+        yMin: 0,
+        yMax: unlockIds.length,
+        isStep: true,
+      },
+    ];
+
+    const perResearchPathCharts: ChartConfig[] = researchPaths.map(node => ({
+      title: `${node.name} Level`,
+      series: [
+        { data: samples.map(s => researchLevel(s, 0, node.id)), color: p1c, label: p1Label },
+        { data: samples.map(s => researchLevel(s, 1, node.id)), color: p2c, label: p2Label },
+      ],
+      yMin: 0,
+      yMax: node.maxLevel,
+      isStep: true,
+    }));
+
     return [
       {
         title: 'Army Size',
@@ -331,6 +374,8 @@ export class PostGameStatsScene extends Phaser.Scene {
         isStep: true,
       },
       ...perUpgradeCharts,
+      ...researchSummaryCharts,
+      ...perResearchPathCharts,
     ];
   }
 
