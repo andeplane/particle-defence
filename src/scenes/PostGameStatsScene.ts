@@ -5,6 +5,7 @@ import { MatchStatsRecorder } from '../stats';
 import type { MatchStats, PerSecondSample } from '../stats';
 import { GAME_MODE, type GameMode } from './MenuScene';
 import { SCENE_KEYS } from './SceneKeys';
+import { enableTouchScroll } from './touchScroll';
 
 interface ChartSeries {
   data: (number | null)[];
@@ -51,6 +52,7 @@ export class PostGameStatsScene extends Phaser.Scene {
   private chartBoundsArr: ChartBounds[] = [];
   private overlayGfx!: Phaser.GameObjects.Graphics;
   private crosshairMoveHandler?: (pointer: Phaser.Input.Pointer) => void;
+  private touchCleanup?: () => void;
   private wheelHandler?: (
     pointer: Phaser.Input.Pointer,
     _currentlyOver: Phaser.GameObjects.GameObject[],
@@ -145,9 +147,12 @@ export class PostGameStatsScene extends Phaser.Scene {
       }).setOrigin(0.5);
       scrollHint.setScrollFactor(0);
     }
+    this.touchCleanup = enableTouchScroll(this, { contentHeight: totalContentHeight });
   }
 
   shutdown(): void {
+    this.touchCleanup?.();
+    this.touchCleanup = undefined;
     if (this.crosshairMoveHandler) {
       this.input.off('pointermove', this.crosshairMoveHandler);
       this.crosshairMoveHandler = undefined;

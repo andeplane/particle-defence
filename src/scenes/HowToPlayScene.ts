@@ -4,6 +4,7 @@ import { CONFIG } from '../config';
 import { isMobile } from '../mobile';
 import { TABS, getTabContent, type TabId, type ContentSection } from './howToPlayData';
 import { SCENE_KEYS } from './SceneKeys';
+import { enableTouchScroll } from './touchScroll';
 
 const TAB_BAR_H = 52;
 const TAB_BTN_W = 160;
@@ -31,6 +32,7 @@ export class HowToPlayScene extends Phaser.Scene {
     dz: number,
   ) => void;
   private maxScrollY = 0;
+  private touchCleanup?: () => void;
 
   constructor() {
     super({ key: SCENE_KEYS.HOW_TO_PLAY });
@@ -48,6 +50,8 @@ export class HowToPlayScene extends Phaser.Scene {
   }
 
   shutdown(): void {
+    this.touchCleanup?.();
+    this.touchCleanup = undefined;
     if (this.wheelHandler) {
       this.input.off('wheel', this.wheelHandler);
       this.wheelHandler = undefined;
@@ -196,6 +200,8 @@ export class HowToPlayScene extends Phaser.Scene {
       cam.scrollY = Phaser.Math.Clamp(cam.scrollY, 0, this.maxScrollY);
     };
     this.input.on('wheel', this.wheelHandler);
+    // Bounds are owned by updateScrollBounds() since content height changes per tab.
+    this.touchCleanup = enableTouchScroll(this, {});
   }
 
   private updateScrollBounds(): void {
