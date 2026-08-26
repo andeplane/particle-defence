@@ -4,6 +4,7 @@ import { CONFIG } from '../config';
 import { isMobile } from '../mobile';
 import { TABS, getTabContent, type TabId, type ContentSection } from './howToPlayData';
 import { SCENE_KEYS } from './SceneKeys';
+import { enableTouchScroll, onTap } from './touchScroll';
 
 const TAB_BAR_H = 52;
 const TAB_BTN_W = 160;
@@ -31,6 +32,8 @@ export class HowToPlayScene extends Phaser.Scene {
     dz: number,
   ) => void;
   private maxScrollY = 0;
+  private touchCleanup?: () => void;
+  private backButton: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super({ key: SCENE_KEYS.HOW_TO_PLAY });
@@ -39,6 +42,8 @@ export class HowToPlayScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setBackgroundColor(CONFIG.BG_COLOR);
     this.cameras.main.fadeIn(300, 0, 0, 0);
+    // Phaser does not call a scene's shutdown() by name; hook the event.
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
 
     this.drawTabBar();
     this.drawBackButton();
@@ -48,6 +53,8 @@ export class HowToPlayScene extends Phaser.Scene {
   }
 
   shutdown(): void {
+    this.touchCleanup?.();
+    this.touchCleanup = undefined;
     if (this.wheelHandler) {
       this.input.off('wheel', this.wheelHandler);
       this.wheelHandler = undefined;
@@ -78,7 +85,7 @@ export class HowToPlayScene extends Phaser.Scene {
         fontStyle: 'bold',
       }).setOrigin(0.5).setScrollFactor(0).setDepth(10);
 
-      bg.on('pointerdown', () => this.switchTab(tab.id));
+      onTap(bg, () => this.switchTab(tab.id));
       bg.on('pointerover', () => {
         if (this.activeTab !== tab.id) {
           bg.setFillStyle(0x222244, 0.95);
@@ -115,7 +122,8 @@ export class HowToPlayScene extends Phaser.Scene {
 
     btn.on('pointerover', () => btn.setColor('#ffffff'));
     btn.on('pointerout', () => btn.setColor('#666666'));
-    btn.on('pointerdown', () => this.scene.start(SCENE_KEYS.MENU));
+    onTap(btn, () => this.scene.start(SCENE_KEYS.MENU));
+    this.backButton = btn;
   }
 
   private setupKeyboard(): void {
@@ -196,6 +204,10 @@ export class HowToPlayScene extends Phaser.Scene {
       cam.scrollY = Phaser.Math.Clamp(cam.scrollY, 0, this.maxScrollY);
     };
     this.input.on('wheel', this.wheelHandler);
+    // Bounds are owned by updateScrollBounds() since content height changes per tab.
+    const hud = this.tabButtons.flatMap(t => [t.bg, t.label]);
+    if (this.backButton) hud.push(this.backButton);
+    this.touchCleanup = enableTouchScroll(this, { hud });
   }
 
   private updateScrollBounds(): void {

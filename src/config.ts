@@ -1,10 +1,9 @@
-const RESOLUTION_SCALE = 2;
+import { getQueryParam, titleScale, uiScale } from './mobile';
 
-function getQueryParam(name: string): string | null {
-  if (typeof window === 'undefined') return null;
-  const params = new URLSearchParams(window.location.search);
-  return params.get(name);
-}
+const RESOLUTION_SCALE = 2;
+// UI-only scale: gameplay values never use this. Larger on touch devices.
+const UI_SCALE = RESOLUTION_SCALE * uiScale();
+const TITLE_SCALE = RESOLUTION_SCALE * titleScale();
 
 export const DEBUG_MODE = getQueryParam('debug') === 'true';
 
@@ -47,6 +46,8 @@ export const CONFIG = {
   /** Max global defense bonus (outside owned cells) */
   GLOBAL_DEFENSE_MAX: 0.25,
   PARTICLE_BASE_RADIUS: 3,
+  /** Hard cap on particle radius; radius upgrade max level = (MAX - BASE). Keeps units from blotting out the map. */
+  PARTICLE_MAX_RADIUS: 10,
   PARTICLE_SPEED: 180,
   /** Base spawn rate in particles per second */
   SPAWN_RATE_BASE: 5,
@@ -101,15 +102,66 @@ export const CONFIG = {
   // Spatial hash
   SPATIAL_CELL_SIZE: 16 * RESOLUTION_SCALE,
 
-  // UI (scaled with resolution)
-  UI_FONT_SMALL: 10 * RESOLUTION_SCALE,
-  UI_FONT_MED: 13 * RESOLUTION_SCALE,
-  UI_FONT_LARGE: 14 * RESOLUTION_SCALE,
-  UI_BAR_WIDTH: 200 * RESOLUTION_SCALE,
-  UI_BAR_HEIGHT: 14 * RESOLUTION_SCALE,
-  UI_BTN_WIDTH: 52 * RESOLUTION_SCALE,
-  UI_BTN_HEIGHT: 40 * RESOLUTION_SCALE,
-  UI_GAP: 4 * RESOLUTION_SCALE,
+  // UI (scaled with resolution, and further on mobile — see UI_SCALE)
+  UI_FONT_SMALL: 10 * UI_SCALE,
+  UI_FONT_MED: 13 * UI_SCALE,
+  UI_FONT_LARGE: 14 * UI_SCALE,
+  UI_BAR_WIDTH: 200 * UI_SCALE,
+  UI_BAR_HEIGHT: 14 * UI_SCALE,
+  UI_BTN_WIDTH: 52 * UI_SCALE,
+  UI_BTN_HEIGHT: 40 * UI_SCALE,
+  UI_GAP: 4 * UI_SCALE,
+  /** Speed (1x/2x/3x) buttons, sized relative to the small UI font. */
+  UI_SPEED_BTN_WIDTH_EM: 2.8,
+  UI_SPEED_BTN_HEIGHT_EM: 1.4,
+  /** Each player's top stats line must fit its half of the screen minus this margin (in UI_GAP units). */
+  UI_STATS_MARGIN_GAPS: 5,
+
+  // Menu screens (MenuScene / MapSelectScene).
+  // Vertical anchors are absolute screen positions (RESOLUTION_SCALE only) so the
+  // layout fits the fixed canvas on mobile; element sizes scale with UI_SCALE.
+  MENU_LAYOUT: {
+    TITLE_FONT: 64 * TITLE_SCALE,
+    TITLE_Y: 55 * RESOLUTION_SCALE,
+    MODE_LABEL_Y: 100 * RESOLUTION_SCALE,
+    SUBTITLE_Y: 125 * RESOLUTION_SCALE,
+    /** Top edge of the first button row. */
+    FIRST_ROW_TOP_Y: 150 * RESOLUTION_SCALE,
+    MODE_BTN_WIDTH: 280 * UI_SCALE,
+    MODE_BTN_HEIGHT: 56 * UI_SCALE,
+    MODE_BTN_GAP: 24 * UI_SCALE,
+    MAP_BTN_WIDTH: 180 * UI_SCALE,
+    MAP_BTN_HEIGHT: 44 * UI_SCALE,
+    MAP_BTN_GAP: 12 * UI_SCALE,
+    MAP_COLUMN_OFFSET_X: 160 * UI_SCALE,
+    MAP_COLUMNS: 2,
+    HINT_OFFSET_Y: 28 * UI_SCALE,
+    BUTTON_FONT: 24 * UI_SCALE,
+    BUTTON_KEY_FONT: 13 * UI_SCALE,
+    BUTTON_KEY_INSET_X: 8 * UI_SCALE,
+    BUTTON_KEY_INSET_Y: 4 * UI_SCALE,
+    BUTTON_STROKE: 3,
+    BUTTON_FILL: 0x111122,
+    BUTTON_FILL_HOVER: 0x222244,
+    BUTTON_FILL_ALPHA: 0.9,
+    BUTTON_FILL_ALPHA_HOVER: 0.95,
+    BUTTON_STROKE_ALPHA: 0.6,
+    BUTTON_STROKE_ALPHA_HOVER: 0.9,
+    BUTTON_KEY_COLOR_STR: '#777777',
+    SUBTITLE_COLOR_STR: '#aaaaaa',
+    HINT_COLOR_STR: '#666666',
+    HOW_TO_PLAY_COLOR: 0x88aa88,
+    /** Button colour per map type on the map-select screen. */
+    MAP_COLORS: {
+      random: 0x88aa88,
+      maze: 0xaa88aa,
+      hourglass: 0xaa8844,
+      lanes: 0x4488aa,
+      islands: 0x44aa88,
+      rooms: 0x8844aa,
+      fortress: 0xaa4444,
+    },
+  },
 
   // Cell effects defaults
   SLOW_EFFECT_FACTOR: 0.4,

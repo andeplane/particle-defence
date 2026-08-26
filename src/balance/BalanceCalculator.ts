@@ -10,6 +10,7 @@ export interface BalanceConfig {
   readonly healthPerLevel: number;
   readonly attackPerLevel: number;
   readonly particleBaseRadius: number;
+  readonly particleMaxRadius: number;
   readonly particleBaseSpeed: number;
   readonly spawnRateBase: number;
   readonly spawnRatePerLevel: number;
@@ -53,6 +54,7 @@ export function defaultBalanceConfig(): BalanceConfig {
     healthPerLevel: CONFIG.HEALTH_PER_LEVEL,
     attackPerLevel: CONFIG.ATTACK_PER_LEVEL,
     particleBaseRadius: CONFIG.PARTICLE_BASE_RADIUS,
+    particleMaxRadius: CONFIG.PARTICLE_MAX_RADIUS,
     particleBaseSpeed: CONFIG.PARTICLE_SPEED,
     spawnRateBase: CONFIG.SPAWN_RATE_BASE,
     spawnRatePerLevel: CONFIG.SPAWN_RATE_PER_LEVEL,
@@ -131,6 +133,8 @@ export function maxUpgradeLevel(type: UpgradeType, cfg: BalanceConfig): number {
       ));
     case 'interestRate':
       return Math.max(0, Math.round(cfg.maxInterestRate / cfg.interestRatePerLevel));
+    case 'radius':
+      return Math.max(0, cfg.particleMaxRadius - cfg.particleBaseRadius);
     default:
       return Infinity;
   }

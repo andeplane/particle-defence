@@ -181,12 +181,22 @@ describe(Player.name, () => {
       statCheck(player);
     });
 
-    it.each(['health', 'attack', 'radius', 'speed', 'maxParticles', 'spawnRate'] as UpgradeType[])('isUpgradeAtMax returns false for uncapped %s', (type) => {
+    it.each(['health', 'attack', 'speed', 'maxParticles', 'spawnRate'] as UpgradeType[])('isUpgradeAtMax returns false for uncapped %s', (type) => {
       player.gold = 99999;
       expect(player.isUpgradeAtMax(type)).toBe(false);
     });
 
+    it('caps radius at PARTICLE_MAX_RADIUS', () => {
+      player.gold = 99999;
+      const levelsToMax = CONFIG.PARTICLE_MAX_RADIUS - CONFIG.PARTICLE_BASE_RADIUS;
+      for (let i = 0; i < levelsToMax; i++) applyUpgrade(player, 'radius');
+
+      expect(player.isUpgradeAtMax('radius')).toBe(true);
+      expect(player.particleRadius).toBe(CONFIG.PARTICLE_MAX_RADIUS);
+    });
+
     it.each([
+      { type: 'radius' as UpgradeType, levelsToMax: CONFIG.PARTICLE_MAX_RADIUS - CONFIG.PARTICLE_BASE_RADIUS },
       { type: 'interestRate' as UpgradeType, levelsToMax: 20 },
       { type: 'defense' as UpgradeType, levelsToMax: Math.round((CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL + 1e-9) },
     ])('startUpgrade returns false when $type is at max', ({ type, levelsToMax }) => {
@@ -454,7 +464,7 @@ describe(computeMaxLevels.name, () => {
   it.each([
     { type: 'health' as UpgradeType, expected: Infinity },
     { type: 'attack' as UpgradeType, expected: Infinity },
-    { type: 'radius' as UpgradeType, expected: Infinity },
+    { type: 'radius' as UpgradeType, expected: CONFIG.PARTICLE_MAX_RADIUS - CONFIG.PARTICLE_BASE_RADIUS },
     { type: 'speed' as UpgradeType, expected: Infinity },
     { type: 'maxParticles' as UpgradeType, expected: Infinity },
     { type: 'defense' as UpgradeType, expected: Math.round((CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL + 1e-9) },

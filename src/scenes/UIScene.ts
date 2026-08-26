@@ -227,8 +227,8 @@ export class UIScene extends Phaser.Scene {
     const centerX = CONFIG.GAME_WIDTH / 2;
     const barY = CONFIG.UI_GAP * 2;
     const barH = CONFIG.UI_BAR_HEIGHT;
-    const btnW = 56;
-    const btnH = 28;
+    const btnW = CONFIG.UI_FONT_SMALL * CONFIG.UI_SPEED_BTN_WIDTH_EM;
+    const btnH = CONFIG.UI_FONT_SMALL * CONFIG.UI_SPEED_BTN_HEIGHT_EM;
     const gap = CONFIG.UI_GAP;
     const speeds = [1, 2, 3];
     const totalW = speeds.length * btnW + (speeds.length - 1) * gap;
@@ -1221,7 +1221,9 @@ export class UIScene extends Phaser.Scene {
     const p1Count = this.viewModel.getParticleCount(0);
     const p2Count = this.viewModel.getParticleCount(1);
     this.p1StatsText.setText(`HP:${p1.particleHealth.toFixed(1)} ATK:${p1.particleAttack.toFixed(1)} RAD:${p1.particleRadius.toFixed(1)} VEL:${p1.particleSpeed.toFixed(1)} DEF:${Math.round(p1.particleDefense * 100)}% INT:${(p1.goldInterestRate * 100).toFixed(2)}% Units:${p1Count}/${p1.maxParticles}`);
+    fitTextToWidth(this.p1StatsText, CONFIG.GAME_WIDTH / 2 - CONFIG.UI_GAP * CONFIG.UI_STATS_MARGIN_GAPS);
     this.p2StatsText.setText(`HP:${p2.particleHealth.toFixed(1)} ATK:${p2.particleAttack.toFixed(1)} RAD:${p2.particleRadius.toFixed(1)} VEL:${p2.particleSpeed.toFixed(1)} DEF:${Math.round(p2.particleDefense * 100)}% INT:${(p2.goldInterestRate * 100).toFixed(2)}% Units:${p2Count}/${p2.maxParticles}`);
+    fitTextToWidth(this.p2StatsText, CONFIG.GAME_WIDTH / 2 - CONFIG.UI_GAP * CONFIG.UI_STATS_MARGIN_GAPS);
 
     const gameTimeMs = this.viewModel.gameTimeMs;
 

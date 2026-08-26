@@ -108,7 +108,7 @@ export function computeMaxLevels(_config: PlayerConfig): Record<UpgradeType, num
   return {
     health: Infinity,
     attack: Infinity,
-    radius: Infinity,
+    radius: CONFIG.PARTICLE_MAX_RADIUS - CONFIG.PARTICLE_BASE_RADIUS,
     speed: Infinity,
     maxParticles: Infinity,
     spawnRate: Infinity,

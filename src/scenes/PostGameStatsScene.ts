@@ -5,6 +5,7 @@ import { MatchStatsRecorder } from '../stats';
 import type { MatchStats, PerSecondSample } from '../stats';
 import { GAME_MODE, type GameMode } from './MenuScene';
 import { SCENE_KEYS } from './SceneKeys';
+import { enableTouchScroll, onTap } from './touchScroll';
 
 interface ChartSeries {
   data: (number | null)[];
@@ -51,6 +52,9 @@ export class PostGameStatsScene extends Phaser.Scene {
   private chartBoundsArr: ChartBounds[] = [];
   private overlayGfx!: Phaser.GameObjects.Graphics;
   private crosshairMoveHandler?: (pointer: Phaser.Input.Pointer) => void;
+  private touchCleanup?: () => void;
+  /** Fixed-on-screen objects that must be counter-scaled when the camera zooms. */
+  private hud: Phaser.GameObjects.Text[] = [];
   private wheelHandler?: (
     pointer: Phaser.Input.Pointer,
     _currentlyOver: Phaser.GameObjects.GameObject[],
@@ -72,6 +76,9 @@ export class PostGameStatsScene extends Phaser.Scene {
     this.chartBoundsArr = [];
     this.cameras.main.setBackgroundColor(CONFIG.BG_COLOR);
     this.cameras.main.fadeIn(400, 0, 0, 0);
+    // Phaser does not call a scene's shutdown() by name; hook the event.
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
+    this.hud = [];
 
     this.drawHeader();
 
@@ -144,10 +151,14 @@ export class PostGameStatsScene extends Phaser.Scene {
         fontSize: '14px', color: '#555555', fontFamily: 'monospace',
       }).setOrigin(0.5);
       scrollHint.setScrollFactor(0);
+      this.hud.push(scrollHint);
     }
+    this.touchCleanup = enableTouchScroll(this, { contentHeight: totalContentHeight, hud: this.hud });
   }
 
   shutdown(): void {
+    this.touchCleanup?.();
+    this.touchCleanup = undefined;
     if (this.crosshairMoveHandler) {
       this.input.off('pointermove', this.crosshairMoveHandler);
       this.crosshairMoveHandler = undefined;
@@ -169,11 +180,13 @@ export class PostGameStatsScene extends Phaser.Scene {
       fontSize: '36px', color: winnerColor, fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5, 0);
     winnerText.setScrollFactor(0);
+    this.hud.push(winnerText);
 
     const durationText = this.add.text(CONFIG.GAME_WIDTH / 2, 52, `Match Duration: ${mins}:${secs.toString().padStart(2, '0')}`, {
       fontSize: '18px', color: '#888888', fontFamily: 'monospace',
     }).setOrigin(0.5, 0);
     durationText.setScrollFactor(0);
+    this.hud.push(durationText);
   }
 
   private buildCharts(samples: PerSecondSample[]): ChartConfig[] {
@@ -538,10 +551,11 @@ export class PostGameStatsScene extends Phaser.Scene {
       fontSize: '22px', color: '#666666', fontFamily: 'monospace',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     btn.setScrollFactor(0);
+    this.hud.push(btn);
 
     btn.on('pointerover', () => btn.setColor('#ffffff'));
     btn.on('pointerout', () => btn.setColor('#666666'));
-    btn.on('pointerdown', () => this.scene.start(SCENE_KEYS.MENU));
+    onTap(btn, () => this.scene.start(SCENE_KEYS.MENU));
   }
 
   private drawStrategyHistogram(
