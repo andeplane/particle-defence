@@ -236,7 +236,7 @@ export class UIScene extends Phaser.Scene {
     const btnCenterY = barY + barH / 2;
 
     for (const speed of speeds) {
-      const bg = this.add.rectangle(x, btnCenterY, btnW, btnH, 0x111122, 0.85)
+      const bg = this.add.rectangle(x, btnCenterY, btnW, btnH, 0x111122, CONFIG.UI_BTN_ALPHA)
         .setStrokeStyle(2, 0x666666, 0.6)
         .setInteractive({ useHandCursor: true });
       const label = this.add.text(x, btnCenterY, `${speed}x`, {
@@ -248,13 +248,13 @@ export class UIScene extends Phaser.Scene {
       };
       bg.on('pointerdown', setSpeed);
       bg.on('pointerover', () => {
-        bg.setFillStyle(0x222244, 0.9);
+        bg.setFillStyle(0x222244, CONFIG.UI_BTN_ALPHA_HOVER);
         bg.setStrokeStyle(2, 0x888888, 0.8);
       });
       bg.on('pointerout', () => {
         if (!label.scene) return;
         const current = this.viewModel.debugSpeedMultiplier ?? 1;
-        bg.setFillStyle(current === speed ? 0x222244 : 0x111122, current === speed ? 0.95 : 0.85);
+        bg.setFillStyle(current === speed ? 0x222244 : 0x111122, current === speed ? CONFIG.UI_BTN_ALPHA_ACTIVE : CONFIG.UI_BTN_ALPHA);
         bg.setStrokeStyle(2, current === speed ? 0x00ddff : 0x666666, current === speed ? 0.9 : 0.6);
         label.setColor(current === speed ? '#00ddff' : '#aaaaaa');
       });
@@ -570,7 +570,7 @@ export class UIScene extends Phaser.Scene {
     buildSubmenu: BuildSubmenu, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
   ): void {
     const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
-    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, 0.85)
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, CONFIG.UI_BTN_ALPHA)
       .setStrokeStyle(2, color, 0.5)
       .setInteractive({ useHandCursor: true });
     const labelText = this.add.text(x, y + h * 0.35, label, {
@@ -585,11 +585,11 @@ export class UIScene extends Phaser.Scene {
       this.renderMenuForPlayer(playerId);
     });
     bg.on('pointerover', () => {
-      bg.setFillStyle(0x222244, 0.9);
+      bg.setFillStyle(0x222244, CONFIG.UI_BTN_ALPHA_HOVER);
       this.showTooltip(tooltip, x, y, playerId);
     });
     bg.on('pointerout', () => {
-      bg.setFillStyle(0x111122, 0.85);
+      bg.setFillStyle(0x111122, CONFIG.UI_BTN_ALPHA);
       this.hideTooltip(playerId);
     });
     this.fitButtonTexts(w, labelText, keyText);
@@ -608,7 +608,7 @@ export class UIScene extends Phaser.Scene {
     categoryId: MenuCategory, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
   ): void {
     const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
-    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, 0.85)
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, CONFIG.UI_BTN_ALPHA)
       .setStrokeStyle(2, color, 0.5)
       .setInteractive({ useHandCursor: true });
     const labelText = this.add.text(x, y + h * 0.35, label, {
@@ -624,11 +624,11 @@ export class UIScene extends Phaser.Scene {
       this.renderMenuForPlayer(playerId);
     });
     bg.on('pointerover', () => {
-      bg.setFillStyle(0x222244, 0.9);
+      bg.setFillStyle(0x222244, CONFIG.UI_BTN_ALPHA_HOVER);
       this.showTooltip(tooltip, x, y, playerId);
     });
     bg.on('pointerout', () => {
-      bg.setFillStyle(0x111122, 0.85);
+      bg.setFillStyle(0x111122, CONFIG.UI_BTN_ALPHA);
       this.hideTooltip(playerId);
     });
     this.fitButtonTexts(w, labelText, keyText);
@@ -640,7 +640,7 @@ export class UIScene extends Phaser.Scene {
     keyName: string, playerId: 0 | 1,
   ): void {
     const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
-    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, 0.85)
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, CONFIG.UI_BTN_ALPHA)
       .setStrokeStyle(2, color, 0.5)
       .setInteractive({ useHandCursor: true });
     const labelText = this.add.text(x, y + h * 0.35, 'BACK', {
@@ -662,11 +662,11 @@ export class UIScene extends Phaser.Scene {
       this.renderMenuForPlayer(playerId);
     });
     bg.on('pointerover', () => {
-      bg.setFillStyle(0x222244, 0.9);
+      bg.setFillStyle(0x222244, CONFIG.UI_BTN_ALPHA_HOVER);
       this.showTooltip('Return to menu', x, y, playerId);
     });
     bg.on('pointerout', () => {
-      bg.setFillStyle(0x111122, 0.85);
+      bg.setFillStyle(0x111122, CONFIG.UI_BTN_ALPHA);
       this.hideTooltip(playerId);
     });
     this.fitButtonTexts(w, labelText, keyText);
@@ -678,7 +678,7 @@ export class UIScene extends Phaser.Scene {
     type: UpgradeType, label: string, keyName: string, playerId: 0 | 1,
   ): void {
     const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
-    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, 0.85)
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, CONFIG.UI_BTN_ALPHA)
       .setStrokeStyle(2, color, 0.5)
       .setInteractive({ useHandCursor: true });
     const labelText = this.add.text(x, y + h * 0.22, label, {
@@ -695,13 +695,13 @@ export class UIScene extends Phaser.Scene {
 
     bg.on('pointerdown', () => this.handleUpgrade(playerId, type, bg));
     bg.on('pointerover', () => {
-      bg.setFillStyle(0x222244, 0.9);
+      bg.setFillStyle(0x222244, CONFIG.UI_BTN_ALPHA_HOVER);
       const player = this.viewModel.players[playerId];
       this.hoveredUpgradeBtn[playerId] = { type, x, y };
       this.showTooltip(this.buildUpgradeTooltip(type, player), x, y, playerId);
     });
     bg.on('pointerout', () => {
-      bg.setFillStyle(0x111122, 0.85);
+      bg.setFillStyle(0x111122, CONFIG.UI_BTN_ALPHA);
       this.hoveredUpgradeBtn[playerId] = null;
       this.hideTooltip(playerId);
     });
@@ -714,7 +714,7 @@ export class UIScene extends Phaser.Scene {
     label: string, tooltip: string, keyName: string, playerId: 0 | 1,
   ): void {
     const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
-    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x221111, 0.85)
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x221111, CONFIG.UI_BTN_ALPHA)
       .setStrokeStyle(2, color, 0.5)
       .setInteractive({ useHandCursor: true });
     const labelText = this.add.text(x, y + h * 0.22, label, {
@@ -731,11 +731,11 @@ export class UIScene extends Phaser.Scene {
 
     bg.on('pointerdown', () => this.handleNuke(playerId, bg));
     bg.on('pointerover', () => {
-      bg.setFillStyle(0x332222, 0.9);
+      bg.setFillStyle(0x332222, CONFIG.UI_BTN_ALPHA_HOVER);
       this.showTooltip(tooltip, x, y, playerId);
     });
     bg.on('pointerout', () => {
-      bg.setFillStyle(0x221111, 0.85);
+      bg.setFillStyle(0x221111, CONFIG.UI_BTN_ALPHA);
       this.hideTooltip(playerId);
     });
     this.fitButtonTexts(w, labelText, statusText, keyText);
@@ -747,7 +747,7 @@ export class UIScene extends Phaser.Scene {
     node: ResearchNodeDef, keyName: string, playerId: 0 | 1,
   ): void {
     const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
-    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x112211, 0.85)
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x112211, CONFIG.UI_BTN_ALPHA)
       .setStrokeStyle(2, color, 0.5)
       .setInteractive({ useHandCursor: true });
     const labelText = this.add.text(x, y + h * 0.22, node.label, {
@@ -763,8 +763,8 @@ export class UIScene extends Phaser.Scene {
     const clockGfx = this.add.graphics().setDepth(10);
 
     bg.on('pointerdown', () => this.handleResearchNode(playerId, node, bg));
-    bg.on('pointerover', () => { bg.setFillStyle(0x224422, 0.9); this.showTooltip(node.tooltip, x, y, playerId); });
-    bg.on('pointerout', () => { bg.setFillStyle(0x112211, 0.85); this.hideTooltip(playerId); });
+    bg.on('pointerover', () => { bg.setFillStyle(0x224422, CONFIG.UI_BTN_ALPHA_HOVER); this.showTooltip(node.tooltip, x, y, playerId); });
+    bg.on('pointerout', () => { bg.setFillStyle(0x112211, CONFIG.UI_BTN_ALPHA); this.hideTooltip(playerId); });
     this.fitButtonTexts(w, labelText, costText, keyText);
     this.researchButtons.push({ bg, labelText, costText, keyText, clockGfx, node, playerId });
   }
@@ -774,7 +774,7 @@ export class UIScene extends Phaser.Scene {
     towerType: TowerType, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
   ): void {
     const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
-    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, 0.85)
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, CONFIG.UI_BTN_ALPHA)
       .setStrokeStyle(2, color, 0.5)
       .setInteractive({ useHandCursor: true });
     const labelText = this.add.text(x, y + h * 0.22, label, {
@@ -790,8 +790,8 @@ export class UIScene extends Phaser.Scene {
     const clockGfx = this.add.graphics().setDepth(10);
 
     bg.on('pointerdown', () => this.handleConstruct(playerId, towerType, bg));
-    bg.on('pointerover', () => { bg.setFillStyle(0x222244, 0.9); this.showTooltip(tooltip, x, y, playerId); });
-    bg.on('pointerout', () => { bg.setFillStyle(0x111122, 0.85); this.hideTooltip(playerId); });
+    bg.on('pointerover', () => { bg.setFillStyle(0x222244, CONFIG.UI_BTN_ALPHA_HOVER); this.showTooltip(tooltip, x, y, playerId); });
+    bg.on('pointerout', () => { bg.setFillStyle(0x111122, CONFIG.UI_BTN_ALPHA); this.hideTooltip(playerId); });
     this.fitButtonTexts(w, labelText, costText, keyText);
     this.constructButtons.push({ bg, labelText, costText, keyText, clockGfx, towerType, playerId });
   }
@@ -801,7 +801,7 @@ export class UIScene extends Phaser.Scene {
     action: BuildAction, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
   ): void {
     const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
-    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x222211, 0.85)
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x222211, CONFIG.UI_BTN_ALPHA)
       .setStrokeStyle(2, color, 0.5)
       .setInteractive({ useHandCursor: true });
     const labelText = this.add.text(x, y + h * 0.22, label, {
@@ -817,8 +817,8 @@ export class UIScene extends Phaser.Scene {
     const clockGfx = action === 'buildSelected' ? this.add.graphics().setDepth(10) : undefined;
 
     bg.on('pointerdown', () => this.handleBuildAction(playerId, action, bg));
-    bg.on('pointerover', () => { bg.setFillStyle(0x333322, 0.9); this.showTooltip(tooltip, x, y, playerId); });
-    bg.on('pointerout', () => { bg.setFillStyle(0x222211, 0.85); this.hideTooltip(playerId); });
+    bg.on('pointerover', () => { bg.setFillStyle(0x333322, CONFIG.UI_BTN_ALPHA_HOVER); this.showTooltip(tooltip, x, y, playerId); });
+    bg.on('pointerout', () => { bg.setFillStyle(0x222211, CONFIG.UI_BTN_ALPHA); this.hideTooltip(playerId); });
     this.fitButtonTexts(w, labelText, statusText, keyText);
     this.buildActionButtons.push({ bg, labelText, statusText, keyText, clockGfx, action, playerId });
   }
@@ -828,7 +828,7 @@ export class UIScene extends Phaser.Scene {
     action: string, label: string, tooltip: string, keyName: string, playerId: 0 | 1,
   ): void {
     const color = playerId === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
-    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, 0.85)
+    const bg = this.add.rectangle(x, y + h / 2, w, h, 0x111122, CONFIG.UI_BTN_ALPHA)
       .setStrokeStyle(2, color, 0.5)
       .setInteractive({ useHandCursor: true });
     const labelText = this.add.text(x, y + h * 0.35, label, {
@@ -845,8 +845,8 @@ export class UIScene extends Phaser.Scene {
       else if (action === 'towerNext') this.handleTowerCycle(playerId, 1);
       else if (action === 'towerUpgrade') this.handleTowerUpgrade(playerId, bg);
     });
-    bg.on('pointerover', () => { bg.setFillStyle(0x222244, 0.9); this.showTooltip(tooltip, x, y, playerId); });
-    bg.on('pointerout', () => { bg.setFillStyle(0x111122, 0.85); this.hideTooltip(playerId); });
+    bg.on('pointerover', () => { bg.setFillStyle(0x222244, CONFIG.UI_BTN_ALPHA_HOVER); this.showTooltip(tooltip, x, y, playerId); });
+    bg.on('pointerout', () => { bg.setFillStyle(0x111122, CONFIG.UI_BTN_ALPHA); this.hideTooltip(playerId); });
     this.fitButtonTexts(w, labelText, keyText);
     this.categoryButtons.push({ bg, label: labelText, keyText, categoryId: 'towers', playerId, action, clockGfx });
   }
@@ -981,11 +981,11 @@ export class UIScene extends Phaser.Scene {
           for (const btn of this.speedButtons) {
             if (!btn.label?.scene) continue;
             if (btn.speed === speed) {
-              btn.bg.setFillStyle(0x222244, 0.95);
-              btn.bg.setStrokeStyle(2, 0x00ddff, 0.9);
+              btn.bg.setFillStyle(0x222244, CONFIG.UI_BTN_ALPHA_ACTIVE);
+              btn.bg.setStrokeStyle(2, 0x00ddff, CONFIG.UI_BTN_ALPHA_HOVER);
               btn.label.setColor('#00ddff');
             } else {
-              btn.bg.setFillStyle(0x111122, 0.85);
+              btn.bg.setFillStyle(0x111122, CONFIG.UI_BTN_ALPHA);
               btn.bg.setStrokeStyle(2, 0x666666, 0.6);
               btn.label.setColor('#aaaaaa');
             }
@@ -1159,7 +1159,7 @@ export class UIScene extends Phaser.Scene {
       gfx.closePath();
       gfx.fillPath();
 
-      gfx.lineStyle(2, 0xffffff, 0.9);
+      gfx.lineStyle(2, 0xffffff, CONFIG.UI_BTN_ALPHA_HOVER);
       gfx.beginPath();
       gfx.moveTo(cx, cy);
       gfx.lineTo(px, py);
@@ -1176,7 +1176,7 @@ export class UIScene extends Phaser.Scene {
     for (const { bg, label, speed } of this.speedButtons) {
       if (!label?.scene) continue;
       const active = currentSpeed === speed;
-      bg.setFillStyle(active ? 0x222244 : 0x111122, active ? 0.95 : 0.85);
+      bg.setFillStyle(active ? 0x222244 : 0x111122, active ? CONFIG.UI_BTN_ALPHA_ACTIVE : CONFIG.UI_BTN_ALPHA);
       bg.setStrokeStyle(2, active ? 0x00ddff : 0x666666, active ? 0.9 : 0.6);
       label.setColor(active ? '#00ddff' : '#aaaaaa');
     }
