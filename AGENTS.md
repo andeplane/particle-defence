@@ -481,6 +481,10 @@ Particles use an inheritance-based hierarchy. New types extend `AbstractParticle
 
 `GameContext` provides: `grid`, `cellEffects`, `spatialHash`, `particles`, `players`, `gameTimeMs`, `spawnExplosion()`.
 
+## Code Rules
+
+- **No magic numbers, ever.** Every numeric literal that is not `0`, `1`, `-1`, `2` (for halving/doubling), or an array index MUST be a named `const`. Gameplay/balance values live in `src/config.ts`; shared UI layout values live in `CONFIG` too (e.g. `MENU_LAYOUT`, `UI_*`); purely file-local presentation constants (alphas, offsets, counts) are `const` declarations at the top of that file. This applies to font sizes, pixel offsets, alphas, multipliers, timings, colors — everything. When you see an inline literal in code you touch, hoist it.
+
 ## Key Design Patterns
 
 1. **Configuration Centralization** - All game parameters in `config.ts`
