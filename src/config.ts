@@ -34,25 +34,24 @@ export const CONFIG = {
   PARTICLE_BASE_ATTACK: 2,
   /** HP gained per health upgrade level (< 1.0 gives diminishing returns vs attack) */
   HEALTH_PER_LEVEL: 0.8,
-  /** Damage gained per attack upgrade level (> 1.0 makes attack scale faster than health) */
+  /** Damage gained per attack upgrade level */
   ATTACK_PER_LEVEL: 1.2,
   /** % max HP bonus scales attack multiplicatively: dmg = atk * (1 + scale * targetHP/baseHP) */
   PERCENT_HP_DAMAGE_SCALING: 0.05,
   /** Bonus damage multiplier per 100% speed advantage over target (speed combat mechanic) */
-  SPEED_COMBAT_BONUS: 0.4,
+  SPEED_COMBAT_BONUS: 0.3,
   /** How strongly defense reduces HP scaling penalty (defense * factor reduces the HP scaling bonus) */
   DEFENSE_HP_SCALING_REDUCTION: 4.5,
   /** Per-level defense bonus applied globally (outside owned cells). Much smaller than cell-based. */
   GLOBAL_DEFENSE_PER_LEVEL: 0.018,
   /** Max global defense bonus (outside owned cells) */
-  GLOBAL_DEFENSE_MAX: 0.18,
+  GLOBAL_DEFENSE_MAX: 0.25,
   PARTICLE_BASE_RADIUS: 3,
   PARTICLE_SPEED: 180,
-  SPAWN_INTERVAL_MS: 200,
-  /** Minimum spawn interval (ms) - spawn rate upgrade cannot go below this */
-  MIN_SPAWN_INTERVAL: 40,
-  /** Spawn interval reduction (ms) per spawn rate upgrade level */
-  SPAWN_RATE_REDUCTION_PER_LEVEL: 10,
+  /** Base spawn rate in particles per second */
+  SPAWN_RATE_BASE: 5,
+  /** Additional particles per second added per spawn rate upgrade level */
+  SPAWN_RATE_PER_LEVEL: 0.5,
   /** Speed increase per speed upgrade level */
   SPEED_PER_LEVEL: 20,
   MAX_PARTICLES_PER_PLAYER: 1000,
@@ -76,8 +75,10 @@ export const CONFIG = {
   KILL_REWARD: 1,
   /** Fraction of KILL_REWARD awarded per nuke kill (1/4) */
   NUCLEAR_KILL_REWARD_FRACTION: 0.25,
-  NUCLEAR_FIRST_AVAILABLE_MS: 300_000,  // 5 minutes
-  NUCLEAR_COOLDOWN_MS: 300_000,        // 5 minutes
+  NUKE_RESEARCH_COST: 2000,
+  NUKE_RESEARCH_DURATION_MS: 300_000,   // 5 min to complete nuke research
+  NUCLEAR_FIRST_AVAILABLE_MS: 0,        // immediately usable once research completes
+  NUCLEAR_COOLDOWN_MS: 600_000,         // 10 min cooldown after each use
   /** Interval (ms) between gold interest payouts */
   INTEREST_INTERVAL_MS: 30_000,
   /** Interest rate per upgrade level (e.g. 0.0025 = +0.25%) */
@@ -139,7 +140,7 @@ export const CONFIG = {
   /** Per-level defense bonus increase from upgrade */
   OWNERSHIP_DEFENSE_PER_LEVEL: 0.02,
   /** Max total defense bonus (base + upgrade) */
-  OWNERSHIP_DEFENSE_MAX: 0.30,
+  OWNERSHIP_DEFENSE_MAX: 0.60,
   /** Duration (ms) of capture flash overlay */
   OWNERSHIP_CAPTURE_FLASH_MS: 300,
   /** Alpha for subtle owned-cell tint */
@@ -153,39 +154,125 @@ export const CONFIG = {
   TOWER_DAMAGE_REDUCTION: 0.5,
   /** Visual and collision radius for placed towers (laser/slow) */
   TOWER_VISUAL_RADIUS: 14,
-  TOWER_UPGRADE_COST_MULTIPLIER: 1.4,
+  TOWER_UPGRADE_COST_MULTIPLIER: 1.3,
 
   TOWER_RESEARCH_COSTS: {
-    laser: 200,
-    slow: 200,
+    laser: 60,
+    weakness: 60,
+  } as Record<string, number>,
+
+  /** Time (ms) to complete tower research after paying */
+  TOWER_RESEARCH_DURATION_MS: {
+    laser: 20_000,
+    weakness: 20_000,
   } as Record<string, number>,
 
   TOWER_CONSTRUCTION_COSTS: {
-    laser: 500,
-    slow: 500,
+    laser: 150,
+    weakness: 150,
   } as Record<string, number>,
+
+  /** Time (ms) to build a tower after paying construction cost */
+  TOWER_CONSTRUCTION_DURATION_MS: {
+    laser: 3_000,
+    weakness: 3_000,
+  } as Record<string, number>,
+
+  /** Time (ms) to apply a particle stat upgrade after paying */
+  PARTICLE_UPGRADE_DURATION_MS: 500,
+  /** Time (ms) to apply a tower upgrade after paying */
+  TOWER_UPGRADE_DURATION_MS: 5_000,
 
   TOWER_LASER_BASE_HP: 50,
   TOWER_LASER_BASE_DAMAGE: 5,
   TOWER_LASER_BASE_RANGE: 150,
   TOWER_LASER_BASE_ATTACK_SPEED: 2.5,
-  TOWER_LASER_UPGRADE_COST: 200,
+  TOWER_LASER_UPGRADE_COST: 60,
   TOWER_LASER_DAMAGE_PER_LEVEL: 2,
-  TOWER_LASER_RANGE_PER_LEVEL: 15,
   TOWER_LASER_ATTACK_SPEED_PER_LEVEL: 0.4,
   TOWER_LASER_HP_PER_LEVEL: 10,
 
-  TOWER_SLOW_BASE_HP: 40,
-  TOWER_SLOW_BASE_FACTOR: 0.4,
-  TOWER_SLOW_BASE_RANGE: 140,
-  TOWER_SLOW_UPGRADE_COST: 200,
-  TOWER_SLOW_FACTOR_PER_LEVEL: 0.07,
-  TOWER_SLOW_RANGE_PER_LEVEL: 20,
-  TOWER_SLOW_HP_PER_LEVEL: 8,
+  TOWER_WEAKNESS_BASE_HP: 40,
+  /** Base HP drained per second from enemies in range */
+  TOWER_WEAKNESS_BASE_DRAIN_DPS: 1.5,
+  /** Base attack reduction applied to enemies in range (0.25 = 25% less damage) */
+  TOWER_WEAKNESS_BASE_ATTACK_REDUCTION: 0.25,
+  TOWER_WEAKNESS_BASE_RANGE: 140,
+  TOWER_WEAKNESS_UPGRADE_COST: 60,
+  /** Per-level increase to both drain DPS and attack reduction */
+  TOWER_WEAKNESS_FACTOR_PER_LEVEL: 0.07,
+  TOWER_WEAKNESS_HP_PER_LEVEL: 8,
+
+  // Tier-2 research: universal tower researches
+  TOWER_REGEN_COST_PER_LEVEL: 100,
+  TOWER_REGEN_DURATION_MS: 10_000,
+  /** HP/sec gained per regen research level */
+  TOWER_REGEN_HP_PER_SEC_PER_LEVEL: 2.0,
+
+  TOWER_RANGE_COST_PER_LEVEL: 80,
+  TOWER_RANGE_DURATION_MS: 10_000,
+  /** Extra range (pixels) per range research level */
+  TOWER_RANGE_BONUS_PER_LEVEL: 25,
+
+  // Tier-2 research: laser-specific
+  LASER_BOUNCE_COST_PER_LEVEL: 130,
+  LASER_BOUNCE_DURATION_MS: 15_000,
+
+  LASER_OVERCHARGE_COST_PER_LEVEL: 120,
+  LASER_OVERCHARGE_DURATION_MS: 12_000,
+  /** Level 0 = no overcharge; level 1 = every 8th shot, decreasing by 1 per level */
+  LASER_OVERCHARGE_BASE_INTERVAL: 8,
+
+  // Tier-2 research: weakness-specific
+  WEAKNESS_SLOW_COST_PER_LEVEL: 100,
+  WEAKNESS_SLOW_DURATION_MS: 10_000,
+  /** Slow factor applied per weakness slow research level */
+  WEAKNESS_SLOW_FACTOR_PER_LEVEL: 0.12,
+
+  WEAKNESS_STUN_COST_PER_LEVEL: 150,
+  WEAKNESS_STUN_DURATION_MS: 20_000,
+  /** Stun fires every N ms; decreases by 1500ms per level */
+  WEAKNESS_STUN_BASE_INTERVAL_MS: 10_000,
+  WEAKNESS_STUN_INTERVAL_REDUCTION_PER_LEVEL: 1_500,
+  /** How long (ms) the stun effect lasts on target */
+  WEAKNESS_STUN_EFFECT_DURATION_MS: 1_000,
+
+  /** Duration (ms) for each tier-2 path research level, keyed by pathId */
+  TIER2_PATH_DURATIONS: {
+    tower_regen: 10_000,
+    tower_range: 10_000,
+    laser_bounce: 15_000,
+    laser_overcharge: 12_000,
+    weakness_slow: 10_000,
+    weakness_stun: 20_000,
+    territory_income_rate: 15_000,
+  } as Record<string, number>,
+
+  // Territory Income
+  /** One-time research cost to unlock territorial gold income */
+  TERRITORY_INCOME_RESEARCH_COST: 150,
+  /** Duration (ms) to complete the territory income unlock research */
+  TERRITORY_INCOME_RESEARCH_DURATION_MS: 30_000,
+  /** How often (ms) territory income is paid out */
+  TERRITORY_INCOME_INTERVAL_MS: 5_000,
+  /** Gold per owned cell per second at level 1 */
+  TERRITORY_INCOME_BASE_RATE: 0.003,
+  /** Additional gold per cell per second per upgrade level */
+  TERRITORY_INCOME_RATE_PER_LEVEL: 0.002,
+  /** Max level for the territory income rate upgrade path */
+  TERRITORY_INCOME_MAX_LEVEL: 5,
+  /** Base cost for territory income rate upgrade (scales by UPGRADE_COST_MULTIPLIER per level) */
+  TERRITORY_INCOME_PATH_COST_PER_LEVEL: 100,
+  /** Duration (ms) to complete each territory income rate upgrade */
+  TERRITORY_INCOME_PATH_DURATION_MS: 15_000,
 } as const;
 
-export type TowerType = 'laser' | 'slow';
-export const TOWER_TYPES: readonly TowerType[] = ['laser', 'slow'] as const;
+export type TowerType = 'laser' | 'weakness';
+export const TOWER_TYPES: readonly TowerType[] = ['laser', 'weakness'] as const;
+export const TOWER_TYPE = {
+  LASER: 'laser',
+  WEAKNESS: 'weakness',
+} as const satisfies Record<string, TowerType>;
 
 export type UpgradeType = keyof typeof CONFIG.UPGRADE_COSTS;
 
@@ -197,7 +284,7 @@ export function getUpgradeCost(type: UpgradeType, level: number): number {
 
 export function getTowerUpgradeCost(towerType: TowerType, level: number): number {
   if (DEBUG_EVERYTHING_CHEAP) return 1;
-  const base = towerType === 'laser' ? CONFIG.TOWER_LASER_UPGRADE_COST : CONFIG.TOWER_SLOW_UPGRADE_COST;
+  const base = towerType === TOWER_TYPE.LASER ? CONFIG.TOWER_LASER_UPGRADE_COST : CONFIG.TOWER_WEAKNESS_UPGRADE_COST;
   return Math.floor(base * Math.pow(CONFIG.TOWER_UPGRADE_COST_MULTIPLIER, level));
 }
 
@@ -205,6 +292,7 @@ export function getTowerResearchCost(towerType: TowerType): number {
   if (DEBUG_EVERYTHING_CHEAP) return 1;
   return CONFIG.TOWER_RESEARCH_COSTS[towerType];
 }
+
 
 export function getTowerConstructionCost(towerType: TowerType): number {
   if (DEBUG_EVERYTHING_CHEAP) return 1;

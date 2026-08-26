@@ -63,4 +63,6 @@ export interface ICellEffectMap {
   readonly hasAnyOwnedCells: boolean;
   /** Iterate owned cells. Callback receives (col, row, owner, hasCaptureFlash). */
   forEachOwnedCell(callback: (col: number, row: number, owner: 0 | 1, hasCaptureFlash: boolean) => void): void;
+  /** Returns total number of cells currently owned by the given player. O(1). */
+  getOwnedCellCount(player: 0 | 1): number;
 }

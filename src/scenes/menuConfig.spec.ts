@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { TOWER_TYPE } from '../config';
 import { MENU_CATEGORIES, resolveKeyPress, type MenuCategory } from './menuConfig';
 
 describe('menuConfig', () => {
@@ -62,16 +63,18 @@ describe('menuConfig', () => {
       }
     });
 
-    it('should have construction category with tower build items and place action', () => {
+    it('should have construction category with nested build submenu items', () => {
       const cat = MENU_CATEGORIES.find(c => c.id === 'construction')!;
-      expect(cat.items.some(i => i.kind === 'construct')).toBe(true);
-      expect(cat.items.some(i => i.kind === 'action' && i.action === 'place')).toBe(true);
+      expect(cat.items.every(i => i.kind === 'buildSubmenu')).toBe(true);
+      expect(cat.items).toHaveLength(2);
     });
 
-    it('should have research category with research items', () => {
+    it('should have research category (items now dynamically computed per player)', () => {
       const cat = MENU_CATEGORIES.find(c => c.id === 'research')!;
-      expect(cat.items.every(i => i.kind === 'research')).toBe(true);
-      expect(cat.items.length).toBeGreaterThanOrEqual(2);
+      expect(cat).toBeDefined();
+      expect(cat.id).toBe('research');
+      // Items are empty — dynamically populated in UIScene via getVisibleResearchNodes()
+      expect(cat.items).toHaveLength(0);
     });
 
     it('should have towers category with prev/next/upgrade items', () => {
@@ -162,27 +165,61 @@ describe('menuConfig', () => {
 
     describe('research submenu dispatch', () => {
       it.each([
-        ['Q', 0, 'laser'],
-        ['W', 0, 'slow'],
-        ['I', 1, 'laser'],
-        ['O', 1, 'slow'],
-      ] as const)('P%d presses %s -> research %s', (key, playerId, towerType) => {
+        ['Q', 0],
+        ['W', 0],
+        ['E', 0],
+        ['I', 1],
+        ['O', 1],
+        ['P', 1],
+      ] as const)('P%d presses %s -> researchKey result', (key, playerId) => {
         const result = resolveKeyPress(key, playerId, 'research');
-        expect(result).toEqual({ type: 'research', towerType });
+        expect(result).toEqual({ type: 'researchKey', key });
       });
     });
 
-    describe('construction submenu dispatch', () => {
+    describe('construction submenu dispatch before tower type selection', () => {
       it.each([
-        ['Q', 0, { type: 'construct', towerType: 'laser' }],
-        ['W', 0, { type: 'construct', towerType: 'slow' }],
-        ['E', 0, { type: 'action', action: 'place' }],
-        ['I', 1, { type: 'construct', towerType: 'laser' }],
-        ['O', 1, { type: 'construct', towerType: 'slow' }],
-        ['P', 1, { type: 'action', action: 'place' }],
+        ['Q', 0, { type: 'navigateBuildSubmenu', buildSubmenu: 'towers' }],
+        ['W', 0, { type: 'navigateBuildSubmenu', buildSubmenu: 'particles' }],
+        ['I', 1, { type: 'navigateBuildSubmenu', buildSubmenu: 'towers' }],
+        ['O', 1, { type: 'navigateBuildSubmenu', buildSubmenu: 'particles' }],
       ] as const)('P%d presses %s -> %o', (key, playerId, expected) => {
         const result = resolveKeyPress(key, playerId, 'construction');
         expect(result).toEqual(expected);
+      });
+
+      it.each([
+        ['Q', 0, { type: 'construct', towerType: TOWER_TYPE.LASER }],
+        ['W', 0, { type: 'construct', towerType: TOWER_TYPE.WEAKNESS }],
+        ['I', 1, { type: 'construct', towerType: TOWER_TYPE.LASER }],
+        ['O', 1, { type: 'construct', towerType: TOWER_TYPE.WEAKNESS }],
+      ] as const)('P%d presses %s in build>TOWERS before site selection -> %o', (key, playerId, expected) => {
+        const result = resolveKeyPress(key, playerId, 'construction', 'towers', false);
+        expect(result).toEqual(expected);
+      });
+
+      it.each([
+        ['A', 0, { type: 'action', action: 'buildPrev' }],
+        ['S', 0, { type: 'action', action: 'buildNext' }],
+        ['E', 0, { type: 'action', action: 'buildSelected' }],
+        ['K', 1, { type: 'action', action: 'buildPrev' }],
+        ['L', 1, { type: 'action', action: 'buildNext' }],
+        ['P', 1, { type: 'action', action: 'buildSelected' }],
+      ] as const)('P%d presses %s in build>TOWERS after site selection -> %o', (key, playerId, expected) => {
+        const result = resolveKeyPress(key, playerId, 'construction', 'towers', true);
+        expect(result).toEqual(expected);
+      });
+
+      it.each([
+        ['Q', 0],
+        ['W', 0],
+        ['E', 0],
+        ['I', 1],
+        ['O', 1],
+        ['P', 1],
+      ] as const)('P%d key %s does nothing in build>PARTICLES for now', (key, playerId) => {
+        const result = resolveKeyPress(key, playerId, 'construction', 'particles');
+        expect(result).toBeNull();
       });
     });
 

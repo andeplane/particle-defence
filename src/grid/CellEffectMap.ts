@@ -24,6 +24,7 @@ export class CellEffectMap implements ICellEffectMap {
   private readonly effects = new Map<number, CellEffect[]>();
   private readonly ownership = new Map<number, CellOwnership>();
   private readonly config: CellEffectMapConfig;
+  private readonly _ownedCellCount: [number, number] = [0, 0];
 
   constructor(config: CellEffectMapConfig) {
     this.config = config;
@@ -193,12 +194,15 @@ export class CellEffectMap implements ICellEffectMap {
       };
       data.occupants[owner] = 1;
       this.ownership.set(k, data);
+      this._ownedCellCount[owner]++;
       return;
     }
     data.occupants[owner]++;
     const currentOwnerHasOccupants = data.occupants[data.owner] > 0;
     if (!currentOwnerHasOccupants && data.owner !== owner) {
+      this._ownedCellCount[data.owner]--;
       data.owner = owner;
+      this._ownedCellCount[owner]++;
       data.captureFlash = { owner, remainingMs: CONFIG.OWNERSHIP_CAPTURE_FLASH_MS };
     }
   }
@@ -229,6 +233,10 @@ export class CellEffectMap implements ICellEffectMap {
       const row = Math.floor(k / this.config.cols);
       callback(col, row, data.owner, !!data.captureFlash);
     }
+  }
+
+  getOwnedCellCount(player: 0 | 1): number {
+    return this._ownedCellCount[player];
   }
 
   get hasAnyEffects(): boolean {

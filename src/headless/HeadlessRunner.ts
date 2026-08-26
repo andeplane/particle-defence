@@ -33,7 +33,11 @@ export function runHeadlessGame(configOverrides?: Partial<HeadlessRunConfig>): G
 
   for (let i = 0; i < maxTicks; i++) {
     engine.tick(config.tickMs);
-    statsRecorder.tick(config.tickMs, engine.particles, engine.players);
+    const territoryCellCounts: [number, number] = [
+      engine.cellEffects.getOwnedCellCount(0),
+      engine.cellEffects.getOwnedCellCount(1),
+    ];
+    statsRecorder.tick(config.tickMs, engine.particles, engine.players, territoryCellCounts);
     if (engine.gameOver) break;
   }
 
@@ -96,6 +100,9 @@ function createStatsCallbacks(recorder: MatchStatsRecorder): GameEngineCallbacks
     onGameOver: () => {},
     onStuckRespawn: () => {},
     onInterest: () => {},
+    onTerritoryIncome: (playerId, amount) => {
+      recorder.recordGoldIncome(playerId, amount);
+    },
     onTowerPlaced: (tower, playerId) => {
       recorder.recordTowerPlaced(playerId, (tower as { towerType?: string }).towerType ?? 'unknown');
     },

@@ -14,12 +14,8 @@ export function ensurePathExists(
     cells[midY][x] = true;
   }
 
-  // 2. Symmetric boundaries: ~50% of rows on both sides (same row set for symmetry)
-  const rowsToOpen = new Set<number>([midY]);
+  // 2. Boundary columns fully open so particles can always exit the base
   for (let y = 0; y < rows; y++) {
-    if (Math.random() < 0.5) rowsToOpen.add(y);
-  }
-  for (const y of rowsToOpen) {
     cells[y][leftCol] = true;
     cells[y][rightCol] = true;
   }

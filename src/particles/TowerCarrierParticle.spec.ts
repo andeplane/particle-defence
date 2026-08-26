@@ -26,8 +26,8 @@ describe(TowerCarrierParticle.name, () => {
   });
 
   it('stores towerType', () => {
-    const c = new TowerCarrierParticle(100, 100, 0, 5, 180, 'slow', createDeps());
-    expect(c.towerType).toBe('slow');
+    const c = new TowerCarrierParticle(100, 100, 0, 5, 180, 'weakness', createDeps());
+    expect(c.towerType).toBe('weakness');
   });
 
   it('has zero attack', () => {

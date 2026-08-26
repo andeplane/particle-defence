@@ -3,7 +3,8 @@ import { CONFIG } from '../config';
 import type { UpgradeType } from '../config';
 import { MatchStatsRecorder } from '../stats';
 import type { MatchStats, PerSecondSample } from '../stats';
-import type { GameMode } from './MenuScene';
+import { GAME_MODE, type GameMode } from './MenuScene';
+import { SCENE_KEYS } from './SceneKeys';
 
 interface ChartSeries {
   data: (number | null)[];
@@ -17,6 +18,10 @@ interface ChartConfig {
   yMin?: number;
   yMax?: number;
   isStep?: boolean;
+}
+
+interface ChartBounds {
+  px: number; py: number; pw: number; ph: number;
 }
 
 const CHART_W = 580;
@@ -43,6 +48,9 @@ const SCROLL_SPEED = 0.5;
 export class PostGameStatsScene extends Phaser.Scene {
   private stats!: MatchStats;
   private mode!: GameMode;
+  private chartBoundsArr: ChartBounds[] = [];
+  private overlayGfx!: Phaser.GameObjects.Graphics;
+  private crosshairMoveHandler?: (pointer: Phaser.Input.Pointer) => void;
   private wheelHandler?: (
     pointer: Phaser.Input.Pointer,
     _currentlyOver: Phaser.GameObjects.GameObject[],
@@ -52,7 +60,7 @@ export class PostGameStatsScene extends Phaser.Scene {
   ) => void;
 
   constructor() {
-    super({ key: 'PostGameStatsScene' });
+    super({ key: SCENE_KEYS.POST_GAME_STATS });
   }
 
   init(data: { stats: MatchStats; mode: GameMode }): void {
@@ -61,6 +69,7 @@ export class PostGameStatsScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.chartBoundsArr = [];
     this.cameras.main.setBackgroundColor(CONFIG.BG_COLOR);
     this.cameras.main.fadeIn(400, 0, 0, 0);
 
@@ -79,7 +88,8 @@ export class PostGameStatsScene extends Phaser.Scene {
     const charts = this.buildCharts(samples);
     const startX = (CONFIG.GAME_WIDTH - (CHART_W * COLS + GAP_X * (COLS - 1))) / 2;
     const rows = Math.ceil(charts.length / COLS);
-    const totalContentHeight = HEADER_H + rows * (CHART_H + GAP_Y) - GAP_Y;
+    const HIST_H = CHART_H + 50;
+    const totalContentHeight = HEADER_H + rows * (CHART_H + GAP_Y) + GAP_Y + HIST_H + GAP_Y;
 
     charts.forEach((chart, idx) => {
       const col = idx % COLS;
@@ -89,7 +99,36 @@ export class PostGameStatsScene extends Phaser.Scene {
       this.drawChart(x, y, CHART_W, CHART_H, chart, samples.length);
     });
 
+    const histY = HEADER_H + rows * (CHART_H + GAP_Y);
+    const gridW = CHART_W * COLS + GAP_X * (COLS - 1);
+    const histW = (gridW - GAP_X) / 2;
+    this.drawStrategyHistogram(startX, histY, histW, HIST_H, this.stats.strategyAffinities[0], 0);
+    this.drawStrategyHistogram(startX + histW + GAP_X, histY, histW, HIST_H, this.stats.strategyAffinities[1], 1);
+
     this.addReturnButton();
+
+    this.overlayGfx = this.add.graphics().setDepth(5);
+    this.crosshairMoveHandler = (pointer: Phaser.Input.Pointer) => {
+      const wx = pointer.worldX;
+      const wy = pointer.worldY;
+      let normX: number | null = null;
+      for (const b of this.chartBoundsArr) {
+        if (wx >= b.px && wx <= b.px + b.pw && wy >= b.py && wy <= b.py + b.ph) {
+          normX = (wx - b.px) / b.pw;
+          break;
+        }
+      }
+      this.overlayGfx.clear();
+      if (normX !== null) {
+        this.overlayGfx.lineStyle(1, 0xffffff, 0.3);
+        for (const b of this.chartBoundsArr) {
+          const lx = b.px + normX * b.pw;
+          this.overlayGfx.lineBetween(lx, b.py, lx, b.py + b.ph);
+        }
+      }
+    };
+    this.input.on('pointermove', this.crosshairMoveHandler);
+    this.input.on('gameout', () => this.overlayGfx.clear());
 
     const maxScrollY = Math.max(0, totalContentHeight - CONFIG.GAME_HEIGHT);
     if (maxScrollY > 0) {
@@ -109,6 +148,10 @@ export class PostGameStatsScene extends Phaser.Scene {
   }
 
   shutdown(): void {
+    if (this.crosshairMoveHandler) {
+      this.input.off('pointermove', this.crosshairMoveHandler);
+      this.crosshairMoveHandler = undefined;
+    }
     if (this.wheelHandler) {
       this.input.off('wheel', this.wheelHandler);
       this.wheelHandler = undefined;
@@ -118,7 +161,7 @@ export class PostGameStatsScene extends Phaser.Scene {
   private drawHeader(): void {
     const { winner, durationSec } = this.stats;
     const winnerColor = winner === 0 ? CONFIG.PLAYER1_COLOR_STR : CONFIG.PLAYER2_COLOR_STR;
-    const winnerLabel = winner === 1 && this.mode === 'ai' ? 'AI WINS!' : `PLAYER ${winner + 1} WINS!`;
+    const winnerLabel = winner === 1 && this.mode === GAME_MODE.AI ? 'AI WINS!' : `PLAYER ${winner + 1} WINS!`;
     const mins = Math.floor(durationSec / 60);
     const secs = durationSec % 60;
 
@@ -137,10 +180,35 @@ export class PostGameStatsScene extends Phaser.Scene {
     const p1c = CONFIG.PLAYER1_COLOR;
     const p2c = CONFIG.PLAYER2_COLOR;
     const p1Label = 'P1';
-    const p2Label = this.mode === 'ai' ? 'AI' : 'P2';
+    const p2Label = this.mode === GAME_MODE.AI ? 'AI' : 'P2';
 
     const upgradeTypes: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles'];
     const kpmData = MatchStatsRecorder.rollingKPM(samples, 30);
+
+    const upgradeTypeLabels: Record<UpgradeType, string> = {
+      health: 'Health Level',
+      attack: 'Attack Level',
+      radius: 'Radius Level',
+      spawnRate: 'Spawn Rate Level',
+      speed: 'Speed Level',
+      maxParticles: 'Max Particles Level',
+      defense: 'Defense Level',
+      interestRate: 'Interest Rate Level',
+    };
+
+    const allUpgradeTypes: UpgradeType[] = [
+      'health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles', 'defense', 'interestRate',
+    ];
+
+    const perUpgradeCharts: ChartConfig[] = allUpgradeTypes.map(type => ({
+      title: upgradeTypeLabels[type],
+      series: [
+        { data: samples.map(s => s.upgradeLevels[0][type]), color: p1c, label: p1Label },
+        { data: samples.map(s => s.upgradeLevels[1][type]), color: p2c, label: p2Label },
+      ],
+      yMin: 0,
+      isStep: true,
+    }));
 
     return [
       {
@@ -181,6 +249,14 @@ export class PostGameStatsScene extends Phaser.Scene {
         series: [
           { data: samples.map(s => s.goldBanked[0]), color: p1c, label: p1Label },
           { data: samples.map(s => s.goldBanked[1]), color: p2c, label: p2Label },
+        ],
+        yMin: 0,
+      },
+      {
+        title: 'Total Gold Produced',
+        series: [
+          { data: samples.map(s => s.totalGoldProduced[0]), color: p1c, label: p1Label },
+          { data: samples.map(s => s.totalGoldProduced[1]), color: p2c, label: p2Label },
         ],
         yMin: 0,
       },
@@ -232,6 +308,16 @@ export class PostGameStatsScene extends Phaser.Scene {
         yMin: 0,
         isStep: true,
       },
+      {
+        title: 'Tower Kills (Cumulative)',
+        series: [
+          { data: samples.map(s => s.towerKillsCumulative[0]), color: p1c, label: p1Label },
+          { data: samples.map(s => s.towerKillsCumulative[1]), color: p2c, label: p2Label },
+        ],
+        yMin: 0,
+        isStep: true,
+      },
+      ...perUpgradeCharts,
     ];
   }
 
@@ -266,6 +352,8 @@ export class PostGameStatsScene extends Phaser.Scene {
     for (const series of config.series) {
       this.plotSeries(gfx, px, py, pw, ph, series, sampleCount, yMin, yMax, config.isStep ?? false);
     }
+
+    this.chartBoundsArr.push({ px, py, pw, ph });
   }
 
   private drawLegend(x: number, y: number, w: number, series: ChartSeries[]): void {
@@ -453,6 +541,76 @@ export class PostGameStatsScene extends Phaser.Scene {
 
     btn.on('pointerover', () => btn.setColor('#ffffff'));
     btn.on('pointerout', () => btn.setColor('#666666'));
-    btn.on('pointerdown', () => this.scene.start('MenuScene'));
+    btn.on('pointerdown', () => this.scene.start(SCENE_KEYS.MENU));
+  }
+
+  private drawStrategyHistogram(
+    x: number, y: number, w: number, h: number,
+    affinities: Record<string, number>,
+    playerIdx: 0 | 1,
+  ): void {
+    const color = playerIdx === 0 ? CONFIG.PLAYER1_COLOR : CONFIG.PLAYER2_COLOR;
+    const colorHex = `#${color.toString(16).padStart(6, '0')}`;
+    const playerLabel = playerIdx === 0 ? 'P1' : (this.mode === GAME_MODE.AI ? 'AI' : 'P2');
+
+    const gfx = this.add.graphics();
+    gfx.fillStyle(CHART_BG, 0.85);
+    gfx.fillRoundedRect(x, y, w, h, 6);
+    gfx.lineStyle(1, CHART_BORDER, 0.6);
+    gfx.strokeRoundedRect(x, y, w, h, 6);
+
+    this.add.text(x + 10, y + 6, `Strategy Profile — ${playerLabel}`, {
+      fontSize: '16px', color: TITLE_HEX, fontFamily: 'monospace', fontStyle: 'bold',
+    });
+
+    const strategies = ['Rush', 'Economy', 'TowerFortress', 'GlassCannon', 'Tank', 'Balanced'];
+    const shortNames: Record<string, string> = {
+      Rush: 'Rush', Economy: 'Economy', TowerFortress: 'Fortress',
+      GlassCannon: 'Glass', Tank: 'Tank', Balanced: 'Balanced',
+    };
+
+    const LABEL_BOTTOM = 36;
+    const px = x + PAD_LEFT;
+    const py = y + PAD_TOP;
+    const pw = w - PAD_LEFT - PAD_RIGHT;
+    const ph = h - PAD_TOP - PAD_BOTTOM - LABEL_BOTTOM;
+
+    // Horizontal grid lines at 0, 25, 50, 75, 100%
+    gfx.lineStyle(1, GRID_COLOR, 0.5);
+    for (let pct = 0; pct <= 100; pct += 25) {
+      const gy = py + ph - (pct / 100) * ph;
+      gfx.lineBetween(px, gy, px + pw, gy);
+      this.add.text(px - 6, gy, `${pct}%`, {
+        fontSize: '10px', color: LABEL_HEX, fontFamily: 'monospace',
+      }).setOrigin(1, 0.5);
+    }
+
+    const barCount = strategies.length;
+    const barGap = 8;
+    const barW = (pw - barGap * (barCount - 1)) / barCount;
+
+    for (let i = 0; i < strategies.length; i++) {
+      const name = strategies[i];
+      const pct = affinities[name] ?? 0;
+      const bx = px + i * (barW + barGap);
+      const barH = (pct / 100) * ph;
+      const by = py + ph - barH;
+
+      gfx.fillStyle(color, 0.45);
+      if (barH > 0) gfx.fillRect(bx, by, barW, barH);
+
+      gfx.lineStyle(1, color, 0.9);
+      if (barH > 0) gfx.strokeRect(bx, by, barW, barH);
+
+      if (pct > 0) {
+        this.add.text(bx + barW / 2, by - 2, `${pct}%`, {
+          fontSize: '11px', color: colorHex, fontFamily: 'monospace',
+        }).setOrigin(0.5, 1);
+      }
+
+      this.add.text(bx + barW / 2, py + ph + 6, shortNames[name] ?? name, {
+        fontSize: '12px', color: LABEL_HEX, fontFamily: 'monospace',
+      }).setOrigin(0.5, 0);
+    }
   }
 }

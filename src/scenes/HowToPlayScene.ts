@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
+import { trackHowToPlayTabClicked } from '../analytics';
 import { CONFIG } from '../config';
 import { isMobile } from '../mobile';
 import { TABS, getTabContent, type TabId, type ContentSection } from './howToPlayData';
+import { SCENE_KEYS } from './SceneKeys';
 
 const TAB_BAR_H = 52;
 const TAB_BTN_W = 160;
@@ -31,7 +33,7 @@ export class HowToPlayScene extends Phaser.Scene {
   private maxScrollY = 0;
 
   constructor() {
-    super({ key: 'HowToPlayScene' });
+    super({ key: SCENE_KEYS.HOW_TO_PLAY });
   }
 
   create(): void {
@@ -113,14 +115,14 @@ export class HowToPlayScene extends Phaser.Scene {
 
     btn.on('pointerover', () => btn.setColor('#ffffff'));
     btn.on('pointerout', () => btn.setColor('#666666'));
-    btn.on('pointerdown', () => this.scene.start('MenuScene'));
+    btn.on('pointerdown', () => this.scene.start(SCENE_KEYS.MENU));
   }
 
   private setupKeyboard(): void {
     if (isMobile()) return;
     this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        this.scene.start('MenuScene');
+        this.scene.start(SCENE_KEYS.MENU);
         return;
       }
       const tabIndex = parseInt(event.key) - 1;
@@ -132,6 +134,7 @@ export class HowToPlayScene extends Phaser.Scene {
 
   private switchTab(tabId: TabId): void {
     if (tabId === this.activeTab) return;
+    trackHowToPlayTabClicked(tabId);
     this.activeTab = tabId;
     this.updateTabHighlight();
     this.renderContent();

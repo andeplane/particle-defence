@@ -1,8 +1,9 @@
-import { CONFIG, type UpgradeType, type TowerType, TOWER_TYPES } from './config';
+import { CONFIG, TOWER_TYPE, TOWER_TYPES, type UpgradeType, type TowerType } from './config';
 import type { IPlayer } from './player';
 import type { IParticle } from './particles';
 import type { LaserTowerParticle } from './particles/LaserTowerParticle';
-import type { SlowTowerParticle } from './particles/SlowTowerParticle';
+import type { WeaknessTowerParticle } from './particles/WeaknessTowerParticle';
+import type { TowerSite } from './grid';
 
 export interface AIGameState {
   readonly players: readonly [IPlayer, IPlayer];
@@ -11,11 +12,12 @@ export interface AIGameState {
   readonly gameOver: boolean;
   launchNuke(playerId: 0 | 1): boolean;
   buyResearch(playerId: 0 | 1, towerType: TowerType): boolean;
-  constructTower(playerId: 0 | 1, towerType: TowerType): boolean;
-  placeTower(playerId: 0 | 1): boolean;
+  buyPathResearch(playerId: 0 | 1, pathId: string): boolean;
+  purchaseResearchNode(playerId: 0 | 1, nodeId: string, isPath: boolean, durationMs: number): boolean;
+  constructTower(playerId: 0 | 1, towerType: TowerType, siteId: number): boolean;
   upgradeTower(playerId: 0 | 1, towerIndex: number): boolean;
-  readonly carriers: readonly [unknown, unknown];
-  readonly towers: readonly [ReadonlyArray<LaserTowerParticle | SlowTowerParticle>, ReadonlyArray<LaserTowerParticle | SlowTowerParticle>];
+  getEligibleTowerSites(playerId: 0 | 1): readonly TowerSite[];
+  readonly towers: readonly [ReadonlyArray<LaserTowerParticle | WeaknessTowerParticle>, ReadonlyArray<LaserTowerParticle | WeaknessTowerParticle>];
 }
 
 export interface AIProfile {
@@ -30,6 +32,8 @@ export interface AIProfile {
   readonly nukeEnabled?: boolean;
   /** Tower investment priority: 'high' researches/builds earlier and more aggressively */
   readonly towerPriority?: 'normal' | 'high';
+  /** Whether territory income research is allowed (default true) */
+  readonly territoryIncomeEnabled?: boolean;
 }
 
 export type AIConfig = {
@@ -67,14 +71,27 @@ export class AIController {
     while (this.timeSinceLastDecision >= this.decisionIntervalMs) {
       this.timeSinceLastDecision -= this.decisionIntervalMs;
 
+      this.tryNukeResearch(state);
       this.tryNuke(state);
       this.tryTowerActions(state);
+      this.tryTier2Research(state);
+      this.tryTerritoryIncomeResearch(state);
       this.tryUpgrade(state);
     }
   }
 
   private get opponentId(): 0 | 1 {
     return this.playerId === 0 ? 1 : 0;
+  }
+
+  private tryNukeResearch(state: AIGameState): void {
+    if (this.profile.nukeEnabled === false) return;
+    const ai = state.players[this.playerId];
+    if (ai.hasUnlocked('unlock_nuke')) return;
+    if (state.gameTimeMs < CONFIG.NUCLEAR_FIRST_AVAILABLE_MS * 0.8) return;
+    if (ai.canPurchaseUnlock('unlock_nuke')) {
+      state.purchaseResearchNode(this.playerId, 'unlock_nuke', false, CONFIG.NUKE_RESEARCH_DURATION_MS);
+    }
   }
 
   private tryNuke(state: AIGameState): void {
@@ -114,33 +131,18 @@ export class AIController {
       }
     }
 
-    const carrier = state.carriers[this.playerId];
-    if (carrier && (carrier as IParticle).alive) {
-      const p = carrier as IParticle;
-      const baseW = CONFIG.BASE_WIDTH_CELLS * (CONFIG.GAME_WIDTH / CONFIG.MAZE_COLS);
-      const distFromBase = this.playerId === 0
-        ? p.x - baseW
-        : CONFIG.GAME_WIDTH - baseW - p.x;
-
-      const minPlaceDist = CONFIG.GAME_WIDTH * 0.30;
-      if (distFromBase > minPlaceDist) {
-        const nearbyEnemies = this.countNearbyEnemies(state, p.x, p.y, 200);
-        if (nearbyEnemies >= 3 || distFromBase > CONFIG.GAME_WIDTH * 0.45) {
-          state.placeTower(this.playerId);
-          return;
-        }
-      }
-      return;
-    }
-
     const towers = state.towers[this.playerId];
+    const eligibleSites = state.getEligibleTowerSites(this.playerId);
     if (towers.length < CONFIG.TOWER_MAX_PER_PLAYER) {
-      const constructionReserve = highPriority ? 1.2 : 1.5;
-      const preferredType: TowerType = towers.length % 2 === 0 ? 'laser' : 'slow';
+      if (eligibleSites.length === 0) return;
+      // Keep a small gold buffer after construction (1.0x = exact cost, no extra reserve needed now costs are lower)
+      const constructionReserve = highPriority ? 1.0 : 1.2;
+      const preferredType: TowerType = towers.length % 2 === 0 ? TOWER_TYPE.LASER : TOWER_TYPE.WEAKNESS;
+      const siteId = eligibleSites[0].id;
       if (ai.hasResearched(preferredType) && ai.canAffordConstruction(preferredType)) {
         const cost = ai.getConstructionCost(preferredType);
         if (ai.gold >= cost * constructionReserve) {
-          state.constructTower(this.playerId, preferredType);
+          state.constructTower(this.playerId, preferredType, siteId);
           return;
         }
       }
@@ -148,14 +150,14 @@ export class AIController {
         if (ai.hasResearched(t) && ai.canAffordConstruction(t)) {
           const cost = ai.getConstructionCost(t);
           if (ai.gold >= cost * constructionReserve) {
-            state.constructTower(this.playerId, t);
+            state.constructTower(this.playerId, t, siteId);
             return;
           }
         }
       }
     }
 
-    if (towers.length > 0 && ai.gold > 50) {
+    if (towers.length > 0) {
       let lowestLevel = Infinity;
       let lowestIdx = 0;
       for (let i = 0; i < towers.length; i++) {
@@ -168,16 +170,50 @@ export class AIController {
     }
   }
 
-  private countNearbyEnemies(state: AIGameState, x: number, y: number, range: number): number {
-    const rangeSq = range * range;
-    let count = 0;
-    for (const p of state.particles) {
-      if (!p.alive || p.owner === this.playerId) continue;
-      const dx = p.x - x;
-      const dy = p.y - y;
-      if (dx * dx + dy * dy <= rangeSq) count++;
+  private tryTier2Research(state: AIGameState): void {
+    if (this.profile.towersEnabled === false) return;
+    const ai = state.players[this.playerId];
+    const towers = state.towers[this.playerId];
+    if (towers.length === 0) return;
+
+    const hasLaser = ai.hasResearched(TOWER_TYPE.LASER);
+    const hasWeakness = ai.hasResearched(TOWER_TYPE.WEAKNESS);
+
+    // Priority: universal paths first, then type-specific
+    const candidates: string[] = [];
+    if (hasLaser || hasWeakness) {
+      candidates.push('tower_regen', 'tower_range');
     }
-    return count;
+    if (hasLaser) candidates.push('laser_bounce', 'laser_overcharge');
+    if (hasWeakness) candidates.push('weakness_slow', 'weakness_stun');
+
+    for (const pathId of candidates) {
+      if (!ai.isResearching(pathId) && ai.canPurchasePath(pathId)) {
+        state.buyPathResearch(this.playerId, pathId);
+        return;
+      }
+    }
+  }
+
+  private tryTerritoryIncomeResearch(state: AIGameState): void {
+    if (this.profile.territoryIncomeEnabled === false) return;
+    const ai = state.players[this.playerId];
+    const gameTimeSec = state.gameTimeMs / 1000;
+
+    if (gameTimeSec < 90) return;
+
+    if (!ai.hasUnlocked('unlock_territory_income') && !ai.isResearching('unlock_territory_income')) {
+      if (ai.canPurchaseUnlock('unlock_territory_income')) {
+        state.purchaseResearchNode(this.playerId, 'unlock_territory_income', false, CONFIG.TERRITORY_INCOME_RESEARCH_DURATION_MS);
+        return;
+      }
+    }
+
+    if (ai.hasUnlocked('unlock_territory_income') && !ai.isResearching('territory_income_rate')) {
+      if (ai.canPurchasePath('territory_income_rate')) {
+        state.purchaseResearchNode(this.playerId, 'territory_income_rate', true, CONFIG.TERRITORY_INCOME_PATH_DURATION_MS);
+      }
+    }
   }
 
   private tryUpgrade(state: AIGameState): void {
@@ -202,7 +238,7 @@ export class AIController {
     }
 
     if (bestType !== null) {
-      ai.buyUpgrade(bestType);
+      ai.startUpgrade(bestType, state.gameTimeMs, CONFIG.PARTICLE_UPGRADE_DURATION_MS);
     }
   }
 
@@ -226,13 +262,7 @@ export class AIController {
 
     switch (type) {
       case 'spawnRate': {
-        const spawnInterval = ai.spawnInterval;
-        const nearMin = spawnInterval <= 55;
-        if (nearMin) {
-          score *= 0.3;
-        } else {
-          score *= 2.5;
-        }
+        score *= 2.5;
         if (gameTimeSec < 60) score *= 1.5;
         break;
       }

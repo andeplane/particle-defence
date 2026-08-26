@@ -18,6 +18,7 @@ export function createMockCellEffectMap(overrides: Partial<ICellEffectMap> = {})
     getOwnerAt: vi.fn(() => null),
     hasAnyOwnedCells: false,
     forEachOwnedCell: vi.fn(),
+    getOwnedCellCount: vi.fn(() => 0),
   };
 
   return { ...defaults, ...overrides };

@@ -1,5 +1,7 @@
 import { CONFIG } from '../../config';
 import { Grid } from '../Grid';
+import { applyTowerSites } from '../towerSites';
+import { createBaseTowerSlots } from '../baseTowerSites';
 import { ensurePathExists } from './ensurePath';
 
 export type FortressGridParams = {
@@ -35,7 +37,9 @@ export function generateFortressGrid(overrides?: Partial<FortressGridParams>): G
   do {
     const cells = createFortressCells(p.cols, p.rows, p.baseWidth);
     ensurePathExists(cells, p.cols, p.rows, p.baseWidth);
-    grid = new Grid(p.cols, p.rows, p.baseWidth, cells, p.gameWidth, p.gameHeight);
+    const towerSites = applyTowerSites(cells, p.cols, p.rows, p.baseWidth);
+    const spawnerSlots = createBaseTowerSlots(p.cols, p.rows, p.baseWidth);
+    grid = new Grid(p.cols, p.rows, p.baseWidth, cells, p.gameWidth, p.gameHeight, towerSites, spawnerSlots);
     attempts++;
     if (attempts > 30) break;
   } while (!grid.hasPath());

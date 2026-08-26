@@ -1,7 +1,10 @@
 import type { UpgradeType } from '../config';
 import type { IParticle } from '../particles';
 import type { IPlayer } from '../player';
+import { LaserTowerParticle } from '../particles/LaserTowerParticle';
+import { WeaknessTowerParticle } from '../particles/WeaknessTowerParticle';
 import type { MatchEvent, MatchStats, PerPlayer, PerSecondSample } from './types';
+import { computeStrategyAffinities } from './strategyAffinities';
 
 export interface MatchStatsRecorderDependencies {
   cellW: number;
@@ -17,6 +20,7 @@ type MutablePerPlayer<T> = [T, T];
 
 interface DeltaAccumulator {
   kills: MutablePerPlayer<number>;
+  towerKills: MutablePerPlayer<number>;
   goldIncome: MutablePerPlayer<number>;
   goldSpent: MutablePerPlayer<number>;
   unitDamageDealt: MutablePerPlayer<number>;
@@ -31,6 +35,8 @@ export class MatchStatsRecorder {
   private lastSampleSec: number = 0;
 
   private deltas: DeltaAccumulator = MatchStatsRecorder.freshDeltas();
+  private towerKillsCumulative: MutablePerPlayer<number> = [0, 0];
+  private totalGoldProduced: MutablePerPlayer<number> = [0, 0];
 
   constructor(deps?: Partial<MatchStatsRecorderDependencies>) {
     this.deps = deps ? { ...defaultDeps, ...deps } : defaultDeps;
@@ -40,8 +46,13 @@ export class MatchStatsRecorder {
     this.deltas.kills[killer]++;
   }
 
+  recordTowerKill(killer: 0 | 1): void {
+    this.deltas.towerKills[killer]++;
+  }
+
   recordGoldIncome(player: 0 | 1, amount: number): void {
     this.deltas.goldIncome[player] += amount;
+    this.totalGoldProduced[player] += amount;
   }
 
   recordGoldSpent(player: 0 | 1, amount: number): void {
@@ -87,23 +98,35 @@ export class MatchStatsRecorder {
     deltaMs: number,
     particles: readonly IParticle[],
     players: readonly [IPlayer, IPlayer],
+    territoryCellCounts?: [number, number],
   ): void {
     this.elapsedMs += deltaMs;
     const currentSec = Math.floor(this.elapsedMs / 1000);
 
     while (currentSec > this.lastSampleSec) {
       this.lastSampleSec++;
-      this.takeSample(this.lastSampleSec, particles, players);
+      this.takeSample(this.lastSampleSec, particles, players, territoryCellCounts ?? [0, 0]);
       this.deltas = MatchStatsRecorder.freshDeltas();
     }
   }
 
   finalize(winner: 0 | 1): MatchStats {
+    const lastSample = this.samples[this.samples.length - 1];
+    const strategyAffinities: PerPlayer<Record<string, number>> = [
+      lastSample
+        ? computeStrategyAffinities(lastSample.upgradeLevels[0], lastSample.towerCount[0], this.totalGoldProduced[0])
+        : {},
+      lastSample
+        ? computeStrategyAffinities(lastSample.upgradeLevels[1], lastSample.towerCount[1], this.totalGoldProduced[1])
+        : {},
+    ];
+
     return {
       samples: [...this.samples],
       events: [...this.events],
       durationSec: Math.floor(this.elapsedMs / 1000),
       winner,
+      strategyAffinities,
     };
   }
 
@@ -111,6 +134,7 @@ export class MatchStatsRecorder {
     timeSec: number,
     particles: readonly IParticle[],
     players: readonly [IPlayer, IPlayer],
+    territoryCellCounts: [number, number],
   ): void {
     const alive: MutablePerPlayer<IParticle[]> = [[], []];
     for (const p of particles) {
@@ -140,9 +164,12 @@ export class MatchStatsRecorder {
     ];
 
     const towerCount: PerPlayer<number> = [
-      alive[0].filter(p => p.typeName === 'laserTower' || p.typeName === 'slowTower').length,
-      alive[1].filter(p => p.typeName === 'laserTower' || p.typeName === 'slowTower').length,
+      alive[0].filter(p => p.typeName === LaserTowerParticle.TYPE_NAME || p.typeName === WeaknessTowerParticle.TYPE_NAME).length,
+      alive[1].filter(p => p.typeName === LaserTowerParticle.TYPE_NAME || p.typeName === WeaknessTowerParticle.TYPE_NAME).length,
     ];
+
+    this.towerKillsCumulative[0] += this.deltas.towerKills[0];
+    this.towerKillsCumulative[1] += this.deltas.towerKills[1];
 
     const sample: PerSecondSample = {
       timeSec,
@@ -159,6 +186,9 @@ export class MatchStatsRecorder {
       baseDamageDealt: [this.deltas.baseDamageDealt[0], this.deltas.baseDamageDealt[1]],
       frontlineXCell,
       towerCount,
+      towerKillsCumulative: [this.towerKillsCumulative[0], this.towerKillsCumulative[1]],
+      territoryCells: [territoryCellCounts[0], territoryCellCounts[1]],
+      totalGoldProduced: [this.totalGoldProduced[0], this.totalGoldProduced[1]],
     };
 
     this.samples.push(sample);
@@ -179,6 +209,7 @@ export class MatchStatsRecorder {
   static computePower(units: readonly IParticle[]): number {
     let total = 0;
     for (const u of units) {
+      if (!isFinite(u.health)) continue;
       total += u.health * 0.6 + u.attack * 1.2 + u.speed * 0.4 + u.radius * 0.2;
     }
     return Math.round(total * 100) / 100;
@@ -202,6 +233,7 @@ export class MatchStatsRecorder {
   private static freshDeltas(): DeltaAccumulator {
     return {
       kills: [0, 0],
+      towerKills: [0, 0],
       goldIncome: [0, 0],
       goldSpent: [0, 0],
       unitDamageDealt: [0, 0],

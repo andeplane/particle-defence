@@ -1,5 +1,6 @@
 export { Grid } from './Grid';
-export type { IGrid } from './Grid';
+export type { IGrid, TowerSite } from './Grid';
+export { applyTowerSites, createTowerSites } from './towerSites';
 export type {
   CellEffect,
   CellEffectType,

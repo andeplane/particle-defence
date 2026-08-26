@@ -70,6 +70,17 @@ describe(MatchStatsRecorder.name, () => {
 
       expect(s.aliveUnits).toEqual([0, 1]);
     });
+
+    it('powerCurve is finite even when spawner towers (Infinity health) are in the particle list', () => {
+      const spawner = createParticle(0, 0, 0, { health: Infinity, attack: 0, speed: 0, radius: 14 });
+      const normal = createParticle(0, 0, 0, { health: 5, attack: 2, speed: 180, radius: 3 });
+      recorder.tick(1000, [spawner, normal], createPlayers());
+      const s = recorder.finalize(0).samples[0];
+
+      expect(isFinite(s.powerCurve[0])).toBe(true);
+      const expectedPower = 5 * 0.6 + 2 * 1.2 + 180 * 0.4 + 3 * 0.2;
+      expect(s.powerCurve[0]).toBeCloseTo(expectedPower, 1);
+    });
   });
 
   describe('computePower', () => {
@@ -90,6 +101,18 @@ describe(MatchStatsRecorder.name, () => {
       },
     ])('$desc', ({ units, expected }) => {
       expect(MatchStatsRecorder.computePower(units)).toBeCloseTo(expected, 1);
+    });
+
+    it('ignores units with Infinity health (e.g. indestructible spawner towers)', () => {
+      const spawner = createParticle(0, 0, 0, { health: Infinity, attack: 0, speed: 0, radius: 14 });
+      expect(MatchStatsRecorder.computePower([spawner])).toBe(0);
+    });
+
+    it('sums only finite-health units when mixed with Infinity-health units', () => {
+      const spawner = createParticle(0, 0, 0, { health: Infinity, attack: 0, speed: 0, radius: 14 });
+      const normal = createParticle(0, 0, 0, { health: 10, attack: 2, speed: 50, radius: 3 });
+      const expected = 10 * 0.6 + 2 * 1.2 + 50 * 0.4 + 3 * 0.2;
+      expect(MatchStatsRecorder.computePower([spawner, normal])).toBeCloseTo(expected, 1);
     });
   });
 
@@ -217,6 +240,40 @@ describe(MatchStatsRecorder.name, () => {
     });
   });
 
+  describe('towerKillsCumulative', () => {
+    it('starts at [0,0] with no tower kills', () => {
+      recorder.tick(1000, [], createPlayers());
+      const s = recorder.finalize(0).samples[0];
+      expect(s.towerKillsCumulative).toEqual([0, 0]);
+    });
+
+    it('recordTowerKill is independent from recordKill', () => {
+      recorder.recordKill(0);
+      recorder.recordKill(0);
+      recorder.recordTowerKill(0);
+      recorder.recordTowerKill(1);
+
+      recorder.tick(1000, [], createPlayers());
+      const s = recorder.finalize(0).samples[0];
+
+      expect(s.killsThisSecond).toEqual([2, 0]);
+      expect(s.towerKillsCumulative).toEqual([1, 1]);
+    });
+
+    it('accumulates cumulatively across samples, not reset per second', () => {
+      recorder.recordTowerKill(0);
+      recorder.tick(1000, [], createPlayers());
+
+      recorder.recordTowerKill(0);
+      recorder.recordTowerKill(0);
+      recorder.tick(1000, [], createPlayers());
+
+      const stats = recorder.finalize(0);
+      expect(stats.samples[0].towerKillsCumulative).toEqual([1, 0]);
+      expect(stats.samples[1].towerKillsCumulative).toEqual([3, 0]);
+    });
+  });
+
   describe('event recording', () => {
     it('records upgrade events', () => {
       recorder.tick(2500, [], createPlayers());
@@ -292,6 +349,10 @@ function createParticle(
     leaveCurrentCell: () => {},
     defenseFactor: 0,
     towerSlowFactor: 1,
+    attackFactor: 1,
+    stunnedUntilMs: 0,
+    kills: 0,
+    killedBy: null,
     destroy() {},
   };
 }
@@ -322,7 +383,6 @@ function createPlayers(overrides?: {
     getUpgradeLevel: (type) => upgrades[type] ?? 0,
     getUpgradeCost: () => 5,
     canAfford: () => true,
-    buyUpgrade: () => true,
     canUseNuke: () => false,
     useNuke: () => {},
     getNukeCooldownRemainingMs: () => 0,
@@ -335,6 +395,27 @@ function createPlayers(overrides?: {
     canAffordConstruction: () => false,
     payForConstruction: () => false,
     isUpgradeAtMax: () => false,
+    getLevel: () => 0,
+    hasUnlocked: () => false,
+    canPurchaseUnlock: () => false,
+    purchaseUnlock: () => false,
+    getUnlockCost: () => 0,
+    getPathLevel: () => 0,
+    canPurchasePath: () => false,
+    purchasePath: () => false,
+    getPathCost: () => Infinity,
+    startTowerResearch: () => false,
+    startPathResearch: () => false,
+    startUnlockResearch: () => false,
+    isResearching: () => false,
+    getResearchProgress: () => -1,
+    getResearchRemainingMs: () => 0,
+    tickResearch: () => [],
+    startUpgrade: () => false,
+    isUpgradePending: () => false,
+    getUpgradeProgress: () => -1,
+    getUpgradeRemainingMs: () => 0,
+    tickUpgrades: () => [],
   });
 
   const p1Upgrades = { ...defaultUpgrades, ...(overrides?.p1UpgradeLevels ?? {}) };
@@ -367,5 +448,8 @@ function createSample(overrides: {
     baseDamageDealt: [0, 0],
     frontlineXCell: [null, null],
     towerCount: [0, 0],
+    towerKillsCumulative: [0, 0],
+    territoryCells: [0, 0],
+    totalGoldProduced: [0, 0],
   };
 }
