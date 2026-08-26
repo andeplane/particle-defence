@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CONFIG } from '../config';
+import { fitTextToWidth } from './uiText';
 
 const L = CONFIG.MENU_LAYOUT;
 
@@ -27,20 +28,24 @@ export function createMenuButton(
     .setStrokeStyle(L.BUTTON_STROKE, color, L.BUTTON_STROKE_ALPHA)
     .setInteractive({ useHandCursor: true });
 
-  scene.add.text(x, y, label, {
+  const text = scene.add.text(x, y, label, {
     fontSize: `${Math.round(L.BUTTON_FONT)}px`,
     color: colorStr,
     fontFamily: 'monospace',
     fontStyle: 'bold',
   }).setOrigin(0.5);
 
+  let keyText: Phaser.GameObjects.Text | null = null;
   if (keyHint) {
-    scene.add.text(x + w / 2 - L.BUTTON_KEY_INSET_X, y + h / 2 - L.BUTTON_KEY_INSET_Y, `[${keyHint}]`, {
+    keyText = scene.add.text(x + w / 2 - L.BUTTON_KEY_INSET_X, y + h / 2 - L.BUTTON_KEY_INSET_Y, `[${keyHint}]`, {
       fontSize: `${Math.round(L.BUTTON_KEY_FONT)}px`,
       color: L.BUTTON_KEY_COLOR_STR,
       fontFamily: 'monospace',
     }).setOrigin(1, 1);
   }
+  // Long labels shrink so they never run into the key hint (label is centred, so reserve both sides).
+  const reserved = keyText ? 2 * (keyText.width + L.BUTTON_KEY_INSET_X) : 2 * L.BUTTON_KEY_INSET_X;
+  fitTextToWidth(text, w - reserved);
 
   bg.on('pointerdown', onClick);
   bg.on('pointerover', () => {
