@@ -1,13 +1,21 @@
 let _isMobile: boolean | null = null;
 
+/** Query-param override (`?mobile=true` / `?mobile=false`) for testing the touch layout on desktop. */
+const MOBILE_QUERY_PARAM = 'mobile';
+
 export function isMobile(): boolean {
   if (_isMobile === null) {
     if (typeof window === 'undefined') {
       _isMobile = false;
     } else {
-      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-      _isMobile = hasTouch && coarsePointer;
+      const override = new URLSearchParams(window.location.search).get(MOBILE_QUERY_PARAM);
+      if (override === 'true' || override === 'false') {
+        _isMobile = override === 'true';
+      } else {
+        const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+        _isMobile = hasTouch && coarsePointer;
+      }
     }
   }
   return _isMobile;
