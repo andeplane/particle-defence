@@ -151,6 +151,16 @@ export const CONFIG = {
     SUBTITLE_COLOR_STR: '#aaaaaa',
     HINT_COLOR_STR: '#666666',
     HOW_TO_PLAY_COLOR: 0x88aa88,
+    /** Button colour per map type on the map-select screen. */
+    MAP_COLORS: {
+      random: 0x88aa88,
+      maze: 0xaa88aa,
+      hourglass: 0xaa8844,
+      lanes: 0x4488aa,
+      islands: 0x44aa88,
+      rooms: 0x8844aa,
+      fortress: 0xaa4444,
+    },
   },
 
   // Cell effects defaults

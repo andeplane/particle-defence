@@ -11,14 +11,14 @@ import { SCENE_KEYS } from './SceneKeys';
 const L = CONFIG.MENU_LAYOUT;
 
 /** Order defines the number key (1..N) shown on each button and used for selection. */
-const MAPS: readonly { label: string; color: number; type: GridType }[] = [
-  { label: 'Random', color: 0x88aa88, type: 'random' },
-  { label: 'Maze', color: 0xaa88aa, type: 'maze' },
-  { label: 'Hourglass', color: 0xaa8844, type: 'hourglass' },
-  { label: 'Lanes', color: 0x4488aa, type: 'lanes' },
-  { label: 'Islands', color: 0x44aa88, type: 'islands' },
-  { label: 'Rooms', color: 0x8844aa, type: 'rooms' },
-  { label: 'Fortress', color: 0xaa4444, type: 'fortress' },
+const MAPS: readonly { label: string; type: GridType }[] = [
+  { label: 'Random', type: 'random' },
+  { label: 'Maze', type: 'maze' },
+  { label: 'Hourglass', type: 'hourglass' },
+  { label: 'Lanes', type: 'lanes' },
+  { label: 'Islands', type: 'islands' },
+  { label: 'Rooms', type: 'rooms' },
+  { label: 'Fortress', type: 'fortress' },
 ];
 
 export class MapSelectScene extends Phaser.Scene {
@@ -65,12 +65,12 @@ export class MapSelectScene extends Phaser.Scene {
     const columnX = [centerX - L.MAP_COLUMN_OFFSET_X, centerX + L.MAP_COLUMN_OFFSET_X];
 
     let lastY = firstRowY;
-    MAPS.forEach(({ label, color, type }, i) => {
+    MAPS.forEach(({ label, type }, i) => {
       const x = columnX[i % L.MAP_COLUMNS];
       const y = firstRowY + Math.floor(i / L.MAP_COLUMNS) * rowH;
       lastY = y;
       const hint = mobile ? undefined : String(i + 1);
-      createMenuButton(this, x, y, btnW, btnH, label, color, () => this.startGame(type), hint);
+      createMenuButton(this, x, y, btnW, btnH, label, L.MAP_COLORS[type], () => this.startGame(type), hint);
     });
 
     if (!mobile) {
