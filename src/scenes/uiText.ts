@@ -1,7 +1,9 @@
 /** Text sizing/formatting helpers shared by the UI scenes. */
 
 export interface ScalableText {
+  /** Unscaled text width in pixels. */
   readonly width: number;
+  readonly scaleX: number;
   setScale(x: number, y?: number): unknown;
 }
 
@@ -17,10 +19,12 @@ export function computeTextScale(textWidth: number, maxWidth: number): number {
 /**
  * Shrinks a text object in place so it fits within `maxWidth` pixels.
  * Idempotent: `text.width` is the unscaled width, so re-fitting after a
- * `setText()` always yields the correct absolute scale.
+ * `setText()` always yields the correct absolute scale. Skips the write when
+ * the scale is already correct, since this runs every frame for live texts.
  */
 export function fitTextToWidth(text: ScalableText, maxWidth: number): void {
-  text.setScale(computeTextScale(text.width, maxWidth));
+  const scale = computeTextScale(text.width, maxWidth);
+  if (text.scaleX !== scale) text.setScale(scale);
 }
 
 /** Percentage of the map a player owns, e.g. `12%`. */

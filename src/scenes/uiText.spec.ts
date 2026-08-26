@@ -20,14 +20,20 @@ describe(computeTextScale.name, () => {
 describe(fitTextToWidth.name, () => {
   it('applies the fitted scale', () => {
     const setScale = vi.fn();
-    fitTextToWidth({ width: 120, setScale }, 60);
+    fitTextToWidth({ width: 120, scaleX: 1, setScale }, 60);
     expect(setScale).toHaveBeenCalledWith(0.5);
   });
 
   it('resets to scale 1 when the text fits again', () => {
     const setScale = vi.fn();
-    fitTextToWidth({ width: 40, setScale }, 60);
+    fitTextToWidth({ width: 40, scaleX: 0.5, setScale }, 60);
     expect(setScale).toHaveBeenCalledWith(1);
+  });
+
+  it('skips the write when the scale is already correct', () => {
+    const setScale = vi.fn();
+    fitTextToWidth({ width: 120, scaleX: 0.5, setScale }, 60);
+    expect(setScale).not.toHaveBeenCalled();
   });
 });
 
