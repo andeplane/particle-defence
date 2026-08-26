@@ -115,3 +115,14 @@ export class Grid implements IGrid {
     return false;
   }
 }
+
+/** Number of walkable (non-wall) cells — the denominator for territory share. */
+export function countOpenCells(grid: Pick<IGrid, 'cols' | 'rows' | 'cells'>): number {
+  let count = 0;
+  for (let row = 0; row < grid.rows; row++) {
+    for (let col = 0; col < grid.cols; col++) {
+      if (grid.cells[row][col]) count++;
+    }
+  }
+  return count;
+}

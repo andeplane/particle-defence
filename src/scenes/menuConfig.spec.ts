@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { TOWER_TYPE } from '../config';
-import { MENU_CATEGORIES, resolveKeyPress, type MenuCategory } from './menuConfig';
+import {
+  MENU_CATEGORIES,
+  getConstructionSubmenuItems,
+  resolveKeyPress,
+  shouldPreventBrowserDefault,
+  type MenuCategory,
+} from './menuConfig';
 
 describe('menuConfig', () => {
   describe('MENU_CATEGORIES', () => {
@@ -199,11 +205,11 @@ describe('menuConfig', () => {
       });
 
       it.each([
-        ['A', 0, { type: 'action', action: 'buildPrev' }],
-        ['S', 0, { type: 'action', action: 'buildNext' }],
+        ['Q', 0, { type: 'action', action: 'buildPrev' }],
+        ['W', 0, { type: 'action', action: 'buildNext' }],
         ['E', 0, { type: 'action', action: 'buildSelected' }],
-        ['K', 1, { type: 'action', action: 'buildPrev' }],
-        ['L', 1, { type: 'action', action: 'buildNext' }],
+        ['I', 1, { type: 'action', action: 'buildPrev' }],
+        ['O', 1, { type: 'action', action: 'buildNext' }],
         ['P', 1, { type: 'action', action: 'buildSelected' }],
       ] as const)('P%d presses %s in build>TOWERS after site selection -> %o', (key, playerId, expected) => {
         const result = resolveKeyPress(key, playerId, 'construction', 'towers', true);
@@ -237,6 +243,17 @@ describe('menuConfig', () => {
       });
     });
 
+    describe('site-selection keys sit on the top keyboard row', () => {
+      it('uses the same Q/W/E and I/O/P row as the tower-type buttons', () => {
+        const actions = getConstructionSubmenuItems('towers').filter(i => i.kind === 'action');
+        expect(actions.map(i => [i.p1Key, i.p2Key])).toEqual([
+          ['Q', 'I'],
+          ['W', 'O'],
+          ['E', 'P'],
+        ]);
+      });
+    });
+
     describe('edge cases', () => {
       it('returns null for unknown key at top level', () => {
         expect(resolveKeyPress('X', 0, null)).toBeNull();
@@ -250,5 +267,17 @@ describe('menuConfig', () => {
         expect(resolveKeyPress('Q', 0, 'invalid' as MenuCategory)).toBeNull();
       });
     });
+  });
+});
+
+describe(shouldPreventBrowserDefault.name, () => {
+  it('swallows Tab so the browser cannot move focus out of the canvas', () => {
+    expect(shouldPreventBrowserDefault('Tab')).toBe(true);
+  });
+
+  it('lets ordinary keys through', () => {
+    for (const key of ['Q', 'W', 'E', 'Backspace', 'Enter', ' ']) {
+      expect(shouldPreventBrowserDefault(key)).toBe(false);
+    }
   });
 });

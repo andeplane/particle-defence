@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { AIController } from '../ai';
 import { CONFIG, TOWER_TYPE, setDebugEverythingCheap, type UpgradeType, type TowerType } from '../config';
-import { generateGrid, type GridType } from '../grid';
+import { countOpenCells, generateGrid, type GridType } from '../grid';
 import type { CellEffect } from '../grid/CellEffect';
 import type { TowerSite } from '../grid';
 import type { IParticle } from '../particles';
@@ -38,6 +38,8 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
   debugSpeedMultiplier: number = 1;
   debugEverythingCheap: boolean = false;
   private statsRecorder!: MatchStatsRecorder;
+  /** Cached count of walkable cells for the current grid (territory denominator). */
+  private openCellCount: number | null = null;
 
   setDebugSpeedMultiplier(speed: number): void {
     this.debugSpeedMultiplier = speed;
@@ -78,6 +80,7 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
     this.gridType = data.gridType ?? 'random';
     const gridType = this.gridType;
     const grid = generateGrid(gridType);
+    this.openCellCount = countOpenCells(grid);
 
     this.statsRecorder = new MatchStatsRecorder({ cellW: grid.cellW });
 
@@ -175,6 +178,17 @@ export class GameScene extends Phaser.Scene implements IGameViewModel {
 
   getParticleCount(owner: 0 | 1): number {
     return this.engine.particles.filter(p => p.alive && p.owner === owner).length;
+  }
+
+  getOwnedCellCount(playerId: 0 | 1): number {
+    return this.engine.cellEffects.getOwnedCellCount(playerId);
+  }
+
+  getOpenCellCount(): number {
+    if (this.openCellCount === null) {
+      this.openCellCount = countOpenCells(this.engine.grid);
+    }
+    return this.openCellCount;
   }
 
   purchaseUpgrade(playerId: 0 | 1, type: UpgradeType): boolean {

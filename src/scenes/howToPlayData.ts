@@ -71,6 +71,7 @@ function getOverviewSections(): ContentSection[] {
         `Your particles in owned cells get ${pct(CONFIG.OWNERSHIP_DEFENSE_BASE)} damage reduction.`,
         `Enemy particles in your cells are slowed by ${pct(1 - CONFIG.OWNERSHIP_SLOW_FACTOR)}.`,
         'Ownership shifts when your particles leave and enemies enter.',
+        'The HUD shows Area: your share of the walkable map.',
       ],
     },
     {

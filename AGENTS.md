@@ -20,7 +20,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - **`src/scenes/MenuScene.ts`** - Main menu with mode selection (1 Player vs AI / 2 Player) and How to Play button. Navigates to MapSelectScene or HowToPlayScene
 - **`src/scenes/MapSelectScene.ts`** - Map type selection (Random, Maze), starts GameScene with `{ mode, gridType }`
 - **`src/scenes/GameScene.ts`** - Main game logic, particle spawning, collision detection, base damage, win conditions. Accepts mode and gridType from init, runs AIController when mode is 'ai'
-- **`src/scenes/UIScene.ts`** - UI overlay with HP bars, gold display, upgrade buttons, nuke buttons, keyboard controls. Hides P2 controls and labels as "AI" when mode is 'ai'
+- **`src/scenes/UIScene.ts`** - UI overlay with HP bars, gold/kills/territory-area display, upgrade buttons, nuke buttons, keyboard controls. Hides P2 controls and labels as "AI" when mode is 'ai'
 - **`src/scenes/HowToPlayScene.ts`** - In-game help screen with 4 tabs (Overview, Tech Tree, Combat, Strategies). Accessible from MenuScene via "How to Play" button or [H] key. Data-driven: all numbers pulled from CONFIG at runtime via `howToPlayData.ts`. Scrollable content, ESC to return to menu
 - **`src/scenes/howToPlayData.ts`** - Pure functions that generate content sections from CONFIG values. Exports `getTabContent(tabId)` returning `ContentSection[]` for each tab. No duplicated data -- uses `getUpgradeCost()`, `getLaserStats()`, `getSlowStats()`, `computeMaxLevels()`, etc.
 - **`src/scenes/PostGameStatsScene.ts`** - Post-game statistics screen with 9 dual-series timeline graphs (AoE-style). Receives `MatchStats` from GameScene on game over. Displays blue (P1) vs red (P2) line charts with glow effects, grid lines, nuke event markers, and legends. Click to return to menu
@@ -244,9 +244,14 @@ The UI uses a **Warcraft-style hierarchical menu**. Each player sees top-level c
 - **W/O** - Open `BUILD -> PARTICLES` (reserved for future buildable particle types)
 
 ### Build > Towers Submenu (P1 keys / P2 keys)
-- **Q/I** - Build Laser Tower (spawns carrier) -- greyed if not researched
-- **W/O** - Build Slow Tower (spawns carrier) -- greyed if not researched
-- **E/P** - PLACE (converts active carrier to tower at its position; shows carrier HP bar)
+Two steps, both on the same keyboard row. First pick a tower type:
+- **Q/I** - Select Laser Tower -- greyed if not researched
+- **W/O** - Select Weakness Tower -- greyed if not researched
+
+Then the buttons switch to site selection:
+- **Q/I** - Previous eligible tower site
+- **W/O** - Next eligible tower site
+- **E/P** - BUILD (sends a carrier to the selected site)
 
 ### Upgrades Submenu (P1 keys / P2 keys)
 - **Q/U** - Upgrade Health
