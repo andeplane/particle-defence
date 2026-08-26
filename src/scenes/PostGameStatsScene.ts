@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CONFIG } from '../config';
+import { isMobile } from '../mobile';
 import type { UpgradeType } from '../config';
 import { MatchStatsRecorder } from '../stats';
 import type { MatchStats, PerSecondSample } from '../stats';
@@ -135,6 +136,8 @@ export class PostGameStatsScene extends Phaser.Scene {
       }
     };
     this.input.on('pointermove', this.crosshairMoveHandler);
+    // On touch there is no hover: a single finger down places the marker.
+    this.input.on('pointerdown', this.crosshairMoveHandler);
     this.input.on('gameout', () => this.overlayGfx.clear());
 
     const maxScrollY = Math.max(0, totalContentHeight - CONFIG.GAME_HEIGHT);
@@ -147,13 +150,14 @@ export class PostGameStatsScene extends Phaser.Scene {
       };
       this.input.on('wheel', this.wheelHandler);
 
-      const scrollHint = this.add.text(CONFIG.GAME_WIDTH / 2, CONFIG.GAME_HEIGHT - 60, 'Scroll to see more', {
+      const scrollHint = this.add.text(CONFIG.GAME_WIDTH / 2, CONFIG.GAME_HEIGHT - 60, isMobile() ? 'Two fingers to scroll, one to place marker' : 'Scroll to see more', {
         fontSize: '14px', color: '#555555', fontFamily: 'monospace',
       }).setOrigin(0.5);
       scrollHint.setScrollFactor(0);
       this.hud.push(scrollHint);
     }
-    this.touchCleanup = enableTouchScroll(this, { contentHeight: totalContentHeight, hud: this.hud });
+    // One finger is reserved for the chart marker; two fingers pan/zoom.
+    this.touchCleanup = enableTouchScroll(this, { contentHeight: totalContentHeight, hud: this.hud, panFingers: 2 });
   }
 
   shutdown(): void {
@@ -161,6 +165,7 @@ export class PostGameStatsScene extends Phaser.Scene {
     this.touchCleanup = undefined;
     if (this.crosshairMoveHandler) {
       this.input.off('pointermove', this.crosshairMoveHandler);
+      this.input.off('pointerdown', this.crosshairMoveHandler);
       this.crosshairMoveHandler = undefined;
     }
     if (this.wheelHandler) {

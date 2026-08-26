@@ -25,6 +25,12 @@ export interface TouchScrollOptions {
    * counter-transformed on every zoom change so they stay put.
    */
   hud?: readonly HudObject[];
+  /**
+   * How many fingers drag the view. 1 (default): one finger scrolls vertically.
+   * 2: one finger is left free for the scene (e.g. placing a chart marker); two
+   * fingers pan in both axes, and pinching still zooms.
+   */
+  panFingers?: 1 | 2;
 }
 
 /**
@@ -55,8 +61,15 @@ export function enableTouchScroll(scene: Phaser.Scene, opts: TouchScrollOptions)
     }
   };
 
+  const panFingers = opts.panFingers ?? 1;
   let pinchStartDistance = 0;
   let pinchStartZoom = cam.zoom;
+
+  /** Move the camera opposite to finger motion (screen px), in world units. */
+  const pan = (dx: number, dy: number) => {
+    cam.scrollX -= dx / cam.zoom;
+    cam.scrollY -= dy / cam.zoom;
+  };
 
   const activeTouches = () => manager.pointers.filter(p => p.isDown && p.wasTouch);
 
@@ -73,14 +86,18 @@ export function enableTouchScroll(scene: Phaser.Scene, opts: TouchScrollOptions)
         return;
       }
       applyZoom(Phaser.Math.Clamp(pinchStartZoom * (distance / pinchStartDistance), MIN_ZOOM, MAX_ZOOM));
+      if (panFingers === 2) {
+        // Two-finger pan: follow the midpoint of the two touches. Only the moving
+        // pointer has a fresh prevPosition, so use its delta alone (halved: the
+        // midpoint moves half as far as one finger).
+        pan((pointer.x - pointer.prevPosition.x) / 2, (pointer.y - pointer.prevPosition.y) / 2);
+      }
       return;
     }
 
     pinchStartDistance = 0;
-    if (!pointer.isDown) return;
-    // Drag: move the camera opposite to finger motion, in world units.
-    cam.scrollX -= (pointer.x - pointer.prevPosition.x) / cam.zoom;
-    cam.scrollY -= (pointer.y - pointer.prevPosition.y) / cam.zoom;
+    if (!pointer.isDown || panFingers !== 1) return;
+    pan(pointer.x - pointer.prevPosition.x, pointer.y - pointer.prevPosition.y);
   };
 
   const onUp = () => {
