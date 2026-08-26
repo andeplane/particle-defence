@@ -5,8 +5,11 @@ const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;
 /** Ignore pinch distances below this (px) to avoid divide-by-tiny jitter. */
 const MIN_PINCH_DISTANCE = 1;
-/** Phaser starts with mouse + 1 touch pointer; pinch needs one more. */
-const EXTRA_TOUCH_POINTERS = 1;
+/** Phaser starts with mouse + 1 touch pointer; pinch needs one more (3 total). */
+const POINTERS_NEEDED_FOR_PINCH = 3;
+
+/** Anything that can be re-positioned and re-scaled to stay fixed on screen while the camera zooms. */
+type HudObject = Phaser.GameObjects.Components.Transform & Phaser.GameObjects.Components.ScrollFactor;
 
 export interface TouchScrollOptions {
   /**
@@ -14,6 +17,12 @@ export interface TouchScrollOptions {
    * never leaves [0, contentHeight]. Omit if the scene manages its own bounds.
    */
   contentHeight?: number;
+  /**
+   * Fixed-on-screen objects (scrollFactor 0). Camera zoom would otherwise scale
+   * them away from the screen centre and push them off-screen; they are
+   * counter-transformed on every zoom change so they stay put.
+   */
+  hud?: readonly HudObject[];
 }
 
 /**
@@ -26,12 +35,28 @@ export function enableTouchScroll(scene: Phaser.Scene, opts: TouchScrollOptions)
   if (opts.contentHeight !== undefined) {
     cam.setBounds(0, 0, cam.width, Math.max(opts.contentHeight, cam.height));
   }
-  scene.input.addPointer(EXTRA_TOUCH_POINTERS);
+  // The InputManager is global and pointers are never removed, so only add once.
+  const manager = scene.input.manager;
+  if (manager.pointersTotal < POINTERS_NEEDED_FOR_PINCH) {
+    scene.input.addPointer(POINTERS_NEEDED_FOR_PINCH - manager.pointersTotal);
+  }
+
+  const hud = (opts.hud ?? []).map(obj => ({ obj, x: obj.x, y: obj.y }));
+  const applyZoom = (zoom: number) => {
+    cam.setZoom(zoom);
+    // scrollFactor-0 objects render at centre + (pos - centre) * zoom; invert that.
+    const cx = cam.width / 2;
+    const cy = cam.height / 2;
+    for (const { obj, x, y } of hud) {
+      obj.setScale(1 / zoom);
+      obj.setPosition(cx + (x - cx) / zoom, cy + (y - cy) / zoom);
+    }
+  };
 
   let pinchStartDistance = 0;
   let pinchStartZoom = cam.zoom;
 
-  const activeTouches = () => scene.input.manager.pointers.filter(p => p.isDown && p.wasTouch);
+  const activeTouches = () => manager.pointers.filter(p => p.isDown && p.wasTouch);
 
   const onMove = (pointer: Phaser.Input.Pointer) => {
     if (!pointer.wasTouch) return;
@@ -45,8 +70,7 @@ export function enableTouchScroll(scene: Phaser.Scene, opts: TouchScrollOptions)
         pinchStartZoom = cam.zoom;
         return;
       }
-      const zoom = Phaser.Math.Clamp(pinchStartZoom * (distance / pinchStartDistance), MIN_ZOOM, MAX_ZOOM);
-      cam.setZoom(zoom);
+      applyZoom(Phaser.Math.Clamp(pinchStartZoom * (distance / pinchStartDistance), MIN_ZOOM, MAX_ZOOM));
       return;
     }
 
