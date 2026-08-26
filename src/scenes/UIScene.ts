@@ -842,11 +842,11 @@ export class UIScene extends Phaser.Scene {
     const player = this.viewModel.players[playerId];
     const cost = node.isPath ? player.getPathCost(node.id) : player.getUnlockCost(node.id);
     if (this.viewModel.purchaseResearchNode(playerId, node.id, node.isPath, node.durationMs)) {
-      if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
       this.showGoldPopup(playerId, `-$${cost}`);
       this.renderMenuForPlayer(playerId);
     } else {
-      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
     }
   }
 
@@ -858,11 +858,11 @@ export class UIScene extends Phaser.Scene {
     };
     const player = this.viewModel.players[playerId];
     if (!player.hasResearched(towerType)) {
-      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
       return;
     }
     this.constructionMenuState[playerId] = selectConstructionTower(this.constructionMenuState[playerId], towerType);
-    if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+    if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
     this.renderMenuForPlayer(playerId);
   }
 
@@ -871,23 +871,23 @@ export class UIScene extends Phaser.Scene {
     if (action === 'buildPrev' || action === 'buildNext') {
       const direction = action === 'buildPrev' ? -1 : 1;
       this.handleBuildSiteCycle(playerId, direction);
-      if (btn) this.tweens.add({ targets: btn, scaleX: 1.08, scaleY: 1.08, duration: 60, yoyo: true, ease: 'Quad.easeOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, scaleX: 1.08, scaleY: 1.08, duration: 60, yoyo: true, ease: 'Quad.easeOut' });
       return;
     }
 
     const selectedSite = this.getSelectedBuildSite(playerId);
     if (!selectedSite) {
-      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
       return;
     }
 
     const towerType = this.constructionMenuState[playerId].selectedTowerType;
     const cost = this.viewModel.players[playerId].getConstructionCost(towerType);
     if (this.viewModel.constructTower(playerId, towerType, selectedSite.id)) {
-      if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
       this.showGoldPopup(playerId, `-$${cost}`);
     } else {
-      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
     }
   }
 
@@ -914,24 +914,24 @@ export class UIScene extends Phaser.Scene {
     const tower = towers[idx];
     const cost = getTowerUpgradeCost(tower.towerType, tower.level);
     if (this.viewModel.upgradeTower(playerId, idx)) {
-      if (btn) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
       this.showGoldPopup(playerId, `-$${cost}`);
     } else {
-      if (btn) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
     }
   }
 
   private handleNuke(playerId: 0 | 1, btn?: Phaser.GameObjects.Rectangle): void {
     if (this.viewModel.gameOver) return;
     if (this.viewModel.launchNuke(playerId)) {
-      if (btn) {
+      if (btn && !this.tweens.isTweening(btn)) {
         this.tweens.add({
           targets: btn, scaleX: 1.15, scaleY: 1.15,
           duration: 80, yoyo: true, ease: 'Quad.easeOut',
         });
       }
     } else {
-      if (btn) {
+      if (btn && !this.tweens.isTweening(btn)) {
         this.tweens.add({
           targets: btn, x: btn.x + 3,
           duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut',
@@ -953,7 +953,7 @@ export class UIScene extends Phaser.Scene {
           hovered.x, hovered.y, playerId,
         );
       }
-      if (btn) {
+      if (btn && !this.tweens.isTweening(btn)) {
         this.tweens.add({
           targets: btn, scaleX: 1.15, scaleY: 1.15,
           duration: 80, yoyo: true, ease: 'Quad.easeOut',
@@ -961,7 +961,7 @@ export class UIScene extends Phaser.Scene {
       }
       this.showGoldPopup(playerId, `-$${cost}`);
     } else {
-      if (btn) {
+      if (btn && !this.tweens.isTweening(btn)) {
         this.tweens.add({
           targets: btn, x: btn.x + 3,
           duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut',
