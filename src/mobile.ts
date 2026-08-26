@@ -12,3 +12,17 @@ export function isMobile(): boolean {
   }
   return _isMobile;
 }
+
+/** Touch targets and text need to be much larger on phones; 1 on desktop. */
+export const MOBILE_UI_SCALE = 1.6;
+
+export function uiScale(): number {
+  return isMobile() ? MOBILE_UI_SCALE : 1;
+}
+
+/** Titles are already huge; scale them less than buttons on phones so they fit the width. */
+export const MOBILE_TITLE_SCALE = 1.15;
+
+export function titleScale(): number {
+  return isMobile() ? MOBILE_TITLE_SCALE : 1;
+}

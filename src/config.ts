@@ -1,4 +1,9 @@
+import { titleScale, uiScale } from './mobile';
+
 const RESOLUTION_SCALE = 2;
+// UI-only scale: gameplay values never use this. Larger on touch devices.
+const UI_SCALE = RESOLUTION_SCALE * uiScale();
+const TITLE_SCALE = RESOLUTION_SCALE * titleScale();
 
 function getQueryParam(name: string): string | null {
   if (typeof window === 'undefined') return null;
@@ -103,15 +108,20 @@ export const CONFIG = {
   // Spatial hash
   SPATIAL_CELL_SIZE: 16 * RESOLUTION_SCALE,
 
-  // UI (scaled with resolution)
-  UI_FONT_SMALL: 10 * RESOLUTION_SCALE,
-  UI_FONT_MED: 13 * RESOLUTION_SCALE,
-  UI_FONT_LARGE: 14 * RESOLUTION_SCALE,
-  UI_BAR_WIDTH: 200 * RESOLUTION_SCALE,
-  UI_BAR_HEIGHT: 14 * RESOLUTION_SCALE,
-  UI_BTN_WIDTH: 52 * RESOLUTION_SCALE,
-  UI_BTN_HEIGHT: 40 * RESOLUTION_SCALE,
-  UI_GAP: 4 * RESOLUTION_SCALE,
+  // UI (scaled with resolution, and further on mobile — see UI_SCALE)
+  UI_FONT_SMALL: 10 * UI_SCALE,
+  UI_FONT_MED: 13 * UI_SCALE,
+  UI_FONT_LARGE: 14 * UI_SCALE,
+  UI_BAR_WIDTH: 200 * UI_SCALE,
+  UI_BAR_HEIGHT: 14 * UI_SCALE,
+  UI_BTN_WIDTH: 52 * UI_SCALE,
+  UI_BTN_HEIGHT: 40 * UI_SCALE,
+  UI_GAP: 4 * UI_SCALE,
+  /** Speed (1x/2x/3x) buttons, sized relative to the small UI font. */
+  UI_SPEED_BTN_WIDTH_EM: 2.8,
+  UI_SPEED_BTN_HEIGHT_EM: 1.4,
+  /** Each player's top stats line must fit its half of the screen minus this margin (in UI_GAP units). */
+  UI_STATS_MARGIN_GAPS: 5,
 
   // Cell effects defaults
   SLOW_EFFECT_FACTOR: 0.4,
