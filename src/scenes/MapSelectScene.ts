@@ -34,11 +34,10 @@ export class MapSelectScene extends Phaser.Scene {
 
   create(): void {
     const centerX = CONFIG.GAME_WIDTH / 2;
-    const centerY = CONFIG.GAME_HEIGHT / 2;
     const mobile = isMobile();
     createMenuBackground(this);
 
-    this.add.text(centerX, centerY + L.MAP_TITLE_OFFSET_Y, 'Particle Defender', {
+    this.add.text(centerX, L.TITLE_Y, 'Particle Defender', {
       fontSize: `${Math.round(L.TITLE_FONT)}px`,
       color: CONFIG.PLAYER1_COLOR_STR,
       fontFamily: 'monospace',
@@ -46,14 +45,14 @@ export class MapSelectScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     const isAI = this.mode === GAME_MODE.AI;
-    this.add.text(centerX, centerY + L.MODE_LABEL_OFFSET_Y, isAI ? 'Mode: 1 Player vs AI' : 'Mode: 2 Player', {
+    this.add.text(centerX, L.MODE_LABEL_Y, isAI ? 'Mode: 1 Player vs AI' : 'Mode: 2 Player', {
       fontSize: `${CONFIG.UI_FONT_MED}px`,
       color: isAI ? CONFIG.PLAYER1_COLOR_STR : CONFIG.PLAYER2_COLOR_STR,
       fontFamily: 'monospace',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.text(centerX, centerY + L.SUBTITLE_OFFSET_Y, 'Choose map', {
+    this.add.text(centerX, L.SUBTITLE_Y, 'Choose map', {
       fontSize: `${CONFIG.UI_FONT_LARGE}px`,
       color: L.SUBTITLE_COLOR_STR,
       fontFamily: 'monospace',
@@ -62,7 +61,7 @@ export class MapSelectScene extends Phaser.Scene {
     const btnW = L.MAP_BTN_WIDTH;
     const btnH = L.MAP_BTN_HEIGHT;
     const rowH = btnH + L.MAP_BTN_GAP;
-    const firstRowY = centerY + L.FIRST_ROW_OFFSET_Y;
+    const firstRowY = L.FIRST_ROW_TOP_Y + btnH / 2;
     const columnX = [centerX - L.MAP_COLUMN_OFFSET_X, centerX + L.MAP_COLUMN_OFFSET_X];
 
     let lastY = firstRowY;

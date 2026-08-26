@@ -117,14 +117,16 @@ export const CONFIG = {
   /** Each player's top stats line must fit its half of the screen minus this margin (in UI_GAP units). */
   UI_STATS_MARGIN_GAPS: 5,
 
-  // Menu screens (MenuScene / MapSelectScene). Already mobile-scaled via UI_SCALE.
+  // Menu screens (MenuScene / MapSelectScene).
+  // Vertical anchors are absolute screen positions (RESOLUTION_SCALE only) so the
+  // layout fits the fixed canvas on mobile; element sizes scale with UI_SCALE.
   MENU_LAYOUT: {
     TITLE_FONT: 64 * TITLE_SCALE,
-    TITLE_OFFSET_Y: -120 * UI_SCALE,
-    MAP_TITLE_OFFSET_Y: -150 * UI_SCALE,
-    MODE_LABEL_OFFSET_Y: -100 * UI_SCALE,
-    SUBTITLE_OFFSET_Y: -70 * UI_SCALE,
-    FIRST_ROW_OFFSET_Y: -20 * UI_SCALE,
+    TITLE_Y: 55 * RESOLUTION_SCALE,
+    MODE_LABEL_Y: 100 * RESOLUTION_SCALE,
+    SUBTITLE_Y: 125 * RESOLUTION_SCALE,
+    /** Top edge of the first button row. */
+    FIRST_ROW_TOP_Y: 150 * RESOLUTION_SCALE,
     MODE_BTN_WIDTH: 280 * UI_SCALE,
     MODE_BTN_HEIGHT: 56 * UI_SCALE,
     MODE_BTN_GAP: 24 * UI_SCALE,

@@ -25,18 +25,17 @@ export class MenuScene extends Phaser.Scene {
 
   create(): void {
     const centerX = CONFIG.GAME_WIDTH / 2;
-    const centerY = CONFIG.GAME_HEIGHT / 2;
     const mobile = isMobile();
     createMenuBackground(this);
 
-    this.add.text(centerX, centerY + L.TITLE_OFFSET_Y, 'Particle Defender', {
+    this.add.text(centerX, L.TITLE_Y, 'Particle Defender', {
       fontSize: `${Math.round(L.TITLE_FONT)}px`,
       color: CONFIG.PLAYER1_COLOR_STR,
       fontFamily: 'monospace',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.text(centerX, centerY + L.SUBTITLE_OFFSET_Y, mobile ? 'Tap to start' : 'Choose mode', {
+    this.add.text(centerX, L.SUBTITLE_Y, mobile ? 'Tap to start' : 'Choose mode', {
       fontSize: `${CONFIG.UI_FONT_LARGE}px`,
       color: L.SUBTITLE_COLOR_STR,
       fontFamily: 'monospace',
@@ -45,7 +44,7 @@ export class MenuScene extends Phaser.Scene {
     const btnW = L.MODE_BTN_WIDTH;
     const btnH = L.MODE_BTN_HEIGHT;
     const rowH = btnH + L.MODE_BTN_GAP;
-    const firstY = centerY + L.FIRST_ROW_OFFSET_Y;
+    const firstY = L.FIRST_ROW_TOP_Y + btnH / 2;
     const hint = (k: string) => (mobile ? undefined : k);
 
     createMenuButton(this, centerX, firstY, btnW, btnH,
