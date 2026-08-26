@@ -100,10 +100,11 @@ function stepMote(m: Mote, grid: Grid, dt: number): void {
   m.vy = (m.vy / len) * SPEED;
 
   const nx = m.x + m.vx * dt;
-  const ny = m.y + m.vy * dt;
+  // Periodic in y, like the real game: wrap before the wall test, because the
+  // grid reports out-of-range rows as walls.
+  let ny = m.y + m.vy * dt;
+  if (ny < 0) ny += CONFIG.GAME_HEIGHT;
+  if (ny >= CONFIG.GAME_HEIGHT) ny -= CONFIG.GAME_HEIGHT;
   if (nx < 0 || nx >= CONFIG.GAME_WIDTH || grid.isWall(nx, m.y)) m.vx = -m.vx; else m.x = nx;
   if (grid.isWall(m.x, ny)) m.vy = -m.vy; else m.y = ny;
-  // Periodic in y, like the real game.
-  if (m.y < 0) m.y += CONFIG.GAME_HEIGHT;
-  if (m.y >= CONFIG.GAME_HEIGHT) m.y -= CONFIG.GAME_HEIGHT;
 }
