@@ -1,15 +1,9 @@
-import { titleScale, uiScale } from './mobile';
+import { getQueryParam, titleScale, uiScale } from './mobile';
 
 const RESOLUTION_SCALE = 2;
 // UI-only scale: gameplay values never use this. Larger on touch devices.
 const UI_SCALE = RESOLUTION_SCALE * uiScale();
 const TITLE_SCALE = RESOLUTION_SCALE * titleScale();
-
-function getQueryParam(name: string): string | null {
-  if (typeof window === 'undefined') return null;
-  const params = new URLSearchParams(window.location.search);
-  return params.get(name);
-}
 
 export const DEBUG_MODE = getQueryParam('debug') === 'true';
 

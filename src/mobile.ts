@@ -3,12 +3,18 @@ let _isMobile: boolean | null = null;
 /** Query-param override (`?mobile=true` / `?mobile=false`) for testing the touch layout on desktop. */
 const MOBILE_QUERY_PARAM = 'mobile';
 
+/** Reads a URL query parameter; null when absent or when there is no window (headless). */
+export function getQueryParam(name: string): string | null {
+  if (typeof window === 'undefined') return null;
+  return new URLSearchParams(window.location.search).get(name);
+}
+
 export function isMobile(): boolean {
   if (_isMobile === null) {
     if (typeof window === 'undefined') {
       _isMobile = false;
     } else {
-      const override = new URLSearchParams(window.location.search).get(MOBILE_QUERY_PARAM);
+      const override = getQueryParam(MOBILE_QUERY_PARAM);
       if (override === 'true' || override === 'false') {
         _isMobile = override === 'true';
       } else {
