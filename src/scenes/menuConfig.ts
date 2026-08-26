@@ -94,8 +94,8 @@ const CONSTRUCTION_SUBMENU_ITEMS: Record<BuildSubmenu, MenuItemDef[]> = {
   towers: [
     { kind: 'construct', towerType: TOWER_TYPE.LASER, label: 'LASER', tooltip: 'Select laser tower for fixed-site construction', p1Key: 'Q', p2Key: 'I' },
     { kind: 'construct', towerType: TOWER_TYPE.WEAKNESS, label: 'WEAKNESS', tooltip: 'Select weakness tower for fixed-site construction', p1Key: 'W', p2Key: 'O' },
-    { kind: 'action', action: 'buildPrev', label: '< SITE', tooltip: 'Select previous eligible tower site', p1Key: 'A', p2Key: 'K' },
-    { kind: 'action', action: 'buildNext', label: 'SITE >', tooltip: 'Select next eligible tower site', p1Key: 'S', p2Key: 'L' },
+    { kind: 'action', action: 'buildPrev', label: '< SITE', tooltip: 'Select previous eligible tower site', p1Key: 'Q', p2Key: 'I' },
+    { kind: 'action', action: 'buildNext', label: 'SITE >', tooltip: 'Select next eligible tower site', p1Key: 'W', p2Key: 'O' },
     { kind: 'action', action: 'buildSelected', label: 'BUILD', tooltip: 'Build selected tower at selected eligible site', p1Key: 'E', p2Key: 'P' },
   ],
   particles: [],
@@ -103,6 +103,14 @@ const CONSTRUCTION_SUBMENU_ITEMS: Record<BuildSubmenu, MenuItemDef[]> = {
 
 export function getConstructionSubmenuItems(buildSubmenu: BuildSubmenu): ReadonlyArray<MenuItemDef> {
   return CONSTRUCTION_SUBMENU_ITEMS[buildSubmenu];
+}
+
+/**
+ * Keys the game always swallows, even when they trigger no menu action, so the
+ * browser does not move focus (Tab) out of the canvas.
+ */
+export function shouldPreventBrowserDefault(key: string): boolean {
+  return key === 'Tab';
 }
 
 export type ActionType = 'nuke' | 'buildPrev' | 'buildNext' | 'buildSelected' | 'towerPrev' | 'towerNext' | 'towerUpgrade';

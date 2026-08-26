@@ -12,7 +12,10 @@ import {
   type MenuCategory,
   type MenuItemDef,
   resolveKeyPress,
+  shouldPreventBrowserDefault,
 } from './menuConfig';
+import { pulseButton, shakeButton } from './buttonFeedback';
+import { fitTextToWidth, formatTerritoryPercent } from './uiText';
 import { getClearedUIState } from './UISceneState';
 import {
   backFromConstructionState,
@@ -39,6 +42,10 @@ export interface IGameViewModel {
   readonly gameTimeMs: number;
   readonly gameOver: boolean;
   getParticleCount(owner: 0 | 1): number;
+  /** Cells currently owned by the player (territory). */
+  getOwnedCellCount(playerId: 0 | 1): number;
+  /** Total non-wall cells on the map, i.e. the territory denominator. */
+  getOpenCellCount(): number;
   purchaseUpgrade(playerId: 0 | 1, type: UpgradeType): boolean;
   launchNuke(playerId: 0 | 1): boolean;
   researchTower(playerId: 0 | 1, towerType: TowerType): boolean;
@@ -376,39 +383,39 @@ export class UIScene extends Phaser.Scene {
   private destroyPlayerPanel(playerId: 0 | 1): void {
     this.buttons = this.buttons.filter(btn => {
       if (btn.playerId !== playerId) return true;
-      btn.bg.destroy(); btn.label.destroy(); btn.costText.destroy(); btn.keyText.destroy(); btn.clockGfx.destroy();
+      this.destroyButtonBg(btn.bg); btn.label.destroy(); btn.costText.destroy(); btn.keyText.destroy(); btn.clockGfx.destroy();
       return false;
     });
     this.nukeButtons = this.nukeButtons.filter(btn => {
       if (btn.playerId !== playerId) return true;
-      btn.bg.destroy(); btn.labelText.destroy(); btn.statusText.destroy(); btn.keyText.destroy(); btn.clockGfx.destroy();
+      this.destroyButtonBg(btn.bg); btn.labelText.destroy(); btn.statusText.destroy(); btn.keyText.destroy(); btn.clockGfx.destroy();
       return false;
     });
     this.categoryButtons = this.categoryButtons.filter(btn => {
       if (btn.playerId !== playerId) return true;
-      btn.bg.destroy(); btn.label.destroy(); btn.keyText.destroy(); btn.clockGfx?.destroy();
+      this.destroyButtonBg(btn.bg); btn.label.destroy(); btn.keyText.destroy(); btn.clockGfx?.destroy();
       return false;
     });
     this.researchButtons = this.researchButtons.filter(btn => {
       if (btn.playerId !== playerId) return true;
-      btn.bg.destroy(); btn.labelText.destroy(); btn.costText.destroy(); btn.keyText.destroy(); btn.clockGfx.destroy();
+      this.destroyButtonBg(btn.bg); btn.labelText.destroy(); btn.costText.destroy(); btn.keyText.destroy(); btn.clockGfx.destroy();
       return false;
     });
     this.constructButtons = this.constructButtons.filter(btn => {
       if (btn.playerId !== playerId) return true;
-      btn.bg.destroy(); btn.labelText.destroy(); btn.costText.destroy(); btn.keyText.destroy(); btn.clockGfx.destroy();
+      this.destroyButtonBg(btn.bg); btn.labelText.destroy(); btn.costText.destroy(); btn.keyText.destroy(); btn.clockGfx.destroy();
       return false;
     });
     this.buildActionButtons = this.buildActionButtons.filter(btn => {
       if (btn.playerId !== playerId) return true;
-      btn.bg.destroy(); btn.labelText.destroy(); btn.statusText.destroy(); btn.keyText.destroy(); btn.clockGfx?.destroy();
+      this.destroyButtonBg(btn.bg); btn.labelText.destroy(); btn.statusText.destroy(); btn.keyText.destroy(); btn.clockGfx?.destroy();
       return false;
     });
     const title = this.categoryTitle[playerId];
     if (title) { title.destroy(); this.categoryTitle[playerId] = null; }
     this.backButtons = this.backButtons.filter(btn => {
       if (btn.playerId !== playerId) return true;
-      btn.bg.destroy(); btn.label.destroy(); btn.keyText.destroy();
+      this.destroyButtonBg(btn.bg); btn.label.destroy(); btn.keyText.destroy();
       return false;
     });
     const ph = this.placeholderText[playerId];
@@ -585,6 +592,7 @@ export class UIScene extends Phaser.Scene {
       bg.setFillStyle(0x111122, 0.85);
       this.hideTooltip(playerId);
     });
+    this.fitButtonTexts(w, labelText, keyText);
     this.categoryButtons.push({ bg, label: labelText, keyText, categoryId: 'construction', playerId });
   }
 
@@ -623,6 +631,7 @@ export class UIScene extends Phaser.Scene {
       bg.setFillStyle(0x111122, 0.85);
       this.hideTooltip(playerId);
     });
+    this.fitButtonTexts(w, labelText, keyText);
     this.categoryButtons.push({ bg, label: labelText, keyText, categoryId, playerId });
   }
 
@@ -660,6 +669,7 @@ export class UIScene extends Phaser.Scene {
       bg.setFillStyle(0x111122, 0.85);
       this.hideTooltip(playerId);
     });
+    this.fitButtonTexts(w, labelText, keyText);
     this.backButtons.push({ bg, label: labelText, keyText, playerId });
   }
 
@@ -695,6 +705,7 @@ export class UIScene extends Phaser.Scene {
       this.hoveredUpgradeBtn[playerId] = null;
       this.hideTooltip(playerId);
     });
+    this.fitButtonTexts(w, labelText, costText, keyText);
     this.buttons.push({ bg, label: labelText, costText, keyText, clockGfx, type, playerId });
   }
 
@@ -727,6 +738,7 @@ export class UIScene extends Phaser.Scene {
       bg.setFillStyle(0x221111, 0.85);
       this.hideTooltip(playerId);
     });
+    this.fitButtonTexts(w, labelText, statusText, keyText);
     this.nukeButtons.push({ bg, labelText, statusText, keyText, clockGfx, playerId });
   }
 
@@ -753,6 +765,7 @@ export class UIScene extends Phaser.Scene {
     bg.on('pointerdown', () => this.handleResearchNode(playerId, node, bg));
     bg.on('pointerover', () => { bg.setFillStyle(0x224422, 0.9); this.showTooltip(node.tooltip, x, y, playerId); });
     bg.on('pointerout', () => { bg.setFillStyle(0x112211, 0.85); this.hideTooltip(playerId); });
+    this.fitButtonTexts(w, labelText, costText, keyText);
     this.researchButtons.push({ bg, labelText, costText, keyText, clockGfx, node, playerId });
   }
 
@@ -779,6 +792,7 @@ export class UIScene extends Phaser.Scene {
     bg.on('pointerdown', () => this.handleConstruct(playerId, towerType, bg));
     bg.on('pointerover', () => { bg.setFillStyle(0x222244, 0.9); this.showTooltip(tooltip, x, y, playerId); });
     bg.on('pointerout', () => { bg.setFillStyle(0x111122, 0.85); this.hideTooltip(playerId); });
+    this.fitButtonTexts(w, labelText, costText, keyText);
     this.constructButtons.push({ bg, labelText, costText, keyText, clockGfx, towerType, playerId });
   }
 
@@ -805,6 +819,7 @@ export class UIScene extends Phaser.Scene {
     bg.on('pointerdown', () => this.handleBuildAction(playerId, action, bg));
     bg.on('pointerover', () => { bg.setFillStyle(0x333322, 0.9); this.showTooltip(tooltip, x, y, playerId); });
     bg.on('pointerout', () => { bg.setFillStyle(0x222211, 0.85); this.hideTooltip(playerId); });
+    this.fitButtonTexts(w, labelText, statusText, keyText);
     this.buildActionButtons.push({ bg, labelText, statusText, keyText, clockGfx, action, playerId });
   }
 
@@ -832,6 +847,7 @@ export class UIScene extends Phaser.Scene {
     });
     bg.on('pointerover', () => { bg.setFillStyle(0x222244, 0.9); this.showTooltip(tooltip, x, y, playerId); });
     bg.on('pointerout', () => { bg.setFillStyle(0x111122, 0.85); this.hideTooltip(playerId); });
+    this.fitButtonTexts(w, labelText, keyText);
     this.categoryButtons.push({ bg, label: labelText, keyText, categoryId: 'towers', playerId, action, clockGfx });
   }
 
@@ -842,11 +858,11 @@ export class UIScene extends Phaser.Scene {
     const player = this.viewModel.players[playerId];
     const cost = node.isPath ? player.getPathCost(node.id) : player.getUnlockCost(node.id);
     if (this.viewModel.purchaseResearchNode(playerId, node.id, node.isPath, node.durationMs)) {
-      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+      if (btn) pulseButton(this.tweens, btn);
       this.showGoldPopup(playerId, `-$${cost}`);
       this.renderMenuForPlayer(playerId);
     } else {
-      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      if (btn) shakeButton(this.tweens, btn);
     }
   }
 
@@ -858,11 +874,11 @@ export class UIScene extends Phaser.Scene {
     };
     const player = this.viewModel.players[playerId];
     if (!player.hasResearched(towerType)) {
-      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      if (btn) shakeButton(this.tweens, btn);
       return;
     }
     this.constructionMenuState[playerId] = selectConstructionTower(this.constructionMenuState[playerId], towerType);
-    if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+    if (btn) pulseButton(this.tweens, btn);
     this.renderMenuForPlayer(playerId);
   }
 
@@ -871,23 +887,23 @@ export class UIScene extends Phaser.Scene {
     if (action === 'buildPrev' || action === 'buildNext') {
       const direction = action === 'buildPrev' ? -1 : 1;
       this.handleBuildSiteCycle(playerId, direction);
-      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, scaleX: 1.08, scaleY: 1.08, duration: 60, yoyo: true, ease: 'Quad.easeOut' });
+      if (btn) pulseButton(this.tweens, btn, 1.08);
       return;
     }
 
     const selectedSite = this.getSelectedBuildSite(playerId);
     if (!selectedSite) {
-      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      if (btn) shakeButton(this.tweens, btn);
       return;
     }
 
     const towerType = this.constructionMenuState[playerId].selectedTowerType;
     const cost = this.viewModel.players[playerId].getConstructionCost(towerType);
     if (this.viewModel.constructTower(playerId, towerType, selectedSite.id)) {
-      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+      if (btn) pulseButton(this.tweens, btn);
       this.showGoldPopup(playerId, `-$${cost}`);
     } else {
-      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      if (btn) shakeButton(this.tweens, btn);
     }
   }
 
@@ -914,29 +930,19 @@ export class UIScene extends Phaser.Scene {
     const tower = towers[idx];
     const cost = getTowerUpgradeCost(tower.towerType, tower.level);
     if (this.viewModel.upgradeTower(playerId, idx)) {
-      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, scaleX: 1.15, scaleY: 1.15, duration: 80, yoyo: true, ease: 'Quad.easeOut' });
+      if (btn) pulseButton(this.tweens, btn);
       this.showGoldPopup(playerId, `-$${cost}`);
     } else {
-      if (btn && !this.tweens.isTweening(btn)) this.tweens.add({ targets: btn, x: btn.x + 3, duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut' });
+      if (btn) shakeButton(this.tweens, btn);
     }
   }
 
   private handleNuke(playerId: 0 | 1, btn?: Phaser.GameObjects.Rectangle): void {
     if (this.viewModel.gameOver) return;
     if (this.viewModel.launchNuke(playerId)) {
-      if (btn && !this.tweens.isTweening(btn)) {
-        this.tweens.add({
-          targets: btn, scaleX: 1.15, scaleY: 1.15,
-          duration: 80, yoyo: true, ease: 'Quad.easeOut',
-        });
-      }
+      if (btn) pulseButton(this.tweens, btn);
     } else {
-      if (btn && !this.tweens.isTweening(btn)) {
-        this.tweens.add({
-          targets: btn, x: btn.x + 3,
-          duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut',
-        });
-      }
+      if (btn) shakeButton(this.tweens, btn);
     }
   }
 
@@ -953,20 +959,10 @@ export class UIScene extends Phaser.Scene {
           hovered.x, hovered.y, playerId,
         );
       }
-      if (btn && !this.tweens.isTweening(btn)) {
-        this.tweens.add({
-          targets: btn, scaleX: 1.15, scaleY: 1.15,
-          duration: 80, yoyo: true, ease: 'Quad.easeOut',
-        });
-      }
+      if (btn) pulseButton(this.tweens, btn);
       this.showGoldPopup(playerId, `-$${cost}`);
     } else {
-      if (btn && !this.tweens.isTweening(btn)) {
-        this.tweens.add({
-          targets: btn, x: btn.x + 3,
-          duration: 40, yoyo: true, repeat: 2, ease: 'Sine.inOut',
-        });
-      }
+      if (btn) shakeButton(this.tweens, btn);
     }
   }
 
@@ -996,6 +992,12 @@ export class UIScene extends Phaser.Scene {
           }
         }
         return;
+      }
+
+      // Swallow browser-default keys (Tab) even when they map to no menu action,
+      // otherwise the browser moves focus out of the canvas (e.g. to the URL bar).
+      if (shouldPreventBrowserDefault(key)) {
+        event.preventDefault();
       }
 
       this.dispatchKeyForPlayer(0, key, event);
@@ -1209,9 +1211,12 @@ export class UIScene extends Phaser.Scene {
     this.p1HPText.setText(`${p1.baseHP}/${CONFIG.BASE_HP}`);
     this.p2HPText.setText(`${p2.baseHP}/${CONFIG.BASE_HP}`);
 
-    this.p1GoldText.setText(`Gold: $${p1.gold}  Kills: ${p1.kills}`);
+    const totalOpenCells = this.viewModel.getOpenCellCount();
+    const p1Area = formatTerritoryPercent(this.viewModel.getOwnedCellCount(0), totalOpenCells);
+    const p2Area = formatTerritoryPercent(this.viewModel.getOwnedCellCount(1), totalOpenCells);
+    this.p1GoldText.setText(`Gold: $${p1.gold}  Kills: ${p1.kills}  Area: ${p1Area}`);
     const p2Prefix = this.viewModel.mode === GAME_MODE.AI ? 'AI ' : '';
-    this.p2GoldText.setText(`${p2Prefix}Gold: $${p2.gold}  Kills: ${p2.kills}`);
+    this.p2GoldText.setText(`${p2Prefix}Gold: $${p2.gold}  Kills: ${p2.kills}  Area: ${p2Area}`);
 
     const p1Count = this.viewModel.getParticleCount(0);
     const p2Count = this.viewModel.getParticleCount(1);
@@ -1370,6 +1375,8 @@ export class UIScene extends Phaser.Scene {
         btn.bg.setAlpha(canUpgrade ? 1 : 0.5);
       }
     }
+
+    this.fitDynamicButtonTexts();
 
     this.updatePanelInfoText(0);
     this.updatePanelInfoText(1);
@@ -1631,6 +1638,28 @@ export class UIScene extends Phaser.Scene {
   }
 
   // ── Drawing helpers ────────────────────────────────────────────────
+
+  /** Shrinks button texts that would otherwise spill outside the button box. */
+  private fitButtonTexts(w: number, ...texts: Phaser.GameObjects.Text[]): void {
+    const maxWidth = w - CONFIG.UI_GAP * 1.5;
+    for (const t of texts) fitTextToWidth(t, maxWidth);
+  }
+
+  /** Re-fits texts whose content changes every frame (costs, timers, statuses). */
+  private fitDynamicButtonTexts(): void {
+    const maxWidth = CONFIG.UI_BTN_WIDTH - CONFIG.UI_GAP * 1.5;
+    for (const b of this.buttons) fitTextToWidth(b.costText, maxWidth);
+    for (const b of this.researchButtons) fitTextToWidth(b.costText, maxWidth);
+    for (const b of this.constructButtons) fitTextToWidth(b.costText, maxWidth);
+    for (const b of this.nukeButtons) fitTextToWidth(b.statusText, maxWidth);
+    for (const b of this.buildActionButtons) fitTextToWidth(b.statusText, maxWidth);
+  }
+
+  /** Destroys a button background, killing feedback tweens so none outlive it. */
+  private destroyButtonBg(bg: Phaser.GameObjects.Rectangle): void {
+    this.tweens.killTweensOf(bg);
+    bg.destroy();
+  }
 
   private drawHPBar(
     gfx: Phaser.GameObjects.Graphics,
