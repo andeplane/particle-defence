@@ -26,6 +26,7 @@ function createTestConfig(overrides?: Partial<BalanceConfig>): BalanceConfig {
     healthPerLevel: 1,
     attackPerLevel: 1,
     particleBaseRadius: 3,
+    particleMaxRadius: 10,
     particleBaseSpeed: 180,
     spawnRateBase: 10,
     spawnRatePerLevel: 2,
@@ -122,6 +123,7 @@ describe('Gold & Cost Calculations', () => {
       { type: 'spawnRate' as const, expected: Infinity },
       { type: 'defense' as const, expected: 8 },
       { type: 'interestRate' as const, expected: 20 },
+      { type: 'radius' as const, expected: 7 },
       { type: 'health' as const, expected: Infinity },
       { type: 'attack' as const, expected: Infinity },
     ])('$type max level = $expected', ({ type, expected }) => {
