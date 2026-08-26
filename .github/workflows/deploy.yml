@@ -3,6 +3,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Manual trigger: lets us re-deploy the current main when a push event is
+  # missed (GitHub occasionally drops one), without pushing an empty commit.
+  workflow_dispatch:
 
 permissions:
   contents: read
