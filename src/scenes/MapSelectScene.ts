@@ -4,8 +4,22 @@ import { CONFIG } from '../config';
 import { isMobile } from '../mobile';
 import { GAME_MODE, type GameMode } from './MenuScene';
 import type { GridType } from '../grid';
+import { createMenuBackground } from './MenuBackground';
 import { createMenuButton } from './createMenuButton';
 import { SCENE_KEYS } from './SceneKeys';
+
+const L = CONFIG.MENU_LAYOUT;
+
+/** Order defines the number key (1..N) shown on each button and used for selection. */
+const MAPS: readonly { label: string; color: number; type: GridType }[] = [
+  { label: 'Random', color: 0x88aa88, type: 'random' },
+  { label: 'Maze', color: 0xaa88aa, type: 'maze' },
+  { label: 'Hourglass', color: 0xaa8844, type: 'hourglass' },
+  { label: 'Lanes', color: 0x4488aa, type: 'lanes' },
+  { label: 'Islands', color: 0x44aa88, type: 'islands' },
+  { label: 'Rooms', color: 0x8844aa, type: 'rooms' },
+  { label: 'Fortress', color: 0xaa4444, type: 'fortress' },
+];
 
 export class MapSelectScene extends Phaser.Scene {
   private mode: GameMode = GAME_MODE.PVP;
@@ -22,61 +36,54 @@ export class MapSelectScene extends Phaser.Scene {
     const centerX = CONFIG.GAME_WIDTH / 2;
     const centerY = CONFIG.GAME_HEIGHT / 2;
     const mobile = isMobile();
+    createMenuBackground(this);
 
-    this.add.text(centerX, centerY - 120, 'TOWER DEFENCE', {
-      fontSize: '64px',
+    this.add.text(centerX, centerY + L.MAP_TITLE_OFFSET_Y, 'Particle Defender', {
+      fontSize: `${Math.round(L.TITLE_FONT)}px`,
       color: CONFIG.PLAYER1_COLOR_STR,
       fontFamily: 'monospace',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.text(centerX, centerY - 70, 'Choose map', {
-      fontSize: `${CONFIG.UI_FONT_LARGE + 4}px`,
-      color: '#aaaaaa',
+    const isAI = this.mode === GAME_MODE.AI;
+    this.add.text(centerX, centerY + L.MODE_LABEL_OFFSET_Y, isAI ? 'Mode: 1 Player vs AI' : 'Mode: 2 Player', {
+      fontSize: `${CONFIG.UI_FONT_MED}px`,
+      color: isAI ? CONFIG.PLAYER1_COLOR_STR : CONFIG.PLAYER2_COLOR_STR,
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    this.add.text(centerX, centerY + L.SUBTITLE_OFFSET_Y, 'Choose map', {
+      fontSize: `${CONFIG.UI_FONT_LARGE}px`,
+      color: L.SUBTITLE_COLOR_STR,
       fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    const btnW = 180;
-    const btnH = 44;
-    const gap = 12;
-    const colGap = 160;
-    const leftX = centerX - colGap;
-    const rightX = centerX + colGap;
-    const rowH = btnH + gap;
+    const btnW = L.MAP_BTN_WIDTH;
+    const btnH = L.MAP_BTN_HEIGHT;
+    const rowH = btnH + L.MAP_BTN_GAP;
+    const firstRowY = centerY + L.FIRST_ROW_OFFSET_Y;
+    const columnX = [centerX - L.MAP_COLUMN_OFFSET_X, centerX + L.MAP_COLUMN_OFFSET_X];
 
-    const mapButtons: { x: number; y: number; label: string; color: number; type: GridType }[] = [
-      { x: leftX, y: centerY - 20, label: 'Random', color: 0x88aa88, type: 'random' },
-      { x: rightX, y: centerY - 20, label: 'Maze', color: 0xaa88aa, type: 'maze' },
-      { x: leftX, y: centerY - 20 + rowH, label: 'Hourglass', color: 0xaa8844, type: 'hourglass' },
-      { x: rightX, y: centerY - 20 + rowH, label: 'Lanes', color: 0x4488aa, type: 'lanes' },
-      { x: leftX, y: centerY - 20 + 2 * rowH, label: 'Islands', color: 0x44aa88, type: 'islands' },
-      { x: rightX, y: centerY - 20 + 2 * rowH, label: 'Rooms', color: 0x8844aa, type: 'rooms' },
-      { x: leftX, y: centerY - 20 + 3 * rowH, label: 'Fortress', color: 0xaa4444, type: 'fortress' },
-    ];
-
-    for (const { x, y, label, color, type } of mapButtons) {
-      createMenuButton(this, x, y, btnW, btnH, label, color, () => this.startGame(type));
-    }
+    let lastY = firstRowY;
+    MAPS.forEach(({ label, color, type }, i) => {
+      const x = columnX[i % L.MAP_COLUMNS];
+      const y = firstRowY + Math.floor(i / L.MAP_COLUMNS) * rowH;
+      lastY = y;
+      const hint = mobile ? undefined : String(i + 1);
+      createMenuButton(this, x, y, btnW, btnH, label, color, () => this.startGame(type), hint);
+    });
 
     if (!mobile) {
       this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
-        const key = event.key.toUpperCase();
-        const keyToType: Record<string, GridType> = {
-          '1': 'random',
-          '2': 'maze',
-          '3': 'hourglass',
-          '4': 'lanes',
-          '5': 'islands',
-          '6': 'rooms',
-          '7': 'fortress',
-        };
-        const gridType = keyToType[key];
-        if (gridType) this.startGame(gridType);
+        const idx = Number.parseInt(event.key, 10) - 1;
+        const map = MAPS[idx];
+        if (map) this.startGame(map.type);
       });
 
-      this.add.text(centerX, centerY + 180, '[1-7] Select map', {
+      this.add.text(centerX, lastY + btnH / 2 + L.HINT_OFFSET_Y, 'Press the number shown on a map', {
         fontSize: `${CONFIG.UI_FONT_SMALL}px`,
-        color: '#666666',
+        color: L.HINT_COLOR_STR,
         fontFamily: 'monospace',
       }).setOrigin(0.5);
     }
