@@ -15,6 +15,8 @@ export interface PerSecondSample {
   readonly goldBanked: PerPlayer<number>;
 
   readonly upgradeLevels: PerPlayer<Record<UpgradeType, number>>;
+  /** Research level per node id (unlocks are 0/1, paths are 0..maxLevel). See ResearchRegistry.allNodes(). */
+  readonly researchLevels: PerPlayer<Readonly<Record<string, number>>>;
 
   readonly capPressure: PerPlayer<number>;
 

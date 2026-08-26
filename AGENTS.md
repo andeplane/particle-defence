@@ -23,7 +23,7 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 - **`src/scenes/UIScene.ts`** - UI overlay with HP bars, gold/kills/territory-area display, upgrade buttons, nuke buttons, keyboard controls. Hides P2 controls and labels as "AI" when mode is 'ai'
 - **`src/scenes/HowToPlayScene.ts`** - In-game help screen with 4 tabs (Overview, Tech Tree, Combat, Strategies). Accessible from MenuScene via "How to Play" button or [H] key. Data-driven: all numbers pulled from CONFIG at runtime via `howToPlayData.ts`. Scrollable content, ESC to return to menu
 - **`src/scenes/howToPlayData.ts`** - Pure functions that generate content sections from CONFIG values. Exports `getTabContent(tabId)` returning `ContentSection[]` for each tab. No duplicated data -- uses `getUpgradeCost()`, `getLaserStats()`, `getSlowStats()`, `computeMaxLevels()`, etc.
-- **`src/scenes/PostGameStatsScene.ts`** - Post-game statistics screen with 9 dual-series timeline graphs (AoE-style). Receives `MatchStats` from GameScene on game over. Displays blue (P1) vs red (P2) line charts with glow effects, grid lines, nuke event markers, and legends. Click to return to menu
+- **`src/scenes/PostGameStatsScene.ts`** - Post-game statistics screen with dual-series timeline graphs (AoE-style): core match metrics, per-upgrade levels, and research levels. Receives `MatchStats` from GameScene on game over. Displays blue (P1) vs red (P2) line charts with glow effects, grid lines, nuke event markers, and legends. Click to return to menu
 
 ### Game Entities
 - **`src/player.ts`** - Player class with base HP, gold, kills, upgrade levels, nuke cooldown management, and tower research state
@@ -80,6 +80,9 @@ A 2-player tower defence game built with Phaser 3, TypeScript, and Vite. Players
 7. Population Cap Pressure (alive/max ratio)
 8. Damage / Second (unit + base combined)
 9. Frontline Position (mean X cell-index of top-20 frontmost particles per player)
+10. Tower Count / Tower Kills (Cumulative)
+11. One step chart per particle upgrade type
+12. Research: Total Research Levels, Unlocks Researched, and one step chart per multi-level research path (from `ResearchRegistry.allNodes()`, sampled as `researchLevels` in `PerSecondSample`)
 
 ## Configuration (`src/config.ts`)
 
@@ -206,7 +209,7 @@ Each grid cell can be "owned" by a player. Ownership is tracked per cell and aff
 - Game ends when a player's base HP reaches 0
 - Winner is the surviving player
 - Game over overlay shows winner, then click navigates to PostGameStatsScene
-- PostGameStatsScene displays 10 timeline graphs (including Tower Count), then click returns to MenuScene
+- PostGameStatsScene displays the timeline graphs (see Stats & Post-Game Analytics), then click returns to MenuScene
 
 ### Game Modes
 - **1 Player vs AI** - Human (P1) vs AI (P2). AI controls upgrades and nuke automatically. P2 UI shows "AI" label and stats.

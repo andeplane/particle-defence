@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MatchStatsRecorder } from './MatchStatsRecorder';
+import { ResearchRegistry } from '../research/ResearchRegistry';
 import type { IParticle } from '../particles';
 import type { IPlayer } from '../player';
 import type { PerSecondSample } from './types';
@@ -186,6 +187,20 @@ describe(MatchStatsRecorder.name, () => {
     });
   });
 
+  describe('research level snapshots', () => {
+    it('snapshots every research node from players, defaulting to 0', () => {
+      const players = createPlayers({ p1ResearchLevels: { unlock_laser: 1, laser_upgrades: 2 } });
+      recorder.tick(1000, [], players);
+      const s = recorder.finalize(0).samples[0];
+
+      expect(s.researchLevels[0].unlock_laser).toBe(1);
+      expect(s.researchLevels[0].laser_upgrades).toBe(2);
+      expect(s.researchLevels[0].unlock_weakness).toBe(0);
+      expect(s.researchLevels[1].unlock_laser).toBe(0);
+      expect(Object.keys(s.researchLevels[0]).sort()).toEqual(ResearchRegistry.allNodes().map(n => n.id).sort());
+    });
+  });
+
   describe('frontline computation', () => {
     it.each([
       {
@@ -362,10 +377,12 @@ function createPlayers(overrides?: {
   p1Gold?: number; p2Gold?: number;
   p1MaxParticles?: number; p2MaxParticles?: number;
   p1UpgradeLevels?: Partial<Record<string, number>>;
+  p1ResearchLevels?: Partial<Record<string, number>>;
 }): [IPlayer, IPlayer] {
+  const p1Research = overrides?.p1ResearchLevels ?? {};
   const defaultUpgrades = { health: 0, attack: 0, radius: 0, spawnRate: 0, speed: 0, defense: 0, maxParticles: 0, interestRate: 0 };
 
-  const makePlayer = (id: 0 | 1, hp: number, gold: number, maxP: number, upgrades: Record<string, number>): IPlayer => ({
+  const makePlayer = (id: 0 | 1, hp: number, gold: number, maxP: number, upgrades: Record<string, number>, research: Partial<Record<string, number>> = {}): IPlayer => ({
     id,
     baseHP: hp,
     gold,
@@ -395,7 +412,7 @@ function createPlayers(overrides?: {
     canAffordConstruction: () => false,
     payForConstruction: () => false,
     isUpgradeAtMax: () => false,
-    getLevel: () => 0,
+    getLevel: (nodeId) => research[nodeId] ?? 0,
     hasUnlocked: () => false,
     canPurchaseUnlock: () => false,
     purchaseUnlock: () => false,
@@ -421,7 +438,7 @@ function createPlayers(overrides?: {
   const p1Upgrades = { ...defaultUpgrades, ...(overrides?.p1UpgradeLevels ?? {}) };
 
   return [
-    makePlayer(0, overrides?.p1HP ?? 1000, overrides?.p1Gold ?? 10, overrides?.p1MaxParticles ?? 100, p1Upgrades),
+    makePlayer(0, overrides?.p1HP ?? 1000, overrides?.p1Gold ?? 10, overrides?.p1MaxParticles ?? 100, p1Upgrades, p1Research),
     makePlayer(1, overrides?.p2HP ?? 1000, overrides?.p2Gold ?? 10, overrides?.p2MaxParticles ?? 100, defaultUpgrades),
   ];
 }
@@ -443,6 +460,7 @@ function createSample(overrides: {
       { health: 0, attack: 0, radius: 0, spawnRate: 0, speed: 0, defense: 0, maxParticles: 0, interestRate: 0 },
       { health: 0, attack: 0, radius: 0, spawnRate: 0, speed: 0, defense: 0, maxParticles: 0, interestRate: 0 },
     ],
+    researchLevels: [{}, {}],
     capPressure: [0, 0],
     unitDamageDealt: [0, 0],
     baseDamageDealt: [0, 0],
