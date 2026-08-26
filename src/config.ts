@@ -1,4 +1,4 @@
-import { getQueryParam, titleScale, uiScale } from './mobile';
+import { buttonAlpha, getQueryParam, titleScale, uiScale } from './mobile';
 
 const RESOLUTION_SCALE = 2;
 // UI-only scale: gameplay values never use this. Larger on touch devices.
@@ -17,6 +17,10 @@ export function setDebugEverythingCheap(enabled: boolean): void {
 export function getDebugEverythingCheap(): boolean {
   return DEBUG_EVERYTHING_CHEAP;
 }
+
+/** How much more opaque hovered / active buttons are than idle ones. */
+const UI_BTN_HOVER_ALPHA_BOOST = 0.05;
+const UI_BTN_ACTIVE_ALPHA_BOOST = 0.1;
 
 export const CONFIG = {
   GAME_WIDTH: 1024 * RESOLUTION_SCALE,
@@ -111,6 +115,10 @@ export const CONFIG = {
   UI_BTN_WIDTH: 52 * UI_SCALE,
   UI_BTN_HEIGHT: 40 * UI_SCALE,
   UI_GAP: 4 * UI_SCALE,
+  /** Button background opacity: idle, hovered, and selected/active (hover and active are raised above idle). */
+  UI_BTN_ALPHA: buttonAlpha(),
+  UI_BTN_ALPHA_HOVER: Math.min(1, buttonAlpha() + UI_BTN_HOVER_ALPHA_BOOST),
+  UI_BTN_ALPHA_ACTIVE: Math.min(1, buttonAlpha() + UI_BTN_ACTIVE_ALPHA_BOOST),
   /** Speed (1x/2x/3x) buttons, sized relative to the small UI font. */
   UI_SPEED_BTN_WIDTH_EM: 2.8,
   UI_SPEED_BTN_HEIGHT_EM: 1.4,

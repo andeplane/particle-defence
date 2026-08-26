@@ -40,3 +40,11 @@ export const MOBILE_TITLE_SCALE = 1.15;
 export function titleScale(): number {
   return isMobile() ? MOBILE_TITLE_SCALE : 1;
 }
+
+/** In-game menu buttons cover a good chunk of a phone screen; let the battlefield show through. */
+export const BUTTON_ALPHA_DESKTOP = 0.85;
+export const BUTTON_ALPHA_MOBILE = 0.45;
+
+export function buttonAlpha(): number {
+  return isMobile() ? BUTTON_ALPHA_MOBILE : BUTTON_ALPHA_DESKTOP;
+}
