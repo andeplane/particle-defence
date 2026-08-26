@@ -47,6 +47,8 @@ export const CONFIG = {
   /** Max global defense bonus (outside owned cells) */
   GLOBAL_DEFENSE_MAX: 0.25,
   PARTICLE_BASE_RADIUS: 3,
+  /** Hard cap on particle radius; radius upgrade max level = (MAX - BASE). Keeps units from blotting out the map. */
+  PARTICLE_MAX_RADIUS: 10,
   PARTICLE_SPEED: 180,
   /** Base spawn rate in particles per second */
   SPAWN_RATE_BASE: 5,
