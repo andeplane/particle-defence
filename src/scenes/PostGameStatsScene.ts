@@ -5,7 +5,7 @@ import { MatchStatsRecorder } from '../stats';
 import type { MatchStats, PerSecondSample } from '../stats';
 import { GAME_MODE, type GameMode } from './MenuScene';
 import { SCENE_KEYS } from './SceneKeys';
-import { enableTouchScroll } from './touchScroll';
+import { enableTouchScroll, onTap } from './touchScroll';
 
 interface ChartSeries {
   data: (number | null)[];
@@ -555,7 +555,7 @@ export class PostGameStatsScene extends Phaser.Scene {
 
     btn.on('pointerover', () => btn.setColor('#ffffff'));
     btn.on('pointerout', () => btn.setColor('#666666'));
-    btn.on('pointerdown', () => this.scene.start(SCENE_KEYS.MENU));
+    onTap(btn, () => this.scene.start(SCENE_KEYS.MENU));
   }
 
   private drawStrategyHistogram(

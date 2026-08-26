@@ -7,6 +7,8 @@ const MAX_ZOOM = 3;
 const MIN_PINCH_DISTANCE = 1;
 /** Phaser starts with mouse + 1 touch pointer; pinch needs one more (3 total). */
 const POINTERS_NEEDED_FOR_PINCH = 3;
+/** A press that moves less than this (px) before release counts as a tap, not a drag. */
+const TAP_MOVE_THRESHOLD = 12;
 
 /** Anything that can be re-positioned and re-scaled to stay fixed on screen while the camera zooms. */
 type HudObject = Phaser.GameObjects.Components.Transform & Phaser.GameObjects.Components.ScrollFactor;
@@ -92,4 +94,15 @@ export function enableTouchScroll(scene: Phaser.Scene, opts: TouchScrollOptions)
     scene.input.off(Phaser.Input.Events.POINTER_MOVE, onMove);
     scene.input.off(Phaser.Input.Events.POINTER_UP, onUp);
   };
+}
+
+/**
+ * Fires `onTap` when the pointer is released over `obj` without having dragged.
+ * Use instead of `pointerdown` on buttons in scrollable scenes, so a swipe that
+ * happens to start on a button scrolls instead of activating it.
+ */
+export function onTap(obj: Phaser.GameObjects.GameObject, handler: () => void): void {
+  obj.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, (pointer: Phaser.Input.Pointer) => {
+    if (pointer.getDistance() <= TAP_MOVE_THRESHOLD) handler();
+  });
 }

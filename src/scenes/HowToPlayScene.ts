@@ -4,7 +4,7 @@ import { CONFIG } from '../config';
 import { isMobile } from '../mobile';
 import { TABS, getTabContent, type TabId, type ContentSection } from './howToPlayData';
 import { SCENE_KEYS } from './SceneKeys';
-import { enableTouchScroll } from './touchScroll';
+import { enableTouchScroll, onTap } from './touchScroll';
 
 const TAB_BAR_H = 52;
 const TAB_BTN_W = 160;
@@ -85,7 +85,7 @@ export class HowToPlayScene extends Phaser.Scene {
         fontStyle: 'bold',
       }).setOrigin(0.5).setScrollFactor(0).setDepth(10);
 
-      bg.on('pointerdown', () => this.switchTab(tab.id));
+      onTap(bg, () => this.switchTab(tab.id));
       bg.on('pointerover', () => {
         if (this.activeTab !== tab.id) {
           bg.setFillStyle(0x222244, 0.95);
@@ -122,7 +122,7 @@ export class HowToPlayScene extends Phaser.Scene {
 
     btn.on('pointerover', () => btn.setColor('#ffffff'));
     btn.on('pointerout', () => btn.setColor('#666666'));
-    btn.on('pointerdown', () => this.scene.start(SCENE_KEYS.MENU));
+    onTap(btn, () => this.scene.start(SCENE_KEYS.MENU));
     this.backButton = btn;
   }
 
