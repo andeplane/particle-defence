@@ -15,8 +15,10 @@ export const GAME_MODE = {
 const L = CONFIG.MENU_LAYOUT;
 const KEY_AI = '1';
 const KEY_PVP = '2';
+const KEY_MULTIPLAYER = 'M';
+const KEY_MULTIPLAYER_ALT = '3';
 const KEY_HOW_TO_PLAY = 'H';
-const KEY_HOW_TO_PLAY_ALT = '3';
+const KEY_HOW_TO_PLAY_ALT = '4';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -55,7 +57,12 @@ export class MenuScene extends Phaser.Scene {
         '2 Player', CONFIG.PLAYER2_COLOR, () => this.startGame(GAME_MODE.PVP), hint(KEY_PVP));
     }
 
-    const howToPlayY = mobile ? firstY + rowH : firstY + 2 * rowH;
+    if (!mobile) {
+      createMenuButton(this, centerX, firstY + 2 * rowH, btnW, btnH,
+        'Multiplayer', L.MULTIPLAYER_COLOR, () => this.openMultiplayer(), hint(KEY_MULTIPLAYER));
+    }
+
+    const howToPlayY = mobile ? firstY + rowH : firstY + 3 * rowH;
     createMenuButton(this, centerX, howToPlayY, btnW, btnH,
       'How to Play', L.HOW_TO_PLAY_COLOR, () => this.openHowToPlay(), hint(KEY_HOW_TO_PLAY));
 
@@ -64,6 +71,7 @@ export class MenuScene extends Phaser.Scene {
         const key = event.key.toUpperCase();
         if (key === KEY_AI) this.startGame(GAME_MODE.AI);
         if (key === KEY_PVP) this.startGame(GAME_MODE.PVP);
+        if (key === KEY_MULTIPLAYER || key === KEY_MULTIPLAYER_ALT) this.openMultiplayer();
         if (key === KEY_HOW_TO_PLAY || key === KEY_HOW_TO_PLAY_ALT) this.openHowToPlay();
       });
 
@@ -73,6 +81,10 @@ export class MenuScene extends Phaser.Scene {
         fontFamily: 'monospace',
       }).setOrigin(0.5);
     }
+  }
+
+  private openMultiplayer(): void {
+    this.scene.start(SCENE_KEYS.MULTIPLAYER_LOBBY);
   }
 
   private openHowToPlay(): void {

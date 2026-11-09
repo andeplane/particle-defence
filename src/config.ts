@@ -151,6 +151,7 @@ export const CONFIG = {
     SUBTITLE_COLOR_STR: '#aaaaaa',
     HINT_COLOR_STR: '#666666',
     HOW_TO_PLAY_COLOR: 0x88aa88,
+    MULTIPLAYER_COLOR: 0x44aaff,
     /** Button colour per map type on the map-select screen. */
     MAP_COLORS: {
       random: 0x88aa88,

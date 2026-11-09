@@ -75,7 +75,7 @@ export class GameEngine implements AIGameState {
   gameOver: boolean = false;
   winner: number = -1;
   gameTimeMs: number = 0;
-  private tickCount: number = 0;
+  tickCount: number = 0;
 
   /** Active carrier per player (null if none). */
   carriers: [TowerCarrierParticle | null, TowerCarrierParticle | null] = [null, null];

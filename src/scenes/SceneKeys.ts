@@ -5,4 +5,5 @@ export const SCENE_KEYS = {
   UI: 'UIScene',
   POST_GAME_STATS: 'PostGameStatsScene',
   HOW_TO_PLAY: 'HowToPlayScene',
+  MULTIPLAYER_LOBBY: 'MultiplayerLobbyScene',
 } as const;
