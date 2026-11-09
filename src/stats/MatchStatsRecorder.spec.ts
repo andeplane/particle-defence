@@ -339,6 +339,15 @@ function createPlayers(overrides?: {
     canAffordConstruction: () => false,
     payForConstruction: () => false,
     isUpgradeAtMax: () => false,
+    getLevel: () => 0,
+    hasUnlocked: () => false,
+    canPurchaseUnlock: () => false,
+    purchaseUnlock: () => false,
+    getUnlockCost: () => 0,
+    getPathLevel: () => 0,
+    canPurchasePath: () => false,
+    purchasePath: () => false,
+    getPathCost: () => Infinity,
   });
 
   const p1Upgrades = { ...defaultUpgrades, ...(overrides?.p1UpgradeLevels ?? {}) };

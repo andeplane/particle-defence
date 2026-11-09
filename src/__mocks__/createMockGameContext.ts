@@ -64,5 +64,14 @@ function createMinimalMockPlayer(id: 0 | 1): IPlayer {
     getConstructionCost: vi.fn(() => 30),
     canAffordConstruction: vi.fn(() => false),
     payForConstruction: vi.fn(() => false),
+    getLevel: vi.fn(() => 0),
+    hasUnlocked: vi.fn(() => false),
+    canPurchaseUnlock: vi.fn(() => false),
+    purchaseUnlock: vi.fn(() => false),
+    getUnlockCost: vi.fn(() => 0),
+    getPathLevel: vi.fn(() => 0),
+    canPurchasePath: vi.fn(() => false),
+    purchasePath: vi.fn(() => false),
+    getPathCost: vi.fn(() => Infinity),
   };
 }

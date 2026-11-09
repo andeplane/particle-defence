@@ -20,9 +20,8 @@ import {
   selectConstructionTower,
   type ConstructionMenuState,
 } from './constructionMenuState';
-import { getLaserStats, getSlowStats } from '../particles/towers';
-import type { LaserTowerParticle } from '../particles/LaserTowerParticle';
-import type { SlowTowerParticle } from '../particles/SlowTowerParticle';
+import { LaserTowerParticle, getLaserStatsAtLevel } from '../particles/LaserTowerParticle';
+import { SlowTowerParticle, getSlowStatsAtLevel } from '../particles/SlowTowerParticle';
 import type { TowerSite } from '../grid';
 
 export interface TowerSelectionForRender {
@@ -1260,13 +1259,11 @@ export class UIScene extends Phaser.Scene {
 
     let statsLine: string;
     if (tower.towerType === 'laser') {
-      const cur = getLaserStats(tower.level);
-      const nxt = getLaserStats(tower.level + 1);
-      statsLine = `DMG:${cur.damage}->${nxt.damage}  RNG:${cur.range}->${nxt.range}  SPD:${cur.attackSpeed.toFixed(1)}->${nxt.attackSpeed.toFixed(1)}`;
+      const nxt = getLaserStatsAtLevel(tower.level + 1);
+      statsLine = `DMG:${tower.damage}->${nxt.damage}  RNG:${tower.range}->${nxt.range}  SPD:${tower.attackSpeed.toFixed(1)}->${nxt.attackSpeed.toFixed(1)}`;
     } else {
-      const cur = getSlowStats(tower.level);
-      const nxt = getSlowStats(tower.level + 1);
-      statsLine = `SLOW:${Math.round(cur.slowFactor * 100)}%->${Math.round(nxt.slowFactor * 100)}%  RNG:${cur.range}->${nxt.range}`;
+      const nxt = getSlowStatsAtLevel(tower.level + 1);
+      statsLine = `SLOW:${Math.round(tower.slowFactor * 100)}%->${Math.round(nxt.slowFactor * 100)}%  RNG:${tower.range}->${nxt.range}`;
     }
 
     const hp = `HP:${Math.ceil(tower.health)}/${tower.maxHealth}`;

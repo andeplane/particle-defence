@@ -1,4 +1,4 @@
-import { CONFIG, getTowerUpgradeCost, type TowerType } from './config';
+import { CONFIG, type TowerType } from './config';
 import { AIController, type AIGameState } from './ai';
 import { BasicParticle, type IParticle, type GameContext, TowerCarrierParticle } from './particles';
 import { LaserTowerParticle } from './particles/LaserTowerParticle';
@@ -301,7 +301,7 @@ export class GameEngine implements AIGameState {
     const tower = playerTowers[towerIndex];
     if (!tower.alive) return false;
 
-    const cost = getTowerUpgradeCost(tower.towerType, tower.level);
+    const cost = tower.getUpgradeCost();
     const player = this.players[playerId];
     if (player.gold < cost) return false;
 

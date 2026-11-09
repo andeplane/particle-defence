@@ -1,4 +1,5 @@
-import { CONFIG, getUpgradeCost, getTowerResearchCost, getTowerConstructionCost, getNukeResearchCost, type UpgradeType, type TowerType } from './config';
+import { CONFIG, getUpgradeCost, getTowerConstructionCost, getNukeResearchCost, getDebugEverythingCheap, type UpgradeType, type TowerType } from './config';
+import { ResearchRegistry } from './research/ResearchRegistry';
 
 export interface IPlayer {
   readonly id: 0 | 1;
@@ -26,11 +27,24 @@ export interface IPlayer {
   canUseNuke(gameTimeMs: number): boolean;
   useNuke(gameTimeMs: number): void;
   getNukeCooldownRemainingMs(gameTimeMs: number): number;
+  takeDamage(amount: number): void;
+
+  // Generic research API
+  getLevel(id: string): number;
+  hasUnlocked(nodeId: string): boolean;
+  canPurchaseUnlock(nodeId: string): boolean;
+  purchaseUnlock(nodeId: string): boolean;
+  getUnlockCost(nodeId: string): number;
+  getPathLevel(pathId: string): number;
+  canPurchasePath(pathId: string): boolean;
+  purchasePath(pathId: string): boolean;
+  getPathCost(pathId: string): number;
+
+  // Legacy wrappers — delegate to generic API
   hasResearchedNuke(): boolean;
   canResearchNuke(): boolean;
   researchNuke(): boolean;
   getNukeResearchCost(): number;
-  takeDamage(amount: number): void;
   hasResearched(towerType: TowerType): boolean;
   canResearchTower(towerType: TowerType): boolean;
   researchTower(towerType: TowerType): boolean;
@@ -109,9 +123,9 @@ export class Player implements IPlayer {
 
   /** Time (ms) when nuke was last used; -1 if never used */
   lastNukeTimeMs: number = -1;
-  private nukeResearched = false;
 
-  private readonly researchedTowers = new Set<TowerType>();
+  /** Tracks purchased unlocks and upgrade path levels. Unlock IDs map to 1; path IDs map to level count. */
+  private readonly _purchased: Map<string, number> = new Map();
 
   constructor(id: 0 | 1, config: PlayerConfig = defaultPlayerConfig) {
     this.id = id;
@@ -187,7 +201,7 @@ export class Player implements IPlayer {
   }
 
   canUseNuke(gameTimeMs: number): boolean {
-    if (!this.nukeResearched) return false;
+    if (!this.hasResearchedNuke()) return false;
     if (this.lastNukeTimeMs < 0) {
       return gameTimeMs >= this.config.nuclearFirstAvailableMs;
     }
@@ -199,32 +213,12 @@ export class Player implements IPlayer {
   }
 
   getNukeCooldownRemainingMs(gameTimeMs: number): number {
-    if (!this.nukeResearched) return 0;
+    if (!this.hasResearchedNuke()) return 0;
     if (this.canUseNuke(gameTimeMs)) return 0;
     if (this.lastNukeTimeMs < 0) {
       return Math.max(0, this.config.nuclearFirstAvailableMs - gameTimeMs);
     }
     return Math.max(0, this.lastNukeTimeMs + this.config.nuclearCooldownMs - gameTimeMs);
-  }
-
-  hasResearchedNuke(): boolean {
-    return this.nukeResearched;
-  }
-
-  canResearchNuke(): boolean {
-    if (this.nukeResearched) return false;
-    return this.gold >= this.getNukeResearchCost();
-  }
-
-  researchNuke(): boolean {
-    if (!this.canResearchNuke()) return false;
-    this.gold -= this.getNukeResearchCost();
-    this.nukeResearched = true;
-    return true;
-  }
-
-  getNukeResearchCost(): number {
-    return getNukeResearchCost();
   }
 
   takeDamage(amount: number): void {
@@ -235,24 +229,95 @@ export class Player implements IPlayer {
     return this.baseHP > 0;
   }
 
-  hasResearched(towerType: TowerType): boolean {
-    return this.researchedTowers.has(towerType);
+  // ── Generic research API ───────────────────────────────────────────
+
+  getLevel(id: string): number {
+    return this._purchased.get(id) ?? 0;
   }
 
-  canResearchTower(towerType: TowerType): boolean {
-    if (this.researchedTowers.has(towerType)) return false;
-    return this.gold >= this.getResearchCost(towerType);
+  hasUnlocked(nodeId: string): boolean {
+    return this.getLevel(nodeId) >= 1;
   }
 
-  researchTower(towerType: TowerType): boolean {
-    if (!this.canResearchTower(towerType)) return false;
-    this.gold -= this.getResearchCost(towerType);
-    this.researchedTowers.add(towerType);
+  getUnlockCost(nodeId: string): number {
+    if (getDebugEverythingCheap()) return 1;
+    return ResearchRegistry.findUnlock(nodeId)?.cost ?? 0;
+  }
+
+  canPurchaseUnlock(nodeId: string): boolean {
+    if (this.hasUnlocked(nodeId)) return false;
+    if (ResearchRegistry.findUnlock(nodeId) === undefined) return false;
+    if (!ResearchRegistry.prerequisitesMet(nodeId, this._purchased)) return false;
+    return this.gold >= this.getUnlockCost(nodeId);
+  }
+
+  purchaseUnlock(nodeId: string): boolean {
+    if (!this.canPurchaseUnlock(nodeId)) return false;
+    this.gold -= this.getUnlockCost(nodeId);
+    this._purchased.set(nodeId, 1);
     return true;
   }
 
+  getPathLevel(pathId: string): number {
+    return this.getLevel(pathId);
+  }
+
+  getPathCost(pathId: string): number {
+    if (getDebugEverythingCheap()) return 1;
+    return ResearchRegistry.getNextLevelCost(pathId, this.getPathLevel(pathId)) ?? Infinity;
+  }
+
+  canPurchasePath(pathId: string): boolean {
+    if (!ResearchRegistry.prerequisitesMet(pathId, this._purchased)) return false;
+    const cost = ResearchRegistry.getNextLevelCost(pathId, this.getPathLevel(pathId));
+    if (cost === undefined) return false;
+    return this.gold >= (getDebugEverythingCheap() ? 1 : cost);
+  }
+
+  purchasePath(pathId: string): boolean {
+    if (!this.canPurchasePath(pathId)) return false;
+    const currentLevel = this.getPathLevel(pathId);
+    this.gold -= this.getPathCost(pathId);
+    this._purchased.set(pathId, currentLevel + 1);
+    return true;
+  }
+
+  // ── Legacy wrappers ────────────────────────────────────────────────
+
+  hasResearchedNuke(): boolean {
+    return this.hasUnlocked('unlock_nuke');
+  }
+
+  canResearchNuke(): boolean {
+    if (this.hasResearchedNuke()) return false;
+    return this.gold >= this.getNukeResearchCost();
+  }
+
+  researchNuke(): boolean {
+    if (!this.canResearchNuke()) return false;
+    this.gold -= this.getNukeResearchCost();
+    this._purchased.set('unlock_nuke', 1);
+    return true;
+  }
+
+  getNukeResearchCost(): number {
+    return getNukeResearchCost();
+  }
+
+  hasResearched(towerType: TowerType): boolean {
+    return this.hasUnlocked(`unlock_${towerType}`);
+  }
+
+  canResearchTower(towerType: TowerType): boolean {
+    return this.canPurchaseUnlock(`unlock_${towerType}`);
+  }
+
+  researchTower(towerType: TowerType): boolean {
+    return this.purchaseUnlock(`unlock_${towerType}`);
+  }
+
   getResearchCost(towerType: TowerType): number {
-    return getTowerResearchCost(towerType);
+    return this.getUnlockCost(`unlock_${towerType}`);
   }
 
   getConstructionCost(towerType: TowerType): number {
