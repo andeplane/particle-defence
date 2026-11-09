@@ -53,6 +53,17 @@ A particle that damages nearby enemies when it dies.
 
 ---
 
+## Traitor Particles
+
+Particles that appear behind enemy lines and attack the enemy from within their side of the map.
+
+- **Mechanics**: Spawn on the enemy side instead of from the player's own base
+- **Targeting**: Damage enemy particles, towers, and/or the enemy base like friendly attackers
+- **Tradeoff**: Potentially expensive or limited, since they bypass normal frontline pressure
+- **Upgrades**: TBD (e.g. spawn count, traitor stats, spawn depth, cooldown)
+
+---
+
 ## Reflective Mirror Column
 
 A map feature or buildable effect where a full column, or part of a column, acts like a half-reflective mirror.

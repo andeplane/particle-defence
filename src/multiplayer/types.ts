@@ -1,4 +1,4 @@
-import type { UpgradeType } from '../config.js';
+import type { TowerType, UpgradeType } from '../config.js';
 
 export type MultiplayerRole = 'host' | 'guest';
 
@@ -15,10 +15,10 @@ export interface MultiplayerSession {
 export type PlayerInputMessage =
   | { type: 'upgrade'; upgradeType: UpgradeType }
   | { type: 'nuke' }
-  | { type: 'tower_build'; towerType: 'laser' | 'slow' }
+  | { type: 'tower_build'; towerType: TowerType }
   | { type: 'tower_place' }
   | { type: 'tower_upgrade'; towerIndex: number }
-  | { type: 'tower_research'; towerType: 'laser' | 'slow' };
+  | { type: 'tower_research'; towerType: TowerType };
 
 export interface GameStateSnapshotHeader {
   tick: number;

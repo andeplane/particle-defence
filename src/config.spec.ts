@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { CONFIG, getUpgradeCost, getTowerUpgradeCost, getTowerResearchCost, getTowerConstructionCost, getNukeResearchCost, setDebugEverythingCheap, type UpgradeType } from './config';
+import { CONFIG, getUpgradeCost, getTowerUpgradeCost, getTowerResearchCost, getTowerConstructionCost, setDebugEverythingCheap, type UpgradeType } from './config';
 
 describe(getUpgradeCost.name, () => {
   const upgradeTypes: UpgradeType[] = ['health', 'attack', 'radius', 'spawnRate', 'speed', 'maxParticles', 'defense', 'interestRate'];
@@ -58,7 +58,6 @@ describe('CONFIG', () => {
 
   it('has nuke research cost', () => {
     expect(CONFIG.NUKE_RESEARCH_COST).toBe(2000);
-    expect(getNukeResearchCost()).toBe(2000);
   });
 
   it('has combat mechanic constants', () => {
@@ -74,10 +73,9 @@ describe('CONFIG', () => {
   });
 
   it('has spawn rate and speed upgrade constants', () => {
-    expect(CONFIG.MIN_SPAWN_INTERVAL).toBeGreaterThan(0);
-    expect(CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL).toBeGreaterThan(0);
+    expect(CONFIG.SPAWN_RATE_BASE).toBeGreaterThan(0);
+    expect(CONFIG.SPAWN_RATE_PER_LEVEL).toBeGreaterThan(0);
     expect(CONFIG.SPEED_PER_LEVEL).toBeGreaterThan(0);
-    expect(CONFIG.SPAWN_INTERVAL_MS).toBeGreaterThan(CONFIG.MIN_SPAWN_INTERVAL);
   });
 
   it('has positive game dimensions', () => {
@@ -106,24 +104,19 @@ describe('Debug Everything Cheap', () => {
     setDebugEverythingCheap(true);
     expect(getTowerUpgradeCost('laser', 0)).toBe(1);
     expect(getTowerUpgradeCost('laser', 5)).toBe(1);
-    expect(getTowerUpgradeCost('slow', 3)).toBe(1);
+    expect(getTowerUpgradeCost('weakness', 3)).toBe(1);
   });
 
   it('getTowerResearchCost returns 1 when enabled', () => {
     setDebugEverythingCheap(true);
     expect(getTowerResearchCost('laser')).toBe(1);
-    expect(getTowerResearchCost('slow')).toBe(1);
-  });
-
-  it('getNukeResearchCost returns 1 when enabled', () => {
-    setDebugEverythingCheap(true);
-    expect(getNukeResearchCost()).toBe(1);
+    expect(getTowerResearchCost('weakness')).toBe(1);
   });
 
   it('getTowerConstructionCost returns 1 when enabled', () => {
     setDebugEverythingCheap(true);
     expect(getTowerConstructionCost('laser')).toBe(1);
-    expect(getTowerConstructionCost('slow')).toBe(1);
+    expect(getTowerConstructionCost('weakness')).toBe(1);
   });
 
   it('costs return to normal when disabled', () => {

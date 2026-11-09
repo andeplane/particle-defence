@@ -3,6 +3,8 @@ import { AIController, type AIGameState, type AIProfile } from './ai';
 import { createPlayer, type PlayerConfig } from './player';
 import { createMockParticle } from './__mocks__/createMockParticle';
 import type { IParticle } from './particles/AbstractParticle';
+import type { IPlayer } from './player';
+import type { UpgradeType } from './config';
 
 const playerConfig: PlayerConfig = {
   baseHP: 1000,
@@ -13,9 +15,8 @@ const playerConfig: PlayerConfig = {
   attackPerLevel: 1.2,
   particleBaseRadius: 3,
   particleBaseSpeed: 180,
-  spawnIntervalMs: 200,
-  spawnRateReductionPerLevel: 20,
-  minSpawnInterval: 50,
+  spawnRateBase: 5,
+  spawnRatePerLevel: 1,
   speedPerLevel: 20,
   maxParticlesPerPlayer: 100,
   maxParticlesPerLevel: 50,
@@ -41,8 +42,9 @@ function createState(overrides: Partial<AIGameState> = {}): AIGameState {
     gameTimeMs: 10_000,
     gameOver: false,
     launchNuke: vi.fn(() => true),
-    buyNukeResearch: vi.fn((playerId: 0 | 1) => overrides.players?.[playerId].researchNuke() ?? true),
     buyResearch: vi.fn(() => true),
+    buyPathResearch: vi.fn(() => true),
+    purchaseResearchNode: vi.fn(() => true),
     constructTower: vi.fn(() => true),
     upgradeTower: vi.fn(() => true),
     getEligibleTowerSites: vi.fn(() => [{ id: 0, col: 4, row: 2 }]),
@@ -67,7 +69,7 @@ describe(AIController.name, () => {
       state.players[0].baseHP = 500;
       state.players[1].baseHP = 900;
       state.players[0].gold = 9999;
-      state.players[0].researchNuke();
+      state.players[0].purchaseUnlock('unlock_nuke');
 
       ai0.update(300, state);
 
@@ -78,17 +80,17 @@ describe(AIController.name, () => {
       const ai0 = new AIController(0, { baseHP: 1000 });
       const state = createState({ gameTimeMs: 60_000 });
       state.players[1].gold = 9999;
-      for (let i = 0; i < 5; i++) state.players[1].buyUpgrade('attack');
+      for (let i = 0; i < 5; i++) applyUpgrade(state.players[1],'attack');
 
       state.players[0].gold = 9999;
       for (let i = 0; i < 10; i++) {
-        state.players[0].buyUpgrade('spawnRate');
-        state.players[0].buyUpgrade('attack');
+        applyUpgrade(state.players[0],'spawnRate');
+        applyUpgrade(state.players[0],'attack');
       }
 
       ai0.update(300, state);
 
-      expect(state.players[0].getUpgradeLevel('health')).toBeGreaterThan(0);
+      expect(state.players[0].isUpgradePending('health')).toBe(true);
     });
   });
 
@@ -177,7 +179,7 @@ describe(AIController.name, () => {
       state.players[0].baseHP = humanHP;
       state.players[1].baseHP = aiHP;
       state.players[1].gold = 9999;
-      state.players[1].researchNuke();
+      state.players[1].purchaseUnlock('unlock_nuke');
 
       ai.update(300, state);
 
@@ -194,7 +196,7 @@ describe(AIController.name, () => {
       });
       state.players[1].baseHP = 200;
       state.players[1].gold = 9999;
-      state.players[1].researchNuke();
+      state.players[1].purchaseUnlock('unlock_nuke');
       state.players[1].useNuke(9000);
 
       ai.update(300, state);
@@ -211,7 +213,7 @@ describe(AIController.name, () => {
 
       ai.update(300, state);
 
-      expect(state.buyNukeResearch).toHaveBeenCalledWith(1);
+      expect(state.purchaseResearchNode).toHaveBeenCalledWith(1, 'unlock_nuke', false, expect.any(Number));
       expect(state.launchNuke).not.toHaveBeenCalled();
     });
 
@@ -227,7 +229,7 @@ describe(AIController.name, () => {
 
       noNukeAI.update(300, state);
 
-      expect(state.buyNukeResearch).not.toHaveBeenCalled();
+      expect(state.purchaseResearchNode).not.toHaveBeenCalledWith(1, 'unlock_nuke', false, expect.any(Number));
       expect(state.launchNuke).not.toHaveBeenCalled();
     });
   });
@@ -258,43 +260,43 @@ describe(AIController.name, () => {
 
       ai.update(300, state);
 
-      expect(state.players[1].getUpgradeLevel('spawnRate')).toBeGreaterThan(0);
+      expect(state.players[1].isUpgradePending('spawnRate')).toBe(true);
     });
 
     it('boosts health when human attack is higher', () => {
       const state = createState({ gameTimeMs: 60_000 });
       const human = state.players[0];
       human.gold = 9999;
-      for (let i = 0; i < 5; i++) human.buyUpgrade('attack');
+      for (let i = 0; i < 5; i++) applyUpgrade(human,'attack');
 
       state.players[1].gold = 9999;
       // Exhaust spawnRate and attack to high levels so health becomes best option
       for (let i = 0; i < 10; i++) {
-        state.players[1].buyUpgrade('spawnRate');
-        state.players[1].buyUpgrade('attack');
+        applyUpgrade(state.players[1],'spawnRate');
+        applyUpgrade(state.players[1],'attack');
       }
 
       ai.update(300, state);
 
-      expect(state.players[1].getUpgradeLevel('health')).toBeGreaterThan(0);
+      expect(state.players[1].isUpgradePending('health')).toBe(true);
     });
 
     it('boosts defense when human attack is higher', () => {
       const state = createState({ gameTimeMs: 60_000 });
       const human = state.players[0];
       human.gold = 9999;
-      for (let i = 0; i < 5; i++) human.buyUpgrade('attack');
+      for (let i = 0; i < 5; i++) applyUpgrade(human,'attack');
 
       state.players[1].gold = 9999;
       for (let i = 0; i < 10; i++) {
-        state.players[1].buyUpgrade('spawnRate');
-        state.players[1].buyUpgrade('attack');
-        state.players[1].buyUpgrade('health');
+        applyUpgrade(state.players[1],'spawnRate');
+        applyUpgrade(state.players[1],'attack');
+        applyUpgrade(state.players[1],'health');
       }
 
       ai.update(300, state);
 
-      expect(state.players[1].getUpgradeLevel('defense')).toBeGreaterThan(0);
+      expect(state.players[1].isUpgradePending('defense')).toBe(true);
     });
 
     it('boosts maxParticles when near cap', () => {
@@ -305,15 +307,15 @@ describe(AIController.name, () => {
       state.players[1].gold = 9999;
       // Saturate other upgrades so maxParticles scores higher
       for (let i = 0; i < 10; i++) {
-        state.players[1].buyUpgrade('spawnRate');
-        state.players[1].buyUpgrade('attack');
-        state.players[1].buyUpgrade('health');
-        state.players[1].buyUpgrade('speed');
+        applyUpgrade(state.players[1],'spawnRate');
+        applyUpgrade(state.players[1],'attack');
+        applyUpgrade(state.players[1],'health');
+        applyUpgrade(state.players[1],'speed');
       }
 
       ai.update(300, state);
 
-      expect(state.players[1].getUpgradeLevel('maxParticles')).toBeGreaterThan(0);
+      expect(state.players[1].isUpgradePending('maxParticles')).toBe(true);
     });
 
     it('can buy interestRate when has gold and not at cap', () => {
@@ -321,17 +323,17 @@ describe(AIController.name, () => {
       state.players[1].gold = 9999;
       // Saturate combat upgrades so interest can compete
       for (let i = 0; i < 8; i++) {
-        state.players[1].buyUpgrade('spawnRate');
-        state.players[1].buyUpgrade('attack');
-        state.players[1].buyUpgrade('health');
-        state.players[1].buyUpgrade('speed');
-        state.players[1].buyUpgrade('defense');
-        state.players[1].buyUpgrade('maxParticles');
+        applyUpgrade(state.players[1],'spawnRate');
+        applyUpgrade(state.players[1],'attack');
+        applyUpgrade(state.players[1],'health');
+        applyUpgrade(state.players[1],'speed');
+        applyUpgrade(state.players[1],'defense');
+        applyUpgrade(state.players[1],'maxParticles');
       }
 
       ai.update(300, state);
 
-      expect(state.players[1].getUpgradeLevel('interestRate')).toBeGreaterThan(0);
+      expect(state.players[1].isUpgradePending('interestRate')).toBe(true);
     });
   });
 
@@ -372,7 +374,7 @@ describe(AIController.name, () => {
 
       ai.update(300, state);
 
-      expect(state.buyNukeResearch).not.toHaveBeenCalled();
+      expect(state.purchaseResearchNode).not.toHaveBeenCalledWith(1, 'unlock_nuke', false, expect.any(Number));
       expect(state.launchNuke).not.toHaveBeenCalled();
     });
 
@@ -397,11 +399,11 @@ describe(AIController.name, () => {
       const state = createState({ gameTimeMs: 60_000 });
       state.players[1].gold = 9999;
       for (let i = 0; i < 10; i++) {
-        state.players[1].buyUpgrade('spawnRate');
-        state.players[1].buyUpgrade('attack');
+        applyUpgrade(state.players[1],'spawnRate');
+        applyUpgrade(state.players[1],'attack');
       }
       state.players[0].gold = 9999;
-      for (let i = 0; i < 5; i++) state.players[0].buyUpgrade('attack');
+      for (let i = 0; i < 5; i++) applyUpgrade(state.players[0],'attack');
 
       for (let i = 0; i < 20; i++) ai.update(300, state);
 
@@ -419,7 +421,12 @@ describe(AIController.name, () => {
 
       ai.update(300, state);
 
-      expect(state.players[1].getUpgradeLevel('speed')).toBeGreaterThan(0);
+      expect(state.players[1].isUpgradePending('speed')).toBe(true);
     });
   });
 });
+
+function applyUpgrade(player: IPlayer, type: UpgradeType): void {
+  player.startUpgrade(type, 0, 1);
+  player.tickUpgrades(2);
+}

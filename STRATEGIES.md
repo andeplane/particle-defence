@@ -220,7 +220,7 @@ Must be researched for 2000g before use. Once researched, available after 5 minu
 |---------|-----------|-----------|-----|-------|
 | Health | 5g | +0.8 HP | ∞ | Diminishing returns vs attack scaling |
 | Attack | 5g | +1.2 dmg | ∞ | Scales faster than health (1.2 vs 0.8) |
-| Radius | 3g | +1 | ∞ | Increases collision range; low priority |
+| Radius | 3g | +1 | 7 (radius 10) | Increases collision range; low priority |
 | Spawn Rate | 8g | −10ms interval | 40ms min | Huge early; worthless near cap |
 | Speed | 7g | +20 speed | ∞ | Also a combat stat (speed bonus) |
 | Max Particles | 10g | +50 cap | ∞ | Only matters when hitting population cap |

@@ -1,4 +1,4 @@
-import type { TowerType } from '../config';
+import { TOWER_TYPE, type TowerType } from '../config';
 import type { MenuItemDef } from './menuConfig';
 
 export interface ConstructionMenuState {
@@ -8,7 +8,7 @@ export interface ConstructionMenuState {
 
 export function createDefaultConstructionMenuState(): ConstructionMenuState {
   return {
-    selectedTowerType: 'laser',
+    selectedTowerType: TOWER_TYPE.LASER,
     siteSelectionActive: false,
   };
 }

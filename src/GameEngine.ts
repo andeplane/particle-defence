@@ -1,8 +1,9 @@
-import { CONFIG, type TowerType } from './config';
+import { CONFIG, TOWER_TYPE, type TowerType } from './config';
 import { AIController, type AIGameState } from './ai';
 import { BasicParticle, type IParticle, type GameContext, TowerCarrierParticle } from './particles';
 import { LaserTowerParticle } from './particles/LaserTowerParticle';
-import { SlowTowerParticle } from './particles/SlowTowerParticle';
+import { WeaknessTowerParticle } from './particles/WeaknessTowerParticle';
+import { ParticleSpawnerTower } from './particles/ParticleSpawnerTower';
 import { createPlayer, type IPlayer } from './player';
 import { SpatialHash, type ISpatialHash } from './spatial-hash';
 import { resolveCollisions, type CollisionResult } from './collision';
@@ -18,10 +19,21 @@ export interface GameEngineCallbacks {
   onGameOver(winner: number): void;
   onStuckRespawn(owner: 0 | 1): void;
   onInterest(playerId: 0 | 1, amount: number): void;
+  onTerritoryIncome(playerId: 0 | 1, amount: number): void;
   onTowerPlaced(tower: IParticle, playerId: 0 | 1): void;
   onTowerDeath(tower: IParticle): void;
   spawnExplosion(x: number, y: number, color: number): void;
 }
+
+type PendingConstruction = {
+  playerId: 0 | 1;
+  towerType: TowerType;
+  siteId: number;
+  x: number;
+  y: number;
+  startedAtMs: number;
+  durationMs: number;
+};
 
 export type AIMode = 'none' | 'single' | 'both';
 
@@ -58,6 +70,8 @@ export class GameEngine implements AIGameState {
   spawnTimers: number[] = [0, 0];
   /** Per-player interest payout accumulators (ms) */
   interestTimers: number[] = [0, 0];
+  /** Per-player territory income payout accumulators (ms) */
+  territoryIncomeTimers: number[] = [0, 0];
   gameOver: boolean = false;
   winner: number = -1;
   gameTimeMs: number = 0;
@@ -66,7 +80,11 @@ export class GameEngine implements AIGameState {
   /** Active carrier per player (null if none). */
   carriers: [TowerCarrierParticle | null, TowerCarrierParticle | null] = [null, null];
   /** Placed towers per player. */
-  towers: [Array<LaserTowerParticle | SlowTowerParticle>, Array<LaserTowerParticle | SlowTowerParticle>] = [[], []];
+  towers: [Array<LaserTowerParticle | WeaknessTowerParticle>, Array<LaserTowerParticle | WeaknessTowerParticle>] = [[], []];
+  /** Indestructible spawner towers per player. */
+  spawnerTowers: [ParticleSpawnerTower[], ParticleSpawnerTower[]] = [[], []];
+  /** Construction timers: gold already paid, tower will be placed when timer elapses. */
+  pendingConstructions: PendingConstruction[] = [];
 
   private readonly deps: GameEngineDependencies;
   private readonly callbacks: GameEngineCallbacks;
@@ -93,9 +111,21 @@ export class GameEngine implements AIGameState {
     this.winner = -1;
     this.spawnTimers = [0, 0];
     this.interestTimers = [0, 0];
+    this.territoryIncomeTimers = [0, 0];
     this.gameTimeMs = 0;
     this.carriers = [null, null];
     this.towers = [[], []];
+    this.spawnerTowers = [[], []];
+    this.pendingConstructions = [];
+
+    for (const slot of this.grid.spawnerSlots) {
+      const x = (slot.col + 0.5) * this.grid.cellW;
+      const y = (slot.row + 0.5) * this.grid.cellH;
+      const spawner = new ParticleSpawnerTower(x, y, slot.playerId);
+      this.spawnerTowers[slot.playerId].push(spawner);
+      this.particles.push(spawner);
+      this.callbacks.onParticleSpawned(spawner);
+    }
 
     this.aiControllers = [];
     if (aiMode === 'none') return;
@@ -142,8 +172,13 @@ export class GameEngine implements AIGameState {
     }
 
     this.applyInterest(delta);
+    this.applyTerritoryIncome(delta);
+    this.tickResearchTimers();
+    this.tickPendingConstructions();
+    this.tickParticleUpgrades();
+    this.tickTowerUpgrades();
 
-    this.resetTowerSlowFactors();
+    this.resetParticleAuraFactors();
 
     const context = this.createContext();
 
@@ -179,22 +214,31 @@ export class GameEngine implements AIGameState {
     const totalAlive = this.particles.filter(p => p.alive).length;
     if (count >= player.maxParticles || totalAlive >= this.deps.maxParticlesTotal) return;
 
-    const baseW = this.grid.baseWidthCells * this.grid.cellW;
-    let x = owner === 0 ? baseW / 2 : CONFIG.GAME_WIDTH - baseW / 2;
-    let y = CONFIG.GAME_HEIGHT / 2;
-    const maxAttempts = 50;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      if (owner === 0) {
-        x = baseW * 0.2 + Math.random() * baseW * 0.6;
-      } else {
-        x = CONFIG.GAME_WIDTH - baseW + baseW * 0.2 + Math.random() * baseW * 0.6;
-      }
-      y = CONFIG.GAME_HEIGHT * 0.2 + Math.random() * CONFIG.GAME_HEIGHT * 0.6;
-      if (!this.grid.isWall(x, y)) break;
-    }
-    if (this.grid.isWall(x, y)) {
+    const spawners = this.spawnerTowers[owner];
+    let x: number;
+    let y: number;
+
+    if (spawners.length > 0) {
+      const spawner = spawners[Math.floor(Math.random() * spawners.length)];
+      x = spawner.x;
+      y = spawner.y;
+    } else {
+      const baseW = this.grid.baseWidthCells * this.grid.cellW;
       x = owner === 0 ? baseW / 2 : CONFIG.GAME_WIDTH - baseW / 2;
       y = CONFIG.GAME_HEIGHT / 2;
+      for (let attempt = 0; attempt < 50; attempt++) {
+        if (owner === 0) {
+          x = baseW * 0.2 + Math.random() * baseW * 0.6;
+        } else {
+          x = CONFIG.GAME_WIDTH - baseW + baseW * 0.2 + Math.random() * baseW * 0.6;
+        }
+        y = CONFIG.GAME_HEIGHT * 0.2 + Math.random() * CONFIG.GAME_HEIGHT * 0.6;
+        if (!this.grid.isWall(x, y)) break;
+      }
+      if (this.grid.isWall(x, y)) {
+        x = owner === 0 ? baseW / 2 : CONFIG.GAME_WIDTH - baseW / 2;
+        y = CONFIG.GAME_HEIGHT / 2;
+      }
     }
 
     const p = this.deps.createParticle(
@@ -220,7 +264,7 @@ export class GameEngine implements AIGameState {
     let killCount = 0;
     for (const p of this.particles) {
       if (!p.alive) continue;
-      if (p.owner === enemyId) {
+      if (p.owner === enemyId && p.typeName !== 'spawnerTower') {
         p.leaveCurrentCell(context);
         p.destroy();
         killCount++;
@@ -238,7 +282,8 @@ export class GameEngine implements AIGameState {
   constructTower(playerId: 0 | 1, towerType: TowerType, siteId: number): boolean {
     if (this.gameOver) return false;
     const player = this.players[playerId];
-    if (this.towers[playerId].length >= CONFIG.TOWER_MAX_PER_PLAYER) return false;
+    const pendingCount = this.pendingConstructions.filter(pc => pc.playerId === playerId).length;
+    if (this.towers[playerId].length + pendingCount >= CONFIG.TOWER_MAX_PER_PLAYER) return false;
     const site = this.grid.towerSites.find((candidate) => candidate.id === siteId);
     if (!site) return false;
     if (this.isTowerSiteOccupied(site.id)) return false;
@@ -250,12 +295,8 @@ export class GameEngine implements AIGameState {
 
     const x = (site.col + 0.5) * this.grid.cellW;
     const y = (site.row + 0.5) * this.grid.cellH;
-    const tower = this.createTower(towerType, x, y, playerId);
-
-    this.towers[playerId].push(tower);
-    this.particles.push(tower);
-    this.callbacks.onParticleSpawned(tower);
-    this.callbacks.onTowerPlaced(tower, playerId);
+    const durationMs = CONFIG.TOWER_CONSTRUCTION_DURATION_MS[towerType] ?? 0;
+    this.pendingConstructions.push({ playerId, towerType, siteId, x, y, startedAtMs: this.gameTimeMs, durationMs });
     return true;
   }
 
@@ -287,11 +328,13 @@ export class GameEngine implements AIGameState {
   isTowerSiteOccupied(siteId: number): boolean {
     const site = this.grid.towerSites.find((candidate) => candidate.id === siteId);
     if (!site) return false;
-    return this.towers.some((playerTowers) => playerTowers.some((tower) => (
+    const placed = this.towers.some((playerTowers) => playerTowers.some((tower) => (
       tower.alive
       && Math.floor(tower.x / this.grid.cellW) === site.col
       && Math.floor(tower.y / this.grid.cellH) === site.row
     )));
+    const pending = this.pendingConstructions.some(pc => pc.siteId === siteId);
+    return placed || pending;
   }
 
   upgradeTower(playerId: 0 | 1, towerIndex: number): boolean {
@@ -300,30 +343,62 @@ export class GameEngine implements AIGameState {
     if (towerIndex < 0 || towerIndex >= playerTowers.length) return false;
     const tower = playerTowers[towerIndex];
     if (!tower.alive) return false;
+    if (tower.pendingUpgrade) return false;
 
     const cost = tower.getUpgradeCost();
     const player = this.players[playerId];
     if (player.gold < cost) return false;
 
     player.gold -= cost;
-    tower.upgrade();
+    tower.pendingUpgrade = { startedAtMs: this.gameTimeMs, durationMs: CONFIG.TOWER_UPGRADE_DURATION_MS };
     return true;
+  }
+
+  getPendingTowerUpgrade(playerId: 0 | 1, towerIndex: number): { progress: number; remainingMs: number } | null {
+    const tower = this.towers[playerId][towerIndex];
+    if (!tower?.pendingUpgrade) return null;
+    const elapsed = this.gameTimeMs - tower.pendingUpgrade.startedAtMs;
+    const progress = Math.min(1, elapsed / tower.pendingUpgrade.durationMs);
+    const remainingMs = Math.max(0, tower.pendingUpgrade.startedAtMs + tower.pendingUpgrade.durationMs - this.gameTimeMs);
+    return { progress, remainingMs };
   }
 
   buyResearch(playerId: 0 | 1, towerType: TowerType): boolean {
     if (this.gameOver) return false;
-    return this.players[playerId].researchTower(towerType);
+    const durationMs = CONFIG.TOWER_RESEARCH_DURATION_MS[towerType] ?? 0;
+    return this.players[playerId].startTowerResearch(towerType, this.gameTimeMs, durationMs);
   }
 
-  buyNukeResearch(playerId: 0 | 1): boolean {
+  getPendingConstruction(playerId: 0 | 1): { towerType: TowerType; progress: number; remainingMs: number } | null {
+    // Return the most recently started construction so the clock reflects the latest action
+    const pc = this.pendingConstructions
+      .filter(p => p.playerId === playerId)
+      .sort((a, b) => b.startedAtMs - a.startedAtMs)[0];
+    if (!pc) return null;
+    const elapsed = this.gameTimeMs - pc.startedAtMs;
+    const progress = pc.durationMs > 0 ? Math.min(1, elapsed / pc.durationMs) : 1;
+    const remainingMs = Math.max(0, pc.startedAtMs + pc.durationMs - this.gameTimeMs);
+    return { towerType: pc.towerType, progress, remainingMs };
+  }
+
+  buyPathResearch(playerId: 0 | 1, pathId: string): boolean {
     if (this.gameOver) return false;
-    return this.players[playerId].researchNuke();
+    const durationMs = CONFIG.TIER2_PATH_DURATIONS[pathId] ?? 10_000;
+    return this.players[playerId].startPathResearch(pathId, this.gameTimeMs, durationMs);
   }
 
-  private createTower(towerType: TowerType, x: number, y: number, playerId: 0 | 1): LaserTowerParticle | SlowTowerParticle {
-    return towerType === 'laser'
+  purchaseResearchNode(playerId: 0 | 1, nodeId: string, isPath: boolean, durationMs: number): boolean {
+    if (this.gameOver) return false;
+    const player = this.players[playerId];
+    return isPath
+      ? player.startPathResearch(nodeId, this.gameTimeMs, durationMs)
+      : player.startUnlockResearch(nodeId, this.gameTimeMs, durationMs);
+  }
+
+  private createTower(towerType: TowerType, x: number, y: number, playerId: 0 | 1): LaserTowerParticle | WeaknessTowerParticle {
+    return towerType === TOWER_TYPE.LASER
       ? new LaserTowerParticle(x, y, playerId)
-      : new SlowTowerParticle(x, y, playerId);
+      : new WeaknessTowerParticle(x, y, playerId);
   }
 
   private getAdjacentOpenCells(site: TowerSite): Array<{ col: number; row: number }> {
@@ -343,9 +418,11 @@ export class GameEngine implements AIGameState {
     ));
   }
 
-  private resetTowerSlowFactors(): void {
+  private resetParticleAuraFactors(): void {
     for (const p of this.particles) {
-      if (p.alive) p.towerSlowFactor = 1;
+      if (!p.alive) continue;
+      p.towerSlowFactor = 1;
+      p.attackFactor = p.stunnedUntilMs > this.gameTimeMs ? 0 : 1;
     }
   }
 
@@ -381,6 +458,27 @@ export class GameEngine implements AIGameState {
         if (increment > 0) {
           player.gold += increment;
           this.callbacks.onInterest(i as 0 | 1, increment);
+        }
+      }
+    }
+  }
+
+  private applyTerritoryIncome(delta: number): void {
+    const intervalMs = CONFIG.TERRITORY_INCOME_INTERVAL_MS;
+    for (let i = 0; i < 2; i++) {
+      const player = this.players[i];
+      if (!player.hasUnlocked('unlock_territory_income')) continue;
+
+      this.territoryIncomeTimers[i] += delta;
+      while (this.territoryIncomeTimers[i] >= intervalMs) {
+        this.territoryIncomeTimers[i] -= intervalMs;
+        const rateLevel = player.getPathLevel('territory_income_rate');
+        const rate = CONFIG.TERRITORY_INCOME_BASE_RATE + rateLevel * CONFIG.TERRITORY_INCOME_RATE_PER_LEVEL;
+        const cellCount = this.cellEffects.getOwnedCellCount(i as 0 | 1);
+        const income = Math.floor(rate * cellCount * (intervalMs / 1000));
+        if (income > 0) {
+          player.gold += income;
+          this.callbacks.onTerritoryIncome(i as 0 | 1, income);
         }
       }
     }
@@ -454,6 +552,12 @@ export class GameEngine implements AIGameState {
     const context = this.createContext();
     this.particles = this.particles.filter(p => {
       if (!p.alive) {
+        if (p.killedBy !== null) {
+          p.onDeath(context);
+          this.players[p.killedBy.owner].gold += this.deps.killReward;
+          this.players[p.killedBy.owner].kills++;
+          this.callbacks.onKill(p.killedBy, p);
+        }
         p.leaveCurrentCell(context);
         p.destroy();
         return false;
@@ -471,5 +575,41 @@ export class GameEngine implements AIGameState {
         break;
       }
     }
+  }
+
+  private tickResearchTimers(): void {
+    for (let i = 0; i < 2; i++) {
+      this.players[i].tickResearch(this.gameTimeMs);
+    }
+  }
+
+  private tickParticleUpgrades(): void {
+    for (let i = 0; i < 2; i++) {
+      this.players[i].tickUpgrades(this.gameTimeMs);
+    }
+  }
+
+  private tickTowerUpgrades(): void {
+    for (const playerTowers of this.towers) {
+      for (const tower of playerTowers) {
+        if (tower.pendingUpgrade &&
+            this.gameTimeMs - tower.pendingUpgrade.startedAtMs >= tower.pendingUpgrade.durationMs) {
+          tower.upgrade();
+          tower.pendingUpgrade = null;
+        }
+      }
+    }
+  }
+
+  private tickPendingConstructions(): void {
+    this.pendingConstructions = this.pendingConstructions.filter((pc) => {
+      if (this.gameTimeMs - pc.startedAtMs < pc.durationMs) return true;
+      const tower = this.createTower(pc.towerType, pc.x, pc.y, pc.playerId);
+      this.towers[pc.playerId].push(tower);
+      this.particles.push(tower);
+      this.callbacks.onParticleSpawned(tower);
+      this.callbacks.onTowerPlaced(tower, pc.playerId);
+      return false;
+    });
   }
 }

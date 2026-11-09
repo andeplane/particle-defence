@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { MENU_CATEGORIES, resolveKeyPress, type MenuCategory } from './menuConfig';
+import { TOWER_TYPE } from '../config';
+import {
+  MENU_CATEGORIES,
+  getConstructionSubmenuItems,
+  resolveKeyPress,
+  shouldPreventBrowserDefault,
+  type MenuCategory,
+} from './menuConfig';
 
 describe('menuConfig', () => {
   describe('MENU_CATEGORIES', () => {
@@ -68,10 +75,12 @@ describe('menuConfig', () => {
       expect(cat.items).toHaveLength(2);
     });
 
-    it('should have research category with research items', () => {
+    it('should have research category (items now dynamically computed per player)', () => {
       const cat = MENU_CATEGORIES.find(c => c.id === 'research')!;
-      expect(cat.items.every(i => i.kind === 'research')).toBe(true);
-      expect(cat.items.length).toBeGreaterThanOrEqual(3);
+      expect(cat).toBeDefined();
+      expect(cat.id).toBe('research');
+      // Items are empty — dynamically populated in UIScene via getVisibleResearchNodes()
+      expect(cat.items).toHaveLength(0);
     });
 
     it('should have towers category with prev/next/upgrade items', () => {
@@ -162,15 +171,15 @@ describe('menuConfig', () => {
 
     describe('research submenu dispatch', () => {
       it.each([
-        ['Q', 0, 'laser'],
-        ['W', 0, 'slow'],
-        ['E', 0, 'nuke'],
-        ['I', 1, 'laser'],
-        ['O', 1, 'slow'],
-        ['P', 1, 'nuke'],
-      ] as const)('P%d presses %s -> research %s', (key, playerId, researchType) => {
+        ['Q', 0],
+        ['W', 0],
+        ['E', 0],
+        ['I', 1],
+        ['O', 1],
+        ['P', 1],
+      ] as const)('P%d presses %s -> researchKey result', (key, playerId) => {
         const result = resolveKeyPress(key, playerId, 'research');
-        expect(result).toEqual({ type: 'research', researchType });
+        expect(result).toEqual({ type: 'researchKey', key });
       });
     });
 
@@ -186,21 +195,21 @@ describe('menuConfig', () => {
       });
 
       it.each([
-        ['Q', 0, { type: 'construct', towerType: 'laser' }],
-        ['W', 0, { type: 'construct', towerType: 'slow' }],
-        ['I', 1, { type: 'construct', towerType: 'laser' }],
-        ['O', 1, { type: 'construct', towerType: 'slow' }],
+        ['Q', 0, { type: 'construct', towerType: TOWER_TYPE.LASER }],
+        ['W', 0, { type: 'construct', towerType: TOWER_TYPE.WEAKNESS }],
+        ['I', 1, { type: 'construct', towerType: TOWER_TYPE.LASER }],
+        ['O', 1, { type: 'construct', towerType: TOWER_TYPE.WEAKNESS }],
       ] as const)('P%d presses %s in build>TOWERS before site selection -> %o', (key, playerId, expected) => {
         const result = resolveKeyPress(key, playerId, 'construction', 'towers', false);
         expect(result).toEqual(expected);
       });
 
       it.each([
-        ['A', 0, { type: 'action', action: 'buildPrev' }],
-        ['S', 0, { type: 'action', action: 'buildNext' }],
+        ['Q', 0, { type: 'action', action: 'buildPrev' }],
+        ['W', 0, { type: 'action', action: 'buildNext' }],
         ['E', 0, { type: 'action', action: 'buildSelected' }],
-        ['K', 1, { type: 'action', action: 'buildPrev' }],
-        ['L', 1, { type: 'action', action: 'buildNext' }],
+        ['I', 1, { type: 'action', action: 'buildPrev' }],
+        ['O', 1, { type: 'action', action: 'buildNext' }],
         ['P', 1, { type: 'action', action: 'buildSelected' }],
       ] as const)('P%d presses %s in build>TOWERS after site selection -> %o', (key, playerId, expected) => {
         const result = resolveKeyPress(key, playerId, 'construction', 'towers', true);
@@ -234,6 +243,17 @@ describe('menuConfig', () => {
       });
     });
 
+    describe('site-selection keys sit on the top keyboard row', () => {
+      it('uses the same Q/W/E and I/O/P row as the tower-type buttons', () => {
+        const actions = getConstructionSubmenuItems('towers').filter(i => i.kind === 'action');
+        expect(actions.map(i => [i.p1Key, i.p2Key])).toEqual([
+          ['Q', 'I'],
+          ['W', 'O'],
+          ['E', 'P'],
+        ]);
+      });
+    });
+
     describe('edge cases', () => {
       it('returns null for unknown key at top level', () => {
         expect(resolveKeyPress('X', 0, null)).toBeNull();
@@ -247,5 +267,17 @@ describe('menuConfig', () => {
         expect(resolveKeyPress('Q', 0, 'invalid' as MenuCategory)).toBeNull();
       });
     });
+  });
+});
+
+describe(shouldPreventBrowserDefault.name, () => {
+  it('swallows Tab so the browser cannot move focus out of the canvas', () => {
+    expect(shouldPreventBrowserDefault('Tab')).toBe(true);
+  });
+
+  it('lets ordinary keys through', () => {
+    for (const key of ['Q', 'W', 'E', 'Backspace', 'Enter', ' ']) {
+      expect(shouldPreventBrowserDefault(key)).toBe(false);
+    }
   });
 });

@@ -5,6 +5,7 @@ import { MultiplayerGuest, type GuestSceneInterface } from '../MultiplayerGuest.
 import { GameEngine, type GameEngineCallbacks } from '../../GameEngine.js';
 import { generateGrid } from '../../grid/generators/index.js';
 import { decode } from '../GameStateEncoder.js';
+import { CONFIG } from '../../config.js';
 import type { EncodedParticle, GameStateSnapshotHeader } from '../types.js';
 
 function makeNoOpCallbacks(): GameEngineCallbacks {
@@ -16,6 +17,7 @@ function makeNoOpCallbacks(): GameEngineCallbacks {
     onGameOver: () => {},
     onStuckRespawn: () => {},
     onInterest: () => {},
+    onTerritoryIncome: () => {},
     onTowerPlaced: () => {},
     onTowerDeath: () => {},
     spawnExplosion: () => {},
@@ -90,6 +92,8 @@ describe('multiplayer integration', () => {
     // Guest sends upgrade input — routed synchronously via mock peer pair
     guest.sendInput({ type: 'upgrade', upgradeType: 'attack' });
 
+    expect(p1.isUpgradePending('attack')).toBe(true);
+    p1.tickUpgrades(engine.gameTimeMs + CONFIG.PARTICLE_UPGRADE_DURATION_MS);
     expect(p1.getUpgradeLevel('attack')).toBe(levelBefore + 1);
   });
 

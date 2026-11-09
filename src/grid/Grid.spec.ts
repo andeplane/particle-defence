@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Grid } from './Grid';
+import { Grid, countOpenCells } from './Grid';
 
 function makeAllOpenCells(cols: number, rows: number): boolean[][] {
   return Array.from({ length: rows }, () => Array(cols).fill(true));
@@ -109,5 +109,25 @@ describe(Grid.name, () => {
       const grid = new Grid(cols, rows, baseWidth, cells, gameWidth, gameHeight);
       expect(grid.hasPath()).toBe(false);
     });
+  });
+});
+
+describe(countOpenCells.name, () => {
+  it('counts every walkable cell', () => {
+    const grid = new Grid(8, 4, 2, makeAllOpenCells(8, 4));
+    expect(countOpenCells(grid)).toBe(32);
+  });
+
+  it('returns 0 when the grid is solid wall', () => {
+    const grid = new Grid(8, 4, 2, makeAllWallCells(8, 4));
+    expect(countOpenCells(grid)).toBe(0);
+  });
+
+  it('ignores wall cells in a mixed grid', () => {
+    const cells = makeAllOpenCells(4, 2);
+    cells[0][0] = false;
+    cells[1][3] = false;
+    const grid = new Grid(4, 2, 1, cells);
+    expect(countOpenCells(grid)).toBe(6);
   });
 });

@@ -19,7 +19,7 @@ describe('construction menu state', () => {
     expect(visibleItems.map((item) => item.kind)).toEqual(['construct', 'construct']);
   });
 
-  it.each<TowerType>(['laser', 'slow'])('selecting %s switches to site-selection controls', (towerType) => {
+  it.each<TowerType>(['laser', 'weakness'])('selecting %s switches to site-selection controls', (towerType) => {
     const state = selectConstructionTower(createDefaultConstructionMenuState(), towerType);
     const visibleItems = getVisibleConstructionItems(constructionItems, state);
 
@@ -33,11 +33,11 @@ describe('construction menu state', () => {
   });
 
   it('back returns from site selection to tower type selection', () => {
-    const activeState = selectConstructionTower(createDefaultConstructionMenuState(), 'slow');
+    const activeState = selectConstructionTower(createDefaultConstructionMenuState(), 'weakness');
     const state = backFromConstructionState(activeState);
     const visibleItems = getVisibleConstructionItems(constructionItems, state);
 
-    expect(state).toEqual({ selectedTowerType: 'slow', siteSelectionActive: false });
+    expect(state).toEqual({ selectedTowerType: 'weakness', siteSelectionActive: false });
     expect(visibleItems.map((item) => item.kind)).toEqual(['construct', 'construct']);
   });
 });

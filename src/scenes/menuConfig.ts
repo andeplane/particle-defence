@@ -1,4 +1,4 @@
-import type { UpgradeType, TowerType } from '../config';
+import { TOWER_TYPE, type UpgradeType, type TowerType } from '../config';
 
 export type MenuCategory = 'construction' | 'research' | 'upgrades' | 'abilities' | 'towers';
 export type BuildSubmenu = 'towers' | 'particles';
@@ -12,7 +12,8 @@ export interface CategoryDef {
   items: MenuItemDef[];
 }
 
-export type ResearchType = TowerType | 'nuke';
+/** Legacy: only used for nuke action now that tower research is dynamic. */
+export type ResearchType = 'nuke';
 
 export type MenuItemDef =
   | { kind: 'upgrade'; type: UpgradeType; label: string; tooltip: string; p1Key: string; p2Key: string }
@@ -45,11 +46,8 @@ export const MENU_CATEGORIES: CategoryDef[] = [
     tooltip: 'Research new technologies',
     p1Key: 'W',
     p2Key: 'O',
-    items: [
-      { kind: 'research', researchType: 'laser', label: 'LASER', tooltip: 'Unlock laser tower construction', p1Key: 'Q', p2Key: 'I' },
-      { kind: 'research', researchType: 'slow', label: 'SLOW', tooltip: 'Unlock slow tower construction', p1Key: 'W', p2Key: 'O' },
-      { kind: 'research', researchType: 'nuke', label: 'NUKE', tooltip: 'Unlock nuclear weapon launch', p1Key: 'E', p2Key: 'P' },
-    ],
+    // Items are computed dynamically in UIScene via getVisibleResearchNodes()
+    items: [],
   },
   {
     id: 'upgrades',
@@ -94,10 +92,10 @@ export const MENU_CATEGORIES: CategoryDef[] = [
 
 const CONSTRUCTION_SUBMENU_ITEMS: Record<BuildSubmenu, MenuItemDef[]> = {
   towers: [
-    { kind: 'construct', towerType: 'laser', label: 'LASER', tooltip: 'Select laser tower for fixed-site construction', p1Key: 'Q', p2Key: 'I' },
-    { kind: 'construct', towerType: 'slow', label: 'SLOW', tooltip: 'Select slow tower for fixed-site construction', p1Key: 'W', p2Key: 'O' },
-    { kind: 'action', action: 'buildPrev', label: '< SITE', tooltip: 'Select previous eligible tower site', p1Key: 'A', p2Key: 'K' },
-    { kind: 'action', action: 'buildNext', label: 'SITE >', tooltip: 'Select next eligible tower site', p1Key: 'S', p2Key: 'L' },
+    { kind: 'construct', towerType: TOWER_TYPE.LASER, label: 'LASER', tooltip: 'Select laser tower for fixed-site construction', p1Key: 'Q', p2Key: 'I' },
+    { kind: 'construct', towerType: TOWER_TYPE.WEAKNESS, label: 'WEAKNESS', tooltip: 'Select weakness tower for fixed-site construction', p1Key: 'W', p2Key: 'O' },
+    { kind: 'action', action: 'buildPrev', label: '< SITE', tooltip: 'Select previous eligible tower site', p1Key: 'Q', p2Key: 'I' },
+    { kind: 'action', action: 'buildNext', label: 'SITE >', tooltip: 'Select next eligible tower site', p1Key: 'W', p2Key: 'O' },
     { kind: 'action', action: 'buildSelected', label: 'BUILD', tooltip: 'Build selected tower at selected eligible site', p1Key: 'E', p2Key: 'P' },
   ],
   particles: [],
@@ -107,7 +105,36 @@ export function getConstructionSubmenuItems(buildSubmenu: BuildSubmenu): Readonl
   return CONSTRUCTION_SUBMENU_ITEMS[buildSubmenu];
 }
 
+/**
+ * Keys the game always swallows, even when they trigger no menu action, so the
+ * browser does not move focus (Tab) out of the canvas.
+ */
+export function shouldPreventBrowserDefault(key: string): boolean {
+  return key === 'Tab';
+}
+
 export type ActionType = 'nuke' | 'buildPrev' | 'buildNext' | 'buildSelected' | 'towerPrev' | 'towerNext' | 'towerUpgrade';
+
+const RESEARCH_POSITIONAL_KEYS: Record<0 | 1, { top: readonly string[]; bottom: readonly string[] }> = {
+  0: { top: ['Q', 'W', 'E', 'R'], bottom: ['A', 'S', 'D', 'F'] },
+  1: { top: ['U', 'I', 'O', 'P'], bottom: ['H', 'J', 'K', 'L'] },
+};
+
+/** Returns the display key for a research button at the given render position. */
+export function getResearchKey(playerId: 0 | 1, isTopRow: boolean, rowIndex: number): string {
+  const row = isTopRow ? RESEARCH_POSITIONAL_KEYS[playerId].top : RESEARCH_POSITIONAL_KEYS[playerId].bottom;
+  return row[rowIndex] ?? '?';
+}
+
+/** Maps a pressed key back to a node index in the visible research list, or null if not a research key. */
+export function getResearchNodeIndex(key: string, playerId: 0 | 1, topRowCount: number): number | null {
+  const { top, bottom } = RESEARCH_POSITIONAL_KEYS[playerId];
+  const ti = top.indexOf(key);
+  if (ti !== -1 && ti < topRowCount) return ti;
+  const bi = bottom.indexOf(key);
+  if (bi !== -1) return topRowCount + bi;
+  return null;
+}
 
 export type KeyPressResult =
   | { type: 'back' }
@@ -116,6 +143,8 @@ export type KeyPressResult =
   | { type: 'upgrade'; upgradeType: UpgradeType }
   | { type: 'action'; action: ActionType }
   | { type: 'research'; researchType: ResearchType }
+  /** Dynamic research: UIScene maps the key to a visible research node. */
+  | { type: 'researchKey'; key: string }
   | { type: 'construct'; towerType: TowerType }
   | null;
 
@@ -182,6 +211,10 @@ export function resolveKeyPress(
         }
       }
       return null;
+    }
+
+    if (currentCategory === 'research') {
+      return { type: 'researchKey', key: upperKey };
     }
 
     const catDef = MENU_CATEGORIES.find(c => c.id === currentCategory);

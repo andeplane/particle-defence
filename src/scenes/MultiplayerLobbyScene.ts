@@ -3,6 +3,7 @@ import { CONFIG } from '../config.js';
 import { SignalingClient } from '../multiplayer/SignalingClient.js';
 import { PeerConnection } from '../multiplayer/PeerConnection.js';
 import { createMenuButton } from './createMenuButton.js';
+import { SCENE_KEYS } from './SceneKeys.js';
 
 type LobbyState = 'idle' | 'creating' | 'waiting_for_peer' | 'joining' | 'negotiating' | 'connected' | 'error';
 
@@ -17,7 +18,7 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
   private joinErrorText!: Phaser.GameObjects.Text;
 
   constructor() {
-    super({ key: 'MultiplayerLobbyScene' });
+    super({ key: SCENE_KEYS.MULTIPLAYER_LOBBY });
   }
 
   create(): void {
@@ -259,7 +260,7 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
     // GameScene takes ownership; lobby clears its reference.
     const pc = this.peerConnection;
     this.peerConnection = null;
-    this.scene.start('GameScene', {
+    this.scene.start(SCENE_KEYS.GAME, {
       mode: role,
       signalingClient: this.signalingClient,
       peerConnection: pc,
@@ -269,7 +270,7 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
   private goBack(): void {
     this.signalingClient.disconnect();
     this.joinInput.remove();
-    this.scene.start('MenuScene');
+    this.scene.start(SCENE_KEYS.MENU);
   }
 
   private setStatus(msg: string): void {

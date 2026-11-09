@@ -1,3 +1,4 @@
+import { CONFIG } from '../config.js';
 import type { GameEngine } from '../GameEngine.js';
 import type { PeerConnection } from './PeerConnection.js';
 import type { PlayerInputMessage } from './types.js';
@@ -62,9 +63,7 @@ export class MultiplayerHost {
 
     switch (msg.type) {
       case 'upgrade': {
-        if (player.canAfford(msg.upgradeType) && !player.isUpgradeAtMax(msg.upgradeType)) {
-          player.buyUpgrade(msg.upgradeType);
-        }
+        player.startUpgrade(msg.upgradeType, this.engine.gameTimeMs, CONFIG.PARTICLE_UPGRADE_DURATION_MS);
         break;
       }
       case 'nuke': {

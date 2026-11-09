@@ -14,12 +14,14 @@
     "balance-test": "npx tsx src/balance/cli.ts"
   },
   "devDependencies": {
+    "@types/mixpanel-browser": "^2.60.0",
     "@types/node": "^25.3.5",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
     "vitest": "^4.0.18"
   },
   "dependencies": {
+    "mixpanel-browser": "^2.80.0",
     "phaser": "^3.90.0"
   }
 }

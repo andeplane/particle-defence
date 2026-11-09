@@ -87,10 +87,10 @@ JSON-encoded message sent from guest to host when the guest player takes an acti
 type PlayerInputMessage =
   | { type: 'upgrade'; upgradeType: UpgradeType }
   | { type: 'nuke' }
-  | { type: 'tower_build'; towerType: 'laser' | 'slow' }
+  | { type: 'tower_build'; towerType: 'laser' | 'weakness' }
   | { type: 'tower_place' }
   | { type: 'tower_upgrade'; towerIndex: number }
-  | { type: 'tower_research'; towerType: 'laser' | 'slow' };
+  | { type: 'tower_research'; towerType: 'laser' | 'weakness' };
 ```
 
 Sent over the reliable/ordered DataChannel — inputs must not be lost or reordered.

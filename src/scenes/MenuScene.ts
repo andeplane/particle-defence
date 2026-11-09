@@ -1,77 +1,98 @@
 import Phaser from 'phaser';
 import { CONFIG } from '../config';
+import { trackHowToPlayClicked } from '../analytics';
 import { isMobile } from '../mobile';
+import { createMenuBackground } from './MenuBackground';
 import { createMenuButton } from './createMenuButton';
+import { SCENE_KEYS } from './SceneKeys';
 
 export type GameMode = 'ai' | 'pvp';
+export const GAME_MODE = {
+  AI: 'ai',
+  PVP: 'pvp',
+} as const satisfies Record<string, GameMode>;
+
+const L = CONFIG.MENU_LAYOUT;
+const KEY_AI = '1';
+const KEY_PVP = '2';
+const KEY_MULTIPLAYER = 'M';
+const KEY_MULTIPLAYER_ALT = '3';
+const KEY_HOW_TO_PLAY = 'H';
+const KEY_HOW_TO_PLAY_ALT = '4';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
-    super({ key: 'MenuScene' });
+    super({ key: SCENE_KEYS.MENU });
   }
 
   create(): void {
     const centerX = CONFIG.GAME_WIDTH / 2;
-    const centerY = CONFIG.GAME_HEIGHT / 2;
     const mobile = isMobile();
+    createMenuBackground(this);
 
-    this.add.text(centerX, centerY - 120, 'Particle Defender', {
-      fontSize: '64px',
+    this.add.text(centerX, L.TITLE_Y, 'Particle Defender', {
+      fontSize: `${Math.round(L.TITLE_FONT)}px`,
       color: CONFIG.PLAYER1_COLOR_STR,
       fontFamily: 'monospace',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.text(centerX, centerY - 70, mobile ? 'Tap to start' : 'Choose mode', {
-      fontSize: `${CONFIG.UI_FONT_LARGE + 4}px`,
-      color: '#aaaaaa',
+    this.add.text(centerX, L.SUBTITLE_Y, mobile ? 'Tap to start' : 'Choose mode', {
+      fontSize: `${CONFIG.UI_FONT_LARGE}px`,
+      color: L.SUBTITLE_COLOR_STR,
       fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    const btnW = 280;
-    const btnH = 56;
-    const gap = 24;
+    const btnW = L.MODE_BTN_WIDTH;
+    const btnH = L.MODE_BTN_HEIGHT;
+    const rowH = btnH + L.MODE_BTN_GAP;
+    const firstY = L.FIRST_ROW_TOP_Y + btnH / 2;
+    const hint = (k: string) => (mobile ? undefined : k);
 
-    createMenuButton(this, centerX, centerY - 20, btnW, btnH,
-      '1 Player vs AI', CONFIG.PLAYER1_COLOR, () => this.startGame('ai'));
+    createMenuButton(this, centerX, firstY, btnW, btnH,
+      '1 Player vs AI', CONFIG.PLAYER1_COLOR, () => this.startGame(GAME_MODE.AI), hint(KEY_AI));
 
     if (!mobile) {
-      createMenuButton(this, centerX, centerY + gap + btnH - 20, btnW, btnH,
-        '2 Player', CONFIG.PLAYER2_COLOR, () => this.startGame('pvp'));
+      createMenuButton(this, centerX, firstY + rowH, btnW, btnH,
+        '2 Player', CONFIG.PLAYER2_COLOR, () => this.startGame(GAME_MODE.PVP), hint(KEY_PVP));
     }
 
-    const multiplayerY = mobile
-      ? centerY + gap + btnH - 20
-      : centerY + 2 * (gap + btnH) - 20;
     if (!mobile) {
-      createMenuButton(this, centerX, multiplayerY, btnW, btnH,
-        'Multiplayer', 0x44aaff, () => this.scene.start('MultiplayerLobbyScene'));
+      createMenuButton(this, centerX, firstY + 2 * rowH, btnW, btnH,
+        'Multiplayer', L.MULTIPLAYER_COLOR, () => this.openMultiplayer(), hint(KEY_MULTIPLAYER));
     }
 
-    const howToPlayY = mobile
-      ? centerY + gap + btnH - 20
-      : centerY + 3 * (gap + btnH) - 20;
+    const howToPlayY = mobile ? firstY + rowH : firstY + 3 * rowH;
     createMenuButton(this, centerX, howToPlayY, btnW, btnH,
-      'How to Play', 0x88aa88, () => this.scene.start('HowToPlayScene'));
+      'How to Play', L.HOW_TO_PLAY_COLOR, () => this.openHowToPlay(), hint(KEY_HOW_TO_PLAY));
 
     if (!mobile) {
       this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
         const key = event.key.toUpperCase();
-        if (key === '1') this.startGame('ai');
-        if (key === '2') this.startGame('pvp');
-        if (key === 'M' || key === '3') this.scene.start('MultiplayerLobbyScene');
-        if (key === 'H' || key === '4') this.scene.start('HowToPlayScene');
+        if (key === KEY_AI) this.startGame(GAME_MODE.AI);
+        if (key === KEY_PVP) this.startGame(GAME_MODE.PVP);
+        if (key === KEY_MULTIPLAYER || key === KEY_MULTIPLAYER_ALT) this.openMultiplayer();
+        if (key === KEY_HOW_TO_PLAY || key === KEY_HOW_TO_PLAY_ALT) this.openHowToPlay();
       });
 
-      this.add.text(centerX, centerY + 280, '[1] vs AI  [2] 2 Player  [M] Multiplayer  [H] How to Play', {
+      this.add.text(centerX, howToPlayY + btnH / 2 + L.HINT_OFFSET_Y, 'Press the key shown on a button', {
         fontSize: `${CONFIG.UI_FONT_SMALL}px`,
-        color: '#666666',
+        color: L.HINT_COLOR_STR,
         fontFamily: 'monospace',
       }).setOrigin(0.5);
     }
   }
 
+  private openMultiplayer(): void {
+    this.scene.start(SCENE_KEYS.MULTIPLAYER_LOBBY);
+  }
+
+  private openHowToPlay(): void {
+    trackHowToPlayClicked();
+    this.scene.start(SCENE_KEYS.HOW_TO_PLAY);
+  }
+
   private startGame(mode: GameMode): void {
-    this.scene.start('MapSelectScene', { mode });
+    this.scene.start(SCENE_KEYS.MAP_SELECT, { mode });
   }
 }

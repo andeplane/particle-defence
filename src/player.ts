@@ -1,4 +1,4 @@
-import { CONFIG, getUpgradeCost, getTowerConstructionCost, getNukeResearchCost, getDebugEverythingCheap, type UpgradeType, type TowerType } from './config';
+import { CONFIG, getUpgradeCost, getTowerConstructionCost, getDebugEverythingCheap, type UpgradeType, type TowerType } from './config';
 import { ResearchRegistry } from './research/ResearchRegistry';
 
 export interface IPlayer {
@@ -23,7 +23,6 @@ export interface IPlayer {
   getUpgradeCost(upgrade: UpgradeType): number;
   canAfford(upgrade: UpgradeType): boolean;
   isUpgradeAtMax(upgrade: UpgradeType): boolean;
-  buyUpgrade(upgrade: UpgradeType): boolean;
   canUseNuke(gameTimeMs: number): boolean;
   useNuke(gameTimeMs: number): void;
   getNukeCooldownRemainingMs(gameTimeMs: number): number;
@@ -40,11 +39,6 @@ export interface IPlayer {
   purchasePath(pathId: string): boolean;
   getPathCost(pathId: string): number;
 
-  // Legacy wrappers — delegate to generic API
-  hasResearchedNuke(): boolean;
-  canResearchNuke(): boolean;
-  researchNuke(): boolean;
-  getNukeResearchCost(): number;
   hasResearched(towerType: TowerType): boolean;
   canResearchTower(towerType: TowerType): boolean;
   researchTower(towerType: TowerType): boolean;
@@ -52,6 +46,26 @@ export interface IPlayer {
   getConstructionCost(towerType: TowerType): number;
   canAffordConstruction(towerType: TowerType): boolean;
   payForConstruction(towerType: TowerType): boolean;
+
+  // Timer-based research (used by GameEngine.buyResearch — deducts gold and starts timer)
+  startTowerResearch(towerType: TowerType, gameTimeMs: number, durationMs: number): boolean;
+  /** Start a timer-based multi-level path research. Deducts cost for next level and starts timer. */
+  startPathResearch(pathId: string, gameTimeMs: number, durationMs: number): boolean;
+  /** Start a timer-based one-time unlock research for any arbitrary nodeId. */
+  startUnlockResearch(nodeId: string, gameTimeMs: number, durationMs: number): boolean;
+  isResearching(nodeId: string): boolean;
+  getResearchProgress(nodeId: string, gameTimeMs: number): number;
+  getResearchRemainingMs(nodeId: string, gameTimeMs: number): number;
+  /** Completes any timers that have elapsed. Returns the nodeIds that finished. */
+  tickResearch(gameTimeMs: number): string[];
+
+  // Timer-based particle upgrades (deducts gold and starts timer; applies stat on completion)
+  startUpgrade(type: UpgradeType, gameTimeMs: number, durationMs: number): boolean;
+  isUpgradePending(type: UpgradeType): boolean;
+  getUpgradeProgress(type: UpgradeType, gameTimeMs: number): number;
+  getUpgradeRemainingMs(type: UpgradeType, gameTimeMs: number): number;
+  /** Completes any elapsed upgrade timers. Returns the completed upgrade types. */
+  tickUpgrades(gameTimeMs: number): UpgradeType[];
 }
 
 export type PlayerConfig = {
@@ -63,9 +77,8 @@ export type PlayerConfig = {
   attackPerLevel: number;
   particleBaseRadius: number;
   particleBaseSpeed: number;
-  spawnIntervalMs: number;
-  spawnRateReductionPerLevel: number;
-  minSpawnInterval: number;
+  spawnRateBase: number;
+  spawnRatePerLevel: number;
   speedPerLevel: number;
   maxParticlesPerPlayer: number;
   maxParticlesPerLevel: number;
@@ -82,9 +95,8 @@ export const defaultPlayerConfig: PlayerConfig = {
   attackPerLevel: CONFIG.ATTACK_PER_LEVEL,
   particleBaseRadius: CONFIG.PARTICLE_BASE_RADIUS,
   particleBaseSpeed: CONFIG.PARTICLE_SPEED,
-  spawnIntervalMs: CONFIG.SPAWN_INTERVAL_MS,
-  spawnRateReductionPerLevel: CONFIG.SPAWN_RATE_REDUCTION_PER_LEVEL,
-  minSpawnInterval: CONFIG.MIN_SPAWN_INTERVAL,
+  spawnRateBase: CONFIG.SPAWN_RATE_BASE,
+  spawnRatePerLevel: CONFIG.SPAWN_RATE_PER_LEVEL,
   speedPerLevel: CONFIG.SPEED_PER_LEVEL,
   maxParticlesPerPlayer: CONFIG.MAX_PARTICLES_PER_PLAYER,
   maxParticlesPerLevel: CONFIG.MAX_PARTICLES_PER_LEVEL,
@@ -92,18 +104,16 @@ export const defaultPlayerConfig: PlayerConfig = {
   nuclearCooldownMs: CONFIG.NUCLEAR_COOLDOWN_MS,
 };
 
-export function computeMaxLevels(config: PlayerConfig): Record<UpgradeType, number> {
+export function computeMaxLevels(_config: PlayerConfig): Record<UpgradeType, number> {
   return {
     health: Infinity,
     attack: Infinity,
-    radius: Infinity,
+    radius: CONFIG.PARTICLE_MAX_RADIUS - CONFIG.PARTICLE_BASE_RADIUS,
     speed: Infinity,
     maxParticles: Infinity,
-    spawnRate: Math.ceil(
-      (config.spawnIntervalMs - config.minSpawnInterval) / config.spawnRateReductionPerLevel
-    ),
+    spawnRate: Infinity,
     defense: Math.round(
-      (CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL
+      (CONFIG.OWNERSHIP_DEFENSE_MAX - CONFIG.OWNERSHIP_DEFENSE_BASE) / CONFIG.OWNERSHIP_DEFENSE_PER_LEVEL + 1e-9
     ),
     interestRate: Math.round(CONFIG.MAX_INTEREST_RATE / CONFIG.INTEREST_RATE_PER_LEVEL),
   };
@@ -127,6 +137,12 @@ export class Player implements IPlayer {
   /** Tracks purchased unlocks and upgrade path levels. Unlock IDs map to 1; path IDs map to level count. */
   private readonly _purchased: Map<string, number> = new Map();
 
+  /** In-progress research timers keyed by nodeId. */
+  private readonly _researchTimers: Map<string, { startedAtMs: number; durationMs: number }> = new Map();
+
+  /** In-progress particle upgrade timers keyed by UpgradeType. */
+  private readonly _pendingUpgrades: Map<UpgradeType, { startedAtMs: number; durationMs: number }> = new Map();
+
   constructor(id: 0 | 1, config: PlayerConfig = defaultPlayerConfig) {
     this.id = id;
     this.config = config;
@@ -149,8 +165,7 @@ export class Player implements IPlayer {
   }
 
   get spawnInterval(): number {
-    const reduction = this.upgradeLevels.spawnRate * this.config.spawnRateReductionPerLevel;
-    return Math.max(this.config.minSpawnInterval, this.config.spawnIntervalMs - reduction);
+    return 1000 / (this.config.spawnRateBase + this.upgradeLevels.spawnRate * this.config.spawnRatePerLevel);
   }
 
   get particleSpeed(): number {
@@ -185,6 +200,7 @@ export class Player implements IPlayer {
   }
 
   canAfford(upgrade: UpgradeType): boolean {
+    if (this._pendingUpgrades.has(upgrade)) return false;
     return this.gold >= this.getUpgradeCost(upgrade);
   }
 
@@ -192,16 +208,8 @@ export class Player implements IPlayer {
     return this.upgradeLevels[upgrade] >= this.maxLevels[upgrade];
   }
 
-  buyUpgrade(upgrade: UpgradeType): boolean {
-    if (!this.canAfford(upgrade)) return false;
-    if (this.isUpgradeAtMax(upgrade)) return false;
-    this.gold -= this.getUpgradeCost(upgrade);
-    this.upgradeLevels[upgrade]++;
-    return true;
-  }
-
   canUseNuke(gameTimeMs: number): boolean {
-    if (!this.hasResearchedNuke()) return false;
+    if (!this.hasUnlocked('unlock_nuke')) return false;
     if (this.lastNukeTimeMs < 0) {
       return gameTimeMs >= this.config.nuclearFirstAvailableMs;
     }
@@ -213,7 +221,7 @@ export class Player implements IPlayer {
   }
 
   getNukeCooldownRemainingMs(gameTimeMs: number): number {
-    if (!this.hasResearchedNuke()) return 0;
+    if (!this.hasUnlocked('unlock_nuke')) return 0;
     if (this.canUseNuke(gameTimeMs)) return 0;
     if (this.lastNukeTimeMs < 0) {
       return Math.max(0, this.config.nuclearFirstAvailableMs - gameTimeMs);
@@ -282,33 +290,12 @@ export class Player implements IPlayer {
     return true;
   }
 
-  // ── Legacy wrappers ────────────────────────────────────────────────
-
-  hasResearchedNuke(): boolean {
-    return this.hasUnlocked('unlock_nuke');
-  }
-
-  canResearchNuke(): boolean {
-    if (this.hasResearchedNuke()) return false;
-    return this.gold >= this.getNukeResearchCost();
-  }
-
-  researchNuke(): boolean {
-    if (!this.canResearchNuke()) return false;
-    this.gold -= this.getNukeResearchCost();
-    this._purchased.set('unlock_nuke', 1);
-    return true;
-  }
-
-  getNukeResearchCost(): number {
-    return getNukeResearchCost();
-  }
-
   hasResearched(towerType: TowerType): boolean {
     return this.hasUnlocked(`unlock_${towerType}`);
   }
 
   canResearchTower(towerType: TowerType): boolean {
+    if (this.isResearching(`unlock_${towerType}`)) return false;
     return this.canPurchaseUnlock(`unlock_${towerType}`);
   }
 
@@ -333,6 +320,109 @@ export class Player implements IPlayer {
     if (!this.hasResearched(towerType)) return false;
     this.gold -= this.getConstructionCost(towerType);
     return true;
+  }
+
+  // ── Timer-based research ───────────────────────────────────────────
+
+  startTowerResearch(towerType: TowerType, gameTimeMs: number, durationMs: number): boolean {
+    const nodeId = `unlock_${towerType}`;
+    if (this.hasUnlocked(nodeId)) return false;
+    if (this._researchTimers.has(nodeId)) return false;
+    if (this.gold < this.getUnlockCost(nodeId)) return false;
+    this.gold -= this.getUnlockCost(nodeId);
+    this._researchTimers.set(nodeId, { startedAtMs: gameTimeMs, durationMs });
+    return true;
+  }
+
+  isResearching(nodeId: string): boolean {
+    return this._researchTimers.has(nodeId);
+  }
+
+  getResearchProgress(nodeId: string, gameTimeMs: number): number {
+    const timer = this._researchTimers.get(nodeId);
+    if (!timer) return this.hasUnlocked(nodeId) ? 1 : -1;
+    return Math.min(1, (gameTimeMs - timer.startedAtMs) / timer.durationMs);
+  }
+
+  getResearchRemainingMs(nodeId: string, gameTimeMs: number): number {
+    const timer = this._researchTimers.get(nodeId);
+    if (!timer) return 0;
+    return Math.max(0, timer.startedAtMs + timer.durationMs - gameTimeMs);
+  }
+
+  startPathResearch(pathId: string, gameTimeMs: number, durationMs: number): boolean {
+    if (this._researchTimers.has(pathId)) return false;
+    if (!this.canPurchasePath(pathId)) return false;
+    const cost = this.getPathCost(pathId);
+    this.gold -= (getDebugEverythingCheap() ? 1 : cost);
+    this._researchTimers.set(pathId, { startedAtMs: gameTimeMs, durationMs });
+    return true;
+  }
+
+  startUnlockResearch(nodeId: string, gameTimeMs: number, durationMs: number): boolean {
+    if (this.hasUnlocked(nodeId)) return false;
+    if (this._researchTimers.has(nodeId)) return false;
+    if (!this.canPurchaseUnlock(nodeId)) return false;
+    this.gold -= this.getUnlockCost(nodeId);
+    this._researchTimers.set(nodeId, { startedAtMs: gameTimeMs, durationMs });
+    return true;
+  }
+
+  tickResearch(gameTimeMs: number): string[] {
+    const completed: string[] = [];
+    for (const [nodeId, timer] of this._researchTimers) {
+      if (gameTimeMs - timer.startedAtMs >= timer.durationMs) {
+        if (ResearchRegistry.findPath(nodeId)) {
+          const currentLevel = this._purchased.get(nodeId) ?? 0;
+          this._purchased.set(nodeId, currentLevel + 1);
+        } else {
+          this._purchased.set(nodeId, 1);
+        }
+        this._researchTimers.delete(nodeId);
+        completed.push(nodeId);
+      }
+    }
+    return completed;
+  }
+
+  // ── Timer-based particle upgrades ─────────────────────────────────
+
+  startUpgrade(type: UpgradeType, gameTimeMs: number, durationMs: number): boolean {
+    if (this._pendingUpgrades.has(type)) return false;
+    if (this.isUpgradeAtMax(type)) return false;
+    const cost = this.getUpgradeCost(type);
+    if (this.gold < cost) return false;
+    this.gold -= cost;
+    this._pendingUpgrades.set(type, { startedAtMs: gameTimeMs, durationMs });
+    return true;
+  }
+
+  isUpgradePending(type: UpgradeType): boolean {
+    return this._pendingUpgrades.has(type);
+  }
+
+  getUpgradeProgress(type: UpgradeType, gameTimeMs: number): number {
+    const timer = this._pendingUpgrades.get(type);
+    if (!timer) return -1;
+    return Math.min(1, (gameTimeMs - timer.startedAtMs) / timer.durationMs);
+  }
+
+  getUpgradeRemainingMs(type: UpgradeType, gameTimeMs: number): number {
+    const timer = this._pendingUpgrades.get(type);
+    if (!timer) return 0;
+    return Math.max(0, timer.startedAtMs + timer.durationMs - gameTimeMs);
+  }
+
+  tickUpgrades(gameTimeMs: number): UpgradeType[] {
+    const completed: UpgradeType[] = [];
+    for (const [type, timer] of this._pendingUpgrades) {
+      if (gameTimeMs - timer.startedAtMs >= timer.durationMs) {
+        this.upgradeLevels[type]++;
+        this._pendingUpgrades.delete(type);
+        completed.push(type);
+      }
+    }
+    return completed;
   }
 }
 

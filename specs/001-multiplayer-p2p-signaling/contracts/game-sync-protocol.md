@@ -108,7 +108,7 @@ Host validates cooldown and availability before applying.
 { "type": "tower_research", "towerType": "laser" }
 ```
 
-`towerType`: `"laser"` | `"slow"`.
+`towerType`: `"laser"` | `"weakness"`.
 
 #### Tower — Build (spawn carrier)
 
